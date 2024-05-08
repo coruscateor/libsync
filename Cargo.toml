@@ -1,0 +1,26 @@
+[package]
+name = "libsync"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "A library containing channels and other synchronisation object implementations."
+repository = "https://github.com/coruscateor/libsync"
+homepage = "https://coruscateor.com/projects/libsync"
+keywords = ["synchronisation", "synchronization", "async", "channel", "channels"]
+categories = ["asynchronous"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+crossbeam = { version = "0.8.*", optional = true }
+tokio = { version = "1.*", features = ["sync", "time"], optional = true } #, "macros" "rt", "rt-multi-thread", 
+delegate = "0.*"
+futures = "0.3.*"
+
+#parking_lot = "0.12.*"
+
+[features]
+std = []
+count_waiting_senders_and_receivers = []
+#crossbeam = ["dep:crossbeam"]
+#tokio = ["dep:tokio"]
