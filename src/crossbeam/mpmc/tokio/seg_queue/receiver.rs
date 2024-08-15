@@ -1,14 +1,14 @@
 use std::{sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Weak}, thread::{sleep, sleep_ms, Thread}, time::Duration};
 
-use crossbeam::queue::ArrayQueue;
+use crossbeam::queue::SegQueue;
 
 //use futures::executor::block_on;
 
 use tokio::{sync::Notify, time::timeout};
 
-use crate::{BoundedSharedDetails, ReceiveError, ReceiveResult, TimeoutReceiveError};
+use crate::{BoundedSharedDetails, ReceiveError, ReceiveResult, SharedDetails, TimeoutReceiveError};
 
-use crate::crossbeam::mpmc::array_queue::{Sender, Receiver as BaseReceiver};
+use crate::crossbeam::mpmc::seg_queue::{Sender, Receiver as BaseReceiver};
 
 //use crate::crossbeam::mpmc::array_queue::
 
@@ -16,7 +16,7 @@ use delegate::delegate;
 
 use std::clone::Clone;
 
-#[derive(Clone)]
+//#[derive(Clone)]
 pub struct Receiver<T>
 {
 
@@ -29,7 +29,7 @@ pub struct Receiver<T>
 impl<T> Receiver<T>
 {
 
-    pub fn new(shared_details: Arc<BoundedSharedDetails<ArrayQueue<T>, Notify>>, sender_count: Weak<()>, receiver_count: Arc<()>,) -> Self
+    pub fn new(shared_details: Arc<SharedDetails<SegQueue<T>, Notify>>, sender_count: Weak<()>, receiver_count: Arc<()>,) -> Self
     {
 
         Self
@@ -51,17 +51,17 @@ impl<T> Receiver<T>
 
             //pub fn notifier(&self) -> &Notify;
 
-            pub fn capacity(&self) -> usize;
+            //pub fn capacity(&self) -> usize;
         
             pub fn is_empty(&self) -> bool;
         
-            pub fn is_full(&self) -> bool;
+            //pub fn is_full(&self) -> bool;
         
             pub fn len(&self) -> usize;
         
-            pub fn len_capacity(&self) -> (usize, usize);
+            //pub fn len_capacity(&self) -> (usize, usize);
         
-            pub fn remaining_capacity(&self) -> usize;
+            //pub fn remaining_capacity(&self) -> usize;
 
         }
 
@@ -73,13 +73,6 @@ impl<T> Receiver<T>
     {
 
         let res = self.base.try_recv();
-
-        if res.is_ok()
-        {
-
-            self.base.senders_notifier().notify_one();
-
-        }
 
         res
 
@@ -99,7 +92,7 @@ impl<T> Receiver<T>
                 Ok(val) =>
                 {
 
-                    self.base.senders_notifier().notify_one();
+                    //self.base.senders_notifier().notify_one();
 
                     return Ok(val);
 
@@ -142,7 +135,7 @@ impl<T> Receiver<T>
             Ok(val) =>
             {
 
-                self.base.senders_notifier().notify_one();
+                //self.base.senders_notifier().notify_one();
 
                 return Ok(val);
 
@@ -249,12 +242,14 @@ impl<T> Drop for Receiver<T>
     fn drop(&mut self)
     {
 
+        /*
         if self.base.sender_strong_count() == 1
         {
 
             self.base.senders_notifier().notify_waiters();
 
         }
+        */
     
     }
 

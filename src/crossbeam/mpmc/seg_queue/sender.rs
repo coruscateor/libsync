@@ -2,7 +2,7 @@ use std::sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Weak};
 
 use crossbeam::queue::SegQueue;
 
-use crate::{SendResult, SenderTrait, SharedDetails, ScopedIncrementer};
+use crate::{SendResult, SharedDetails, ScopedIncrementer};
 
 use delegate::delegate;
 
@@ -14,14 +14,14 @@ pub struct Sender<T, N = ()>
     //shared_details: Arc<(SegQueue<T>, AtomicUsize, N)>,
     shared_details: Arc<SharedDetails<SegQueue<T>, N>>,
     sender_count: Arc<()>,
+    receiver_count: Weak<()>
 
 }
 
 impl<T, N> Sender<T, N>
 {
 
-    //pub fn new(shared_details: &Arc<(SegQueue<T>, AtomicUsize, N)>, sender_count: &Arc<()>) -> Self //, reciver_count: &Weak<()>
-    pub fn new(shared_details: &Arc<SharedDetails<SegQueue<T>, N>>, sender_count: &Arc<()>) -> Self
+    pub fn new(shared_details: &Arc<SharedDetails<SegQueue<T>, N>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self
     {
 
         Self
@@ -29,33 +29,31 @@ impl<T, N> Sender<T, N>
 
             shared_details: shared_details.clone(),
             sender_count: sender_count.clone(),
+            receiver_count: Arc::downgrade(receiver_count)
 
         }
 
     }
 
-    /*
-    pub fn notifier(&self) -> &N
+    pub fn send(&self, value: T) -> SendResult<T>
     {
 
-        &self.shared_details.2
+        //Is being dropped?
+
+        //let active_receiver_count = self.shared_details.current_active_receiver_count();
+
+        if self.receiver_count.strong_count() > 0 //active_receiver_count > 0
+        {
+
+            self.shared_details.queue().push(value);
+
+            return Ok(());
+
+        }
+
+        Err(value)
 
     }
-
-    pub fn is_empty(&self) -> bool
-    {
-
-        self.shared_details.0.is_empty()
-
-    }
-
-    pub fn len(&self) -> usize
-    {
-
-        self.shared_details.0.len()
-
-    }
-    */
     
     delegate!
     {
@@ -71,10 +69,10 @@ impl<T, N> Sender<T, N>
         
             //pub fn receivers_notifier_count(&self) -> &AtomicUsize;
 
-            pub fn current_active_receiver_count(&self) -> usize;
+            //pub fn current_active_receiver_count(&self) -> usize;
 
             #[cfg(feature="count_waiting_senders_and_receivers")]
-            pub fn temp_inc_receivers_awiting_notification_count<'a>(&'a self) -> ScopedIncrementer<'a>;
+            pub fn temp_inc_receivers_awaiting_notification_count<'a>(&'a self) -> ScopedIncrementer<'a>;
 
             //#[cfg(feature="count_waiting_senders_and_receivers")]
             //pub fn temp_inc_senders_awiting_notification_count<'a>(&'a self) -> ScopedIncrementer<'a>;
@@ -101,39 +99,33 @@ impl<T, N> Sender<T, N>
 
     }
 
-}
-
-impl<T, N> SenderTrait<T> for Sender<T, N>
-{
-
-    fn send(&self, value: T) -> SendResult<T>
+    pub fn sender_strong_count(&self) -> usize
     {
 
-        //Is being dropped?
+        Arc::strong_count(&self.sender_count)
 
-        let active_receiver_count = self.shared_details.current_active_receiver_count(); //.1.load(Ordering::Acquire);
+    }
 
-        if active_receiver_count > 0
+    pub fn sender_weak_count(&self) -> usize
+    {
+
+        Arc::weak_count(&self.sender_count)
+        
+    }
+
+    delegate!
+    {
+
+        to self.receiver_count
         {
 
-            self.shared_details.queue().push(value); //.0.push(value);
+            #[call(strong_count)]
+            pub fn receiver_strong_count(&self) -> usize;
 
-            //let res = 
-
-            /*
-            if let Err(val) = res
-            {
-
-                return Err(SendError::Full(val));
-
-            }
-            */
-
-            return Ok(());
+            #[call(weak_count)]
+            pub fn receiver_weak_count(&self) -> usize;
 
         }
-
-        Err(value)
 
     }
 
@@ -150,6 +142,7 @@ impl<T, N> Clone for Sender<T, N>
             
             shared_details: self.shared_details.clone(),
             sender_count: self.sender_count.clone(),
+            receiver_count: self.receiver_count.clone()
         
         }
 
@@ -157,35 +150,3 @@ impl<T, N> Clone for Sender<T, N>
 
 }
 
-//If all the senders drop then all the receivers should be able to receive the messages in the buffer.
-
-/*
-impl<T, N> Drop for Sender<T, N>
-{
-
-    fn drop(&mut self)
-    {
-
-        //SegQueue does apparently drop all of its used slots when it's being dropped, however this is a case of "sooner is better than later".   
-
-        if Arc::strong_count(&self.sender_count) == 1
-        {
-
-            loop 
-            {
-    
-                if let None = self.shared_details.queue().pop() //.0.pop()
-                {
-    
-                    break;
-    
-                }
-    
-            }
-
-        }
-
-    }
-
-}
-*/

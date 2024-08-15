@@ -1,12 +1,12 @@
 use std::{sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Weak}, time::Duration};
 
-use crossbeam::queue::ArrayQueue;
+use crossbeam::queue::SegQueue;
 
 use tokio::sync::Notify;
 
-use crate::{BoundedSendError, BoundedSendResult, BoundedSharedDetails, SendResult, TimeoutBoundedSendError};
+use crate::{BoundedSendError, BoundedSendResult, BoundedSharedDetails, SendResult, SharedDetails, TimeoutBoundedSendError};
 
-use crate::crossbeam::mpmc::array_queue::{Sender as BaseSender, Receiver};
+use crate::crossbeam::mpmc::seg_queue::{Sender as BaseSender, Receiver};
 
 use delegate::delegate;
 
@@ -16,7 +16,7 @@ use tokio::time::timeout;
 
 //use futures::executor::block_on;
 
-//https://docs.rs/crossbeam/0.8.4/crossbeam/queue/struct.ArrayQueue.html
+//https://docs.rs/crossbeam/0.8.4/crossbeam/queue/struct.SegQueue.html
 
 //https://docs.rs/tokio/1.37.0/tokio/sync/struct.Notify.html
 
@@ -37,7 +37,7 @@ pub struct Sender<T>
 impl<T> Sender<T>
 {
 
-    pub fn new(shared_details: &Arc<BoundedSharedDetails<ArrayQueue<T>, Notify>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self
+    pub fn new(shared_details: &Arc<SharedDetails<SegQueue<T>, Notify>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self
     {
 
         Self
@@ -55,17 +55,17 @@ impl<T> Sender<T>
         to self.base
         {
 
-            pub fn capacity(&self) -> usize;
+            //pub fn capacity(&self) -> usize;
         
             pub fn is_empty(&self) -> bool;
         
-            pub fn is_full(&self) -> bool;
+            //pub fn is_full(&self) -> bool;
         
             pub fn len(&self) -> usize;
         
-            pub fn len_capacity(&self) -> (usize, usize);
+            //pub fn len_capacity(&self) -> (usize, usize);
         
-            pub fn remaining_capacity(&self) -> usize;
+            //pub fn remaining_capacity(&self) -> usize;
 
         }
 
@@ -76,10 +76,10 @@ impl<T> Sender<T>
     ///
     /// Attempts to send a value, calls notify_one on the notifier if this was successful.
     /// 
-    pub fn try_send(&self, value: T) -> Result<(), BoundedSendError<T>>
+    pub fn send(&self, value: T) -> SendResult<T> //Result<(), SendError<T>>
     {
 
-        let res = self.base.try_send(value);
+        let res = self.base.send(value);
         
         if res.is_ok()
         {
@@ -94,7 +94,13 @@ impl<T> Sender<T>
 
     ///
     /// Attempts to send a value, waiting until signalled if the queue is full. Returns BoundedSendError<T>::NoReceiver if there are no receivers on the other end.
-    /// 
+    ///
+    pub fn empty()
+    {
+
+    }
+
+    /*
     pub async fn send(&self, value: T) -> Result<(), BoundedSendError<T>>
     {
 
@@ -109,7 +115,7 @@ impl<T> Sender<T>
                 Ok(_val) =>
                 {
 
-                    self.base.receivers_notifier().notify_one();
+                    //self.base.receivers_notifier().notify_one();
 
                     return Ok(());
 
@@ -148,9 +154,11 @@ impl<T> Sender<T>
         }
 
     }
+    */
 
     //Timeouts
 
+    /*
     pub async fn send_or_timeout(&self, value: T, timeout_time: Duration) -> Result<(), TimeoutBoundedSendError<T>>
     {
 
@@ -240,6 +248,7 @@ impl<T> Sender<T>
         }
 
     }
+    */
 
     //Blocking
 

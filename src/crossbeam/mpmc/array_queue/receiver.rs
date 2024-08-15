@@ -2,7 +2,7 @@ use std::{sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Weak}, thread
 
 use crossbeam::queue::ArrayQueue;
 
-use crate::{ReceiveError, ReceiveResult, ReceiverTrait, BoundedSharedDetails, ScopedIncrementer};
+use crate::{ReceiveError, ReceiveResult, BoundedSharedDetails, ScopedIncrementer};
 
 use delegate::delegate;
 
@@ -20,91 +20,61 @@ pub struct Receiver<T, N = ()>
     //queue: Arc<ArrayQueue<T>>,
     //shared_details: Arc<(ArrayQueue<T>, AtomicUsize, N, AtomicUsize, N, AtomicUsize)>,
     shared_details: Arc<BoundedSharedDetails<ArrayQueue<T>, N>>,
-    //reciver_count: Arc<()>,
-    sender_count: Weak<()>
+    sender_count: Weak<()>,
+    receiver_count: Arc<()>
 
 }
 
 impl<T, N> Receiver<T, N>
 {
 
-    //pub fn new(shared_details: &Arc<(ArrayQueue<T>, AtomicUsize, N, AtomicUsize, N, AtomicUsize)>, sender_count: &Arc<()>) -> Self //reciver_count: &Arc<()>,
-    pub fn new(shared_details: &Arc<BoundedSharedDetails<ArrayQueue<T>, N>>, sender_count: &Arc<()>) -> Self
+    pub fn new(shared_details: Arc<BoundedSharedDetails<ArrayQueue<T>, N>>, sender_count: Weak<()>, receiver_count: Arc<()>) -> Self
     {
 
         //Increment the active receiver counter.
 
-        //shared_details.1.fetch_add(1, Ordering::SeqCst);
-
-        shared_details.inc_active_receiver_count();
+        //shared_details.inc_active_receiver_count();
 
         Self
         {
 
-            //queue: queue.clone(),
             shared_details: shared_details.clone(),
-            //reciver_count: reciver_count.clone(),
-            sender_count: Arc::downgrade(&sender_count)
+            sender_count, //: Arc::downgrade(&sender_count)
+            receiver_count
 
         }
 
     }
 
+    ///
+    /// Try to receive a value immediately.
+    /// 
+    pub fn try_recv(&self) -> ReceiveResult<T>
+    {
+
+        if let Some(res) = self.shared_details.queue().pop()
+        {
+
+            return Ok(res);
+
+        }
+
+        if self.sender_count.strong_count() == 0
+        {
+
+            return Err(ReceiveError::NoSenders);
+
+        }
+
+        Err(ReceiveError::Empty)
+
+    }
+
     /*
-    pub fn senders_notifier(&self) -> &N
+    pub fn recv(&self) -> Option<T>
     {
 
-        //&self.shared_details.2
-
-        self.shared_details.senders_notifier()
-
-    }
-    pub fn senders_notifier_count(&self) -> &AtomicUsize
-    {
-
-        &self.shared_details.3
-
-    }
-
-    pub fn receivers_notifier(&self) -> &N
-    {
-
-        &self.shared_details.4
-
-    }
-
-    pub fn receivers_notifier_count(&self) -> &AtomicUsize
-    {
-
-        &self.shared_details.5
-
-    }
-
-    pub fn capacity(&self) -> usize
-    {
-
-        self.shared_details.0.capacity()
-
-    }
-
-    pub fn is_empty(&self) -> bool
-    {
-
-        self.shared_details.0.is_empty()
-
-    }
-
-    pub fn is_full(&self) -> bool
-    {
-
-        self.shared_details.0.is_full()
-
-    }
-
-    pub fn len(&self) -> usize
-    {
-
-        self.shared_details.0.len()
+        self.shared_details.queue().pop()
 
     }
     */
@@ -123,13 +93,13 @@ impl<T, N> Receiver<T, N>
         
             //pub fn receivers_notifier_count(&self) -> &AtomicUsize;
 
-            pub fn current_active_receiver_count(&self) -> usize;
+            //pub fn current_active_receiver_count(&self) -> usize;
 
             #[cfg(feature="count_waiting_senders_and_receivers")]
-            pub fn temp_inc_receivers_awiting_notification_count<'a>(&'a self) -> ScopedIncrementer<'a>;
+            pub fn temp_inc_receivers_awaiting_notification_count<'a>(&'a self) -> ScopedIncrementer<'a>;
 
             #[cfg(feature="count_waiting_senders_and_receivers")]
-            pub fn temp_inc_senders_awiting_notification_count<'a>(&'a self) -> ScopedIncrementer<'a>;
+            pub fn temp_inc_senders_awaiting_notification_count<'a>(&'a self) -> ScopedIncrementer<'a>;
 
         }
 
@@ -153,6 +123,54 @@ impl<T, N> Receiver<T, N>
 
     }
 
+    delegate!
+    {
+
+        to self.sender_count
+        {
+
+            #[call(strong_count)]
+            pub fn sender_strong_count(&self) -> usize;
+
+            #[call(weak_count)]
+            pub fn sender_weak_count(&self) -> usize;
+
+        }
+
+    }
+
+    pub fn receiver_strong_count(&self) -> usize
+    {
+
+        Arc::strong_count(&self.receiver_count)
+
+    }
+
+    pub fn receiver_weak_count(&self) -> usize
+    {
+
+        Arc::weak_count(&self.receiver_count)
+        
+    }
+
+    /*
+    delegate!
+    {
+
+        to self.receiver_count
+        {
+
+            #[call(strong_count)]
+            pub fn receiver_strong_count(&self) -> usize;
+
+            #[call(weak_count)]
+            pub fn receiver_weak_count(&self) -> usize;
+
+        }
+
+    }
+    */
+
     pub fn len_capacity(&self) -> (usize, usize)
     {
 
@@ -164,93 +182,6 @@ impl<T, N> Receiver<T, N>
     {
 
         self.capacity() - self.len()
-
-    }
-
-    //
-
-    /*
-    pub fn current_senders_notifier_count(&self) -> usize
-    {
-
-        self.shared_details.3.load(Ordering::Acquire)
-
-    }
-
-    pub fn current_receivers_notifier_count(&self) -> usize
-    {
-
-        self.shared_details.5.load(Ordering::Acquire)
-
-    }
-
-    //
-
-    pub fn inc_senders_notifier_count(&self) -> usize
-    {
-
-        self.shared_details.3.fetch_add(1, Ordering::SeqCst)
-
-    }
-
-    pub fn dec_senders_notifier_count(&self) -> usize
-    {
-
-        self.shared_details.3.fetch_sub(1, Ordering::SeqCst)
-
-    }
-
-    pub fn inc_receivers_notifier_count(&self) -> usize
-    {
-
-        self.shared_details.5.fetch_add(1, Ordering::SeqCst)
-
-    }
-
-    pub fn dec_receivers_notifier_count(&self) -> usize
-    {
-
-        self.shared_details.5.fetch_sub(1, Ordering::SeqCst)
-
-    }
-    */
-
-
-    /*
-    pub fn not_clone(&self) -> Self
-    {
-
-        self.clone()
-
-    }
-    */
-
-}
-
-impl<T, N> ReceiverTrait<T> for Receiver<T, N>
-{
-
-    ///
-    /// Try to receive a value immediately.
-    /// 
-    fn recv(&self) -> ReceiveResult<T>
-    {
-
-        if let Some(res) = self.shared_details.queue().pop() //.0.pop()
-        {
-
-            return Ok(res);
-
-        }
-
-        if self.sender_count.strong_count() == 0
-        {
-
-            return Err(ReceiveError::NoSenders);
-
-        }
-
-        Err(ReceiveError::Empty)
 
     }
 
@@ -266,13 +197,13 @@ impl<T, N> Clone for Receiver<T, N>
 
         //self.shared_details.1.fetch_add(1, Ordering::SeqCst);
 
-        self.shared_details.inc_active_receiver_count();
+        //self.shared_details.inc_active_receiver_count();
 
         Self
         { 
             
             shared_details: self.shared_details.clone(),
-            //reciver_count: self.reciver_count.clone(),
+            receiver_count: self.receiver_count.clone(),
             sender_count: self.sender_count.clone()
         
         }
@@ -320,12 +251,15 @@ impl<T, N> Drop for Receiver<T, N>
 
         //let sc = Arc::strong_count(&self.reciver_count);
 
-        let remaining_receivers_plus_one = self.shared_details.dec_active_receiver_count(); //self.shared_details.1.fetch_sub(1, Ordering::SeqCst);
+        //let _remaining_receivers_plus_one = self.shared_details.dec_active_receiver_count(); //self.shared_details.1.fetch_sub(1, Ordering::SeqCst);
         
+        //self.shared_details.senders_notifier().
+
         //let actual_remaining_receivers = remaining_receivers - 1;
 
         //actual_
 
+        /*
         if remaining_receivers_plus_one == 1 //sc == 1
         {
 
@@ -351,6 +285,7 @@ impl<T, N> Drop for Receiver<T, N>
 
             //Is this necessary?
 
+            /*
             sleep(Duration::from_millis(250));
 
             loop 
@@ -364,8 +299,10 @@ impl<T, N> Drop for Receiver<T, N>
                 }
     
             }
+            */
 
         }
+        */
         
     }
 

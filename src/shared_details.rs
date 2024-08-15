@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{atomic::{AtomicUsize, Ordering}, Arc, Weak};
 
 #[cfg(feature="count_waiting_senders_and_receivers")]
 use crate::ScopedIncrementer;
@@ -7,7 +7,9 @@ pub struct SharedDetails<Q, N = ()>
 {
 
     queue: Q,
-    active_receiver_count: AtomicUsize,
+    //sender_count: Weak<()>,
+    //receiver_count: Weak<()>,
+    //active_receiver_count: AtomicUsize,
     receivers_notifier: N,
     #[cfg(feature="count_waiting_senders_and_receivers")]
     receivers_awiting_notification_count: AtomicUsize
@@ -17,14 +19,16 @@ pub struct SharedDetails<Q, N = ()>
 impl<Q, N> SharedDetails<Q, N>
 {
 
-    pub fn new(queue: Q, receivers_notifier: N) -> Self
+    pub fn new(queue: Q, receivers_notifier: N) -> Self //, sender_count: &Arc<()>, receiver_count: &Arc<()>) -> Self
     {
 
         Self
         {
 
             queue,
-            active_receiver_count: AtomicUsize::new(0),
+            //sender_count: Arc::downgrade(sender_count),
+            //receiver_count: Arc::downgrade(receiver_count),
+            //active_receiver_count: AtomicUsize::new(0),
             receivers_notifier,
             #[cfg(feature="count_waiting_senders_and_receivers")]
             receivers_awiting_notification_count: AtomicUsize::new(0)
@@ -42,6 +46,7 @@ impl<Q, N> SharedDetails<Q, N>
 
     //active_receiver_count
 
+    /*
     pub fn inc_active_receiver_count(&self) -> usize
     {
 
@@ -62,6 +67,7 @@ impl<Q, N> SharedDetails<Q, N>
         self.active_receiver_count.load(Ordering::Acquire)
 
     }
+    */
 
     //
 
@@ -73,12 +79,11 @@ impl<Q, N> SharedDetails<Q, N>
     }
 
     #[cfg(feature="count_waiting_senders_and_receivers")]
-    pub fn temp_inc_receivers_awiting_notification_count<'a>(&'a self) -> ScopedIncrementer<'a>
+    pub fn temp_inc_receivers_awaiting_notification_count<'a>(&'a self) -> ScopedIncrementer<'a>
     {
 
         ScopedIncrementer::new(&self.receivers_awiting_notification_count) 
 
     }
-
 
 }

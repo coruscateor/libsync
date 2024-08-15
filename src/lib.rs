@@ -9,10 +9,6 @@ mod results;
 
 pub use results::*;
 
-mod traits;
-
-pub use traits::*;
-
 mod shared_details;
 
 pub use shared_details::*;
