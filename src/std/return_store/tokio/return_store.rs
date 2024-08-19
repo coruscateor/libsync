@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+//use rand::rngs::ThreadRng;
+
 use tokio::sync::Notify;
 
 //use super::ReturnStoreState; //, BaseReturnStore, BaseReturner};
@@ -30,6 +32,20 @@ impl<T> ReturnStore<T>
 
     }
 
+    /*
+    pub fn with_thread_rng(rng: &ThreadRng) -> Self
+    {
+
+        Self
+        {
+
+            base_state: BaseReturnStore::with_thread_rng(Notify::new(), rng)
+
+        }
+
+    }
+    */
+
     pub fn new_returner(&mut self) -> Returner<T>
     {
 
@@ -51,7 +67,11 @@ impl<T> ReturnStore<T>
         to self.base_state
         {
 
-            pub fn is_done(&self) -> bool;
+            pub fn state_is_done(&self) -> bool;
+
+            pub fn state_is_invalid(&self) -> bool;
+
+            pub fn state_is_active(&self) -> bool;
 
             pub fn try_get(&self) -> Option<T>;
 
@@ -62,6 +82,29 @@ impl<T> ReturnStore<T>
     pub async fn get(&self) -> Option<T>
     {
 
+        //Loop because the Notifiy object might already have a ticket
+
+        loop
+        {
+
+            let (should_wait, item) = self.base_state.try_get_or_should_wait();
+
+            if should_wait
+            {
+    
+                self.base_state.notifier().notified().await;
+    
+            }
+            else
+            {
+    
+                return item;
+                
+            }
+            
+        }
+
+        /*
         if let Some(res) = self.base_state.try_get()
         {
 
@@ -72,6 +115,7 @@ impl<T> ReturnStore<T>
         self.base_state.notifier().notified().await;
 
         self.base_state.try_get()
+        */
 
     }
 
@@ -113,13 +157,39 @@ impl<T> Returns<T, Notify> for Returner<T>
 
     }
 
+    //Call notify_waiters to avoid storing permits. - Bad...
+
     fn done(mut self, to_return: T)
     {
 
         self.base_state.set_done(to_return);
 
-        self.base_state.notifier().notify_one();
+        //self.base_state.notifier().notify_waiters();
         
+        self.base_state.notifier().notify_one();
+
+    }
+
+    fn opt_done(mut self, to_return: Option<T>)
+    {
+
+        self.base_state.set_opt_done(to_return);
+
+        //self.base_state.notifier().notify_waiters();
+
+        self.base_state.notifier().notify_one();
+
+    }
+
+    fn done_none(mut self)
+    {
+
+        self.base_state.set_done_none();
+
+        //self.base_state.notifier().notify_waiters();
+        
+        self.base_state.notifier().notify_one();
+
     }
 
 }
@@ -136,6 +206,8 @@ impl<T> Drop for Returner<T>
         {
 
             self.base_state.notifier().notify_one();
+            
+            //self.base_state.notifier().notify_waiters();
 
         }
         

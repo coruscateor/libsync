@@ -8,7 +8,6 @@ use tokio::sync::Notify;
 
 use super::{Sender, Receiver};
 
-
 pub fn channel<T>(size: usize) -> (Sender<T>, Receiver<T>)
 {
 

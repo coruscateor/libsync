@@ -122,6 +122,13 @@ impl<T> Sender<T>
 
                         {
 
+                            if self.base.senders_do_not_wait()
+                            {
+
+                                return Err(BoundedSendError::NoReceivers(val));
+
+                            }
+
                             #[cfg(feature="count_waiting_senders_and_receivers")]
                             let _sc_inc = self.base.temp_inc_senders_awaiting_notification_count();
 
@@ -131,7 +138,7 @@ impl<T> Sender<T>
 
                         //Try sending again
 
-                        send_res = self.try_send(val);
+                        send_res = self.base.try_send(val);
 
                     }
                     else
@@ -178,6 +185,13 @@ impl<T> Sender<T>
 
                         {
 
+                            if self.base.senders_do_not_wait()
+                            {
+
+                                return Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::NoReceivers(val)));
+
+                            }
+
                             #[cfg(feature="count_waiting_senders_and_receivers")]
                             let _sc_inc = self.base.temp_inc_senders_awaiting_notification_count();
 
@@ -195,7 +209,7 @@ impl<T> Sender<T>
 
                                 //Try sending again if the task has not been timed out.
 
-                                let res = self.try_send(val);
+                                let res = self.base.try_send(val);
 
                                 match res
                                 {
@@ -269,6 +283,19 @@ impl<T> Drop for Sender<T>
 
         if self.base.receiver_strong_count() == 1
         {
+
+            self.base.receivers_do_not_wait_t();
+
+            let mut len = self.base.len();
+
+            while len > 0
+            {
+
+                self.base.receivers_notifier().notify_one();
+
+                len -= 1;    
+                
+            }
 
             self.base.receivers_notifier().notify_waiters();
 

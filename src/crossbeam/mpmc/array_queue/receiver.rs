@@ -95,6 +95,14 @@ impl<T, N> Receiver<T, N>
 
             //pub fn current_active_receiver_count(&self) -> usize;
 
+            pub fn senders_do_not_wait(&self) -> bool;
+    
+            pub fn senders_do_not_wait_t(&self);
+
+            pub fn receivers_do_not_wait(&self) -> bool;
+
+            //pub fn receivers_do_not_wait_t(&self);
+
             #[cfg(feature="count_waiting_senders_and_receivers")]
             pub fn temp_inc_receivers_awaiting_notification_count<'a>(&'a self) -> ScopedIncrementer<'a>;
 

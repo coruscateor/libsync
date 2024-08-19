@@ -103,6 +103,13 @@ impl<T> Receiver<T>
                     if let ReceiveError::Empty = err
                     {
 
+                        if self.base.receivers_do_not_wait()
+                        {
+
+                            return Err(ReceiveError::NoSenders);
+
+                        }    
+
                         #[cfg(feature="count_waiting_senders_and_receivers")]
                         let _sc_inc = self.base.temp_inc_receivers_awaiting_notification_count();
 
@@ -152,6 +159,13 @@ impl<T> Receiver<T>
                         let res;
 
                         {
+
+                            if self.base.receivers_do_not_wait()
+                            {
+    
+                                return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::NoSenders));
+    
+                            }    
 
                             #[cfg(feature="count_waiting_senders_and_receivers")]
                             let _sc_inc = self.base.temp_inc_receivers_awaiting_notification_count();
@@ -236,6 +250,7 @@ impl<T> Receiver<T>
 
 }
 
+/*
 impl<T> Drop for Receiver<T>
 {
 
@@ -254,7 +269,7 @@ impl<T> Drop for Receiver<T>
     }
 
 }
-
+*/
 
 
 

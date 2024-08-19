@@ -81,6 +81,14 @@ impl<T, N> Sender<T, N>
             //pub fn senders_notifier_count(&self) -> &AtomicUsize;
 
             pub fn receivers_notifier(&self) -> &N;
+
+            pub fn receivers_do_not_wait(&self) -> bool;
+
+            pub fn receivers_do_not_wait_t(&self);
+
+            pub fn senders_do_not_wait(&self) -> bool;
+    
+            //pub fn senders_do_not_wait_t(&self);
         
             //pub fn receivers_notifier_count(&self) -> &AtomicUsize;
 

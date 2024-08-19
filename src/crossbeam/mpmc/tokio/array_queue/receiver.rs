@@ -91,7 +91,7 @@ impl<T> Receiver<T>
         loop
         {
 
-            let pop_res = self.try_recv();
+            let pop_res = self.base.try_recv();
 
             match pop_res
             {
@@ -109,6 +109,13 @@ impl<T> Receiver<T>
 
                     if let ReceiveError::Empty = err
                     {
+                        
+                        if self.base.receivers_do_not_wait()
+                        {
+
+                            return Err(ReceiveError::NoSenders);
+
+                        }
 
                         #[cfg(feature="count_waiting_senders_and_receivers")]
                         let _sc_inc = self.base.temp_inc_receivers_awaiting_notification_count();
@@ -134,7 +141,7 @@ impl<T> Receiver<T>
     pub async fn recv_or_timeout(&self, timeout_time: Duration) -> Result<T, TimeoutReceiveError>
     {
 
-        let recv_res = self.try_recv();
+        let recv_res = self.base.try_recv();
         
         match recv_res
         {
@@ -159,6 +166,13 @@ impl<T> Receiver<T>
                         let res;
 
                         {
+
+                            if self.base.receivers_do_not_wait()
+                            {
+
+                                return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::NoSenders));
+
+                            }
 
                             #[cfg(feature="count_waiting_senders_and_receivers")]
                             let _sc_inc = self.base.temp_inc_receivers_awaiting_notification_count();
@@ -251,6 +265,19 @@ impl<T> Drop for Receiver<T>
 
         if self.base.sender_strong_count() == 1
         {
+
+            self.base.senders_do_not_wait_t();
+
+            let mut len = self.base.len();
+
+            while len > 0
+            {
+
+                self.base.senders_notifier().notify_one();
+
+                len -= 1;    
+                
+            }
 
             self.base.senders_notifier().notify_waiters();
 

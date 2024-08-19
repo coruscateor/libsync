@@ -279,6 +279,19 @@ impl<T> Drop for Sender<T>
         if self.base.receiver_strong_count() == 1
         {
 
+            self.base.receivers_do_not_wait_t();
+
+            let mut len = self.base.len();
+
+            while len > 0
+            {
+
+                self.base.receivers_notifier().notify_one();
+
+                len -= 1;    
+                
+            }
+
             self.base.receivers_notifier().notify_waiters();
 
         }
