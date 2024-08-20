@@ -2,9 +2,9 @@ use std::{sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Weak}, time::
 
 use crossbeam::queue::SegQueue;
 
-use tokio::sync::Notify;
+use tokio::sync::{Notify, Semaphore};
 
-use crate::{BoundedSendError, BoundedSendResult, BoundedSharedDetails, SendResult, SharedDetails, TimeoutBoundedSendError};
+use crate::{crossbeam::mpmc::tokio::ChannelSemaphore, BoundedSendError, BoundedSendResult, BoundedSharedDetails, SendResult, SharedDetails, TimeoutBoundedSendError};
 
 use crate::crossbeam::mpmc::seg_queue::{Sender as BaseSender, Receiver};
 
@@ -26,7 +26,7 @@ use tokio::time::timeout;
 pub struct Sender<T>
 {
 
-    base: BaseSender<T, Notify>
+    base: BaseSender<T, ChannelSemaphore> //Notify>
 
 }
 
@@ -37,7 +37,7 @@ pub struct Sender<T>
 impl<T> Sender<T>
 {
 
-    pub fn new(shared_details: &Arc<SharedDetails<SegQueue<T>, Notify>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self
+    pub fn new(shared_details: &Arc<SharedDetails<SegQueue<T>, ChannelSemaphore>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self //Notify>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self
     {
 
         Self
@@ -69,9 +69,7 @@ impl<T> Sender<T>
 
         }
 
-    }
-
-    
+    } 
 
     ///
     /// Attempts to send a value, calls notify_one on the notifier if this was successful.
@@ -84,11 +82,24 @@ impl<T> Sender<T>
         if res.is_ok()
         {
 
+            self.base.receivers_notifier().try_add_permit();
+
+        }
+
+        res
+
+        /*
+        let res = self.base.send(value);
+        
+        if res.is_ok()
+        {
+
             self.base.receivers_notifier().notify_one();
 
         }
 
         res
+        */
 
     }
 
@@ -279,6 +290,9 @@ impl<T> Drop for Sender<T>
         if self.base.receiver_strong_count() == 1
         {
 
+            self.base.receivers_notifier().close();
+
+            /*
             self.base.receivers_do_not_wait_t();
 
             let mut len = self.base.len();
@@ -293,6 +307,7 @@ impl<T> Drop for Sender<T>
             }
 
             self.base.receivers_notifier().notify_waiters();
+            */
 
         }
     

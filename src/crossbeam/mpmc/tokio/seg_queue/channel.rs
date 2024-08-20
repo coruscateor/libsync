@@ -2,17 +2,16 @@ use std::sync::{atomic::AtomicUsize, Arc};
 
 use crossbeam::queue::SegQueue;
 
-use crate::{BoundedSharedDetails, SharedDetails};
+use crate::{crossbeam::mpmc::tokio::ChannelSemaphore, BoundedSharedDetails, SharedDetails};
 
 use tokio::sync::Notify;
 
 use super::{Sender, Receiver};
 
-
 pub fn channel<T>() -> (Sender<T>, Receiver<T>)
 {
 
-    let shared_details = Arc::new(SharedDetails::new(SegQueue::<T>::new(), Notify::new()));
+    let shared_details = Arc::new(SharedDetails::new(SegQueue::<T>::new(), ChannelSemaphore::new())); //Notify::new()));
 
     let sender_count = Arc::new(());
 

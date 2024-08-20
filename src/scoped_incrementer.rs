@@ -29,7 +29,7 @@ impl<'a> ScopedIncrementer<'a>
     pub fn current_value(&self) -> usize
     {
 
-        self.inc_dec_value.load(Ordering::Acquire)
+        self.inc_dec_value.load(Ordering::SeqCst) //Acquire)
 
     }
 

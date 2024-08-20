@@ -2,7 +2,7 @@ use std::{sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Weak}, time::
 
 use crossbeam::queue::ArrayQueue;
 
-use tokio::sync::Notify;
+use tokio::sync::{Notify, Semaphore};
 
 use crate::{BoundedSendError, BoundedSendResult, BoundedSharedDetails, SendResult, TimeoutBoundedSendError};
 
@@ -26,7 +26,7 @@ use tokio::time::timeout;
 pub struct Sender<T>
 {
 
-    base: BaseSender<T, Notify>
+    base: BaseSender<T, Semaphore> //Notify>
 
 }
 
@@ -37,7 +37,7 @@ pub struct Sender<T>
 impl<T> Sender<T>
 {
 
-    pub fn new(shared_details: &Arc<BoundedSharedDetails<ArrayQueue<T>, Notify>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self
+    pub fn new(shared_details: &Arc<BoundedSharedDetails<ArrayQueue<T>, Semaphore>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self //&Arc<BoundedSharedDetails<ArrayQueue<T>, Notify>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self
     {
 
         Self
@@ -76,9 +76,10 @@ impl<T> Sender<T>
     ///
     /// Attempts to send a value, calls notify_one on the notifier if this was successful.
     /// 
-    pub fn try_send(&self, value: T) -> Result<(), BoundedSendError<T>>
+    pub fn try_send(&self, value: T) //-> Result<(), BoundedSendError<T>>
     {
 
+        /*
         let res = self.base.try_send(value);
         
         if res.is_ok()
@@ -89,6 +90,7 @@ impl<T> Sender<T>
         }
 
         res
+        */
 
     }
 
@@ -97,7 +99,77 @@ impl<T> Sender<T>
     /// 
     pub async fn send(&self, value: T) -> Result<(), BoundedSendError<T>>
     {
+        
+        let mut item = value;
 
+        loop
+        {
+
+            let aquire_result = self.base.senders_notifier().acquire().await;
+
+            match aquire_result
+            {
+                Ok(permit) =>
+                {
+
+                    permit.forget();
+
+                    match self.base.try_send(item)
+                    {
+
+                        Ok(_) =>
+                        {
+
+                            return Ok(());
+
+                        }
+                        Err(err) =>
+                        {
+
+                            if err.is_full()
+                            {
+
+                                item = err.take();
+
+                                continue;
+
+                            }
+
+                            return Err(err);
+
+                        }
+
+                    }
+
+                }
+                Err(_err) =>
+                {
+
+                    match self.base.try_send(item)
+                    {
+                        
+                        Ok(_) =>
+                        {
+
+                            return Ok(());
+
+                        }
+                        Err(err) =>
+                        {
+
+                            return Err(BoundedSendError::NoReceivers(err.take()));
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        }
+
+        /*
         let mut send_res = self.base.try_send(value);
 
         loop
@@ -153,6 +225,7 @@ impl<T> Sender<T>
             }
             
         }
+        */
 
     }
 

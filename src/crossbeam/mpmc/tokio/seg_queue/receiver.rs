@@ -6,7 +6,7 @@ use crossbeam::queue::SegQueue;
 
 use tokio::{sync::Notify, time::timeout};
 
-use crate::{BoundedSharedDetails, ReceiveError, ReceiveResult, SharedDetails, TimeoutReceiveError};
+use crate::{crossbeam::mpmc::tokio::ChannelSemaphore, BoundedSharedDetails, ReceiveError, ReceiveResult, SharedDetails, TimeoutReceiveError};
 
 use crate::crossbeam::mpmc::seg_queue::{Sender, Receiver as BaseReceiver};
 
@@ -20,7 +20,7 @@ use std::clone::Clone;
 pub struct Receiver<T>
 {
 
-    base: BaseReceiver<T, Notify>
+    base: BaseReceiver<T, ChannelSemaphore> //Notify>
 
 }
 
@@ -29,7 +29,7 @@ pub struct Receiver<T>
 impl<T> Receiver<T>
 {
 
-    pub fn new(shared_details: Arc<SharedDetails<SegQueue<T>, Notify>>, sender_count: Weak<()>, receiver_count: Arc<()>,) -> Self
+    pub fn new(shared_details: Arc<SharedDetails<SegQueue<T>, ChannelSemaphore>>, sender_count: Weak<()>, receiver_count: Arc<()>,) -> Self //Notify>>, sender_count: Weak<()>, receiver_count: Arc<()>,) -> Self
     {
 
         Self
@@ -67,10 +67,29 @@ impl<T> Receiver<T>
 
     }
 
+    delegate!
+    {
+
+        to self.base.receivers_notifier()
+        {
+
+            pub fn is_closed(&self) -> bool;
+
+        }
+
+    }
+
     //
 
     pub fn try_recv(&self) -> ReceiveResult<T>
     {
+
+        if self.base.receivers_notifier().has_waiters()
+        {
+
+            return ReceiveResult::Err(ReceiveError::Empty);
+
+        }
 
         let res = self.base.try_recv();
 
@@ -84,7 +103,76 @@ impl<T> Receiver<T>
         loop
         {
 
-            let pop_res = self.try_recv();
+            let acquired_or_not = self.base.receivers_notifier().try_acquire().await;
+
+            let recvd;
+
+            match acquired_or_not
+            {
+
+                Some(res) =>
+                {
+
+                    match res
+                    {
+
+                        Ok(permit) =>
+                        {
+
+                            permit.forget();
+
+                            recvd = self.base.try_recv();
+
+                        }
+                        Err(_err) =>
+                        {
+
+                            return self.base.try_recv();
+
+                        }
+
+                    }
+
+                }
+                None =>
+                {
+
+                    recvd = self.base.try_recv();
+
+                }
+
+            }
+
+            //if recvd is empty then an error has occured, go back and wait again.
+
+            match recvd
+            {
+
+                Ok(res) =>
+                {
+
+                    return Ok(res);
+
+                }
+                Err(err) =>
+                {
+
+                    match err
+                    {
+
+                        ReceiveError::Empty => {},
+                        ReceiveError::NoSenders => return Err(err)
+
+                    }
+
+                }
+
+            }
+
+        }
+
+            /*
+            let pop_res = self.base.try_recv(); //self.try_recv();
 
             match pop_res
             {
@@ -126,14 +214,156 @@ impl<T> Receiver<T>
                 }
                 
             }
+            */
             
-        }
+        //}
 
     }
 
-    pub async fn recv_or_timeout(&self, timeout_time: Duration) -> Result<T, TimeoutReceiveError>
+    pub async fn recv_or_timeout(&self, duration: Duration) -> Result<T, TimeoutReceiveError>
     {
 
+        let recvd;
+
+        let mut acquired_or_not= self.base.receivers_notifier().try_acquire_timeout(duration).await;
+
+        loop
+        {
+
+            match acquired_or_not
+            {
+    
+                Some(res) =>
+                {
+    
+                    match res
+                    {
+    
+                        Ok(permit_res) =>
+                        {
+    
+                            match permit_res
+                            {
+    
+                                Ok(permit) =>
+                                {
+    
+                                    permit.forget();
+    
+                                    recvd = self.base.try_recv();
+
+                                    break;
+    
+                                }
+                                Err(_err) =>
+                                {
+    
+                                    recvd = self.base.try_recv();
+
+                                    break;
+    
+                                }
+    
+                            }
+    
+                        }
+                        Err(_err) =>
+                        {
+    
+                            return Err(TimeoutReceiveError::TimedOut);
+    
+                            /*
+                            let could_be_notified = self.base.receivers_notifier().try_acquire().await;
+    
+                            match could_be_notified
+                            {
+                                Some(notified) =>
+                                {
+    
+                                    res = timeout(timeout_time, notified).await?;
+    
+                                }
+                                None =>
+                                {
+    
+    
+    
+                                }
+    
+                            }
+                            */
+    
+                        }
+    
+                    }
+    
+                }
+                None =>
+                {
+    
+                    let recvd = self.base.try_recv();
+
+                    match recvd
+                    {
+            
+                        Ok(res) =>
+                        {
+            
+                            return Ok(res);
+            
+                        }
+                        Err(err) =>
+                        {
+
+                            match err
+                            {
+
+                                ReceiveError::Empty =>
+                                {
+
+                                    //A value is supposed to have been poped, wait here.
+
+                                    acquired_or_not = Some(self.base.receivers_notifier().acquire_timeout(duration).await);
+
+                                }
+                                ReceiveError::NoSenders =>
+                                {
+
+                                    return Err(TimeoutReceiveError::NotTimedOut(err))
+
+                                }
+
+                            }
+            
+                        }
+            
+                    }
+    
+                }
+    
+            }
+            
+        }
+
+        match recvd
+        {
+
+            Ok(res) =>
+            {
+
+                Ok(res)
+
+            }
+            Err(err) =>
+            {
+
+                Err(TimeoutReceiveError::NotTimedOut(err))
+
+            }
+
+        }
+
+        /*
         let recv_res = self.try_recv();
         
         match recv_res
@@ -167,8 +397,8 @@ impl<T> Receiver<T>
     
                             }    
 
-                            #[cfg(feature="count_waiting_senders_and_receivers")]
-                            let _sc_inc = self.base.temp_inc_receivers_awaiting_notification_count();
+                            //#[cfg(feature="count_waiting_senders_and_receivers")]
+                            //let _sc_inc = self.base.temp_inc_receivers_awaiting_notification_count();
 
                             let notified = self.base.receivers_notifier().notified();
 
@@ -227,6 +457,7 @@ impl<T> Receiver<T>
             }
 
         }
+        */
 
     }
 
