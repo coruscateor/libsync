@@ -14,6 +14,8 @@ use std::clone::Clone;
 
 use tokio::time::timeout;
 
+use crate::tokio_helpers::SemaphoreController;
+
 //use futures::executor::block_on;
 
 //https://docs.rs/crossbeam/0.8.4/crossbeam/queue/struct.ArrayQueue.html
@@ -26,7 +28,7 @@ use tokio::time::timeout;
 pub struct Sender<T>
 {
 
-    base: BaseSender<T, Semaphore> //Notify>
+    base: BaseSender<T, SemaphoreController> //Semaphore> //Notify>
 
 }
 
@@ -37,7 +39,7 @@ pub struct Sender<T>
 impl<T> Sender<T>
 {
 
-    pub fn new(shared_details: &Arc<BoundedSharedDetails<ArrayQueue<T>, Semaphore>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self //&Arc<BoundedSharedDetails<ArrayQueue<T>, Notify>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self
+    pub fn new(shared_details: &Arc<BoundedSharedDetails<ArrayQueue<T>, SemaphoreController>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self //Semaphore //&Arc<BoundedSharedDetails<ArrayQueue<T>, Notify>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self
     {
 
         Self
@@ -76,8 +78,25 @@ impl<T> Sender<T>
     ///
     /// Attempts to send a value, calls notify_one on the notifier if this was successful.
     /// 
-    pub fn try_send(&self, value: T) //-> Result<(), BoundedSendError<T>>
+    pub fn try_send(&self, value: T) -> Result<(), BoundedSendError<T>>
     {
+
+        let res = self.base.try_send(value);
+
+        if res.is_ok()
+        {
+
+            //Add a permit to the receivers_notifier if a value has successfully been sent.
+
+            self.base.receivers_notifier().add_permit();
+
+            //Remove an avalible slot.
+
+            self.base.senders_notifier().forget_permit();
+
+        }
+
+        res
 
         /*
         let res = self.base.try_send(value);
@@ -99,7 +118,72 @@ impl<T> Sender<T>
     /// 
     pub async fn send(&self, value: T) -> Result<(), BoundedSendError<T>>
     {
+
+        let mut item = value;
+
+        //Loop until you send something or there are no more senders.
+
+        loop
+        {
+
+            let acquired_or_not = self.base.senders_notifier().acquire().await;
+    
+            match acquired_or_not
+            {
+    
+                Ok(permit) =>
+                {
+    
+                    let sent_res = self.base.try_send(item);
+
+                    permit.forget();
+
+                    match sent_res
+                    {
+            
+                        Ok(res) =>
+                        {
         
+                            //Add a permit for an item to be received.
+        
+                            self.base.receivers_notifier().add_permit();
+            
+                            return Ok(res);
+            
+                        }
+                        Err(err) =>
+                        {
+            
+                            match err
+                            {
+            
+                                BoundedSendError::Full(value) =>
+                                {
+                                    
+                                    item = value
+                                
+                                }
+                                BoundedSendError::NoReceivers(_) => return Err(err)
+            
+                            }
+            
+                        }
+            
+                    }
+    
+                }
+                Err(_err) =>
+                {
+    
+                    return self.base.try_send(item);
+    
+                }
+    
+            }
+
+        }
+        
+        /*
         let mut item = value;
 
         loop
@@ -109,16 +193,23 @@ impl<T> Sender<T>
 
             match aquire_result
             {
+
                 Ok(permit) =>
                 {
 
+                    let res = self.base.try_send(item);
+
                     permit.forget();
 
-                    match self.base.try_send(item)
+                    match res
                     {
 
                         Ok(_) =>
                         {
+
+                            //Add a permit to the receivers_notifier if a value has successfully been sent.
+
+                            self.base.receivers_notifier().add_permit();
 
                             return Ok(());
 
@@ -168,6 +259,7 @@ impl<T> Sender<T>
             }
 
         }
+        */
 
         /*
         let mut send_res = self.base.try_send(value);
@@ -231,9 +323,69 @@ impl<T> Sender<T>
 
     //Timeouts
 
-    pub async fn send_or_timeout(&self, value: T, timeout_time: Duration) -> Result<(), TimeoutBoundedSendError<T>>
+    pub async fn send_or_timeout(&self, value: T, duration: Duration) -> Result<(), TimeoutBoundedSendError<T>>
     {
 
+        let acquired_or_not= self.base.senders_notifier().acquire_timeout(duration).await;
+
+        let sent;
+
+        match acquired_or_not
+        {
+
+            Ok(res) =>
+            {
+
+                match res
+                {
+
+                    Ok(permit) =>
+                    {
+
+                        sent = self.base.try_send(value);
+
+                        permit.forget();
+
+                    }
+                    Err(_err) =>
+                    {
+
+                        sent = self.base.try_send(value);
+
+                    }
+
+                }
+
+            }
+            Err(_err) =>
+            {
+
+                return Err(TimeoutBoundedSendError::TimedOut(value));
+
+            }
+
+        }
+
+        match sent
+        {
+
+            Ok(res) =>
+            {
+
+                Ok(res)
+
+            }
+            Err(err) =>
+            {
+
+                Err(TimeoutBoundedSendError::NotTimedOut(err))
+
+            }
+
+        }
+
+
+        /*
         let send_res = self.try_send(value);
         
         match send_res
@@ -325,8 +477,10 @@ impl<T> Sender<T>
             }
 
         }
+        */
 
     }
+
 
     //Blocking
 
@@ -357,6 +511,9 @@ impl<T> Drop for Sender<T>
         if self.base.receiver_strong_count() == 1
         {
 
+            self.base.receivers_notifier().close();
+
+            /*
             self.base.receivers_do_not_wait_t();
 
             let mut len = self.base.len();
@@ -371,6 +528,7 @@ impl<T> Drop for Sender<T>
             }
 
             self.base.receivers_notifier().notify_waiters();
+            */
 
         }
     

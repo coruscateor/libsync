@@ -8,10 +8,12 @@ use tokio::sync::{Notify, Semaphore};
 
 use super::{Sender, Receiver};
 
+use crate::tokio_helpers::SemaphoreController;
+
 pub fn channel<T>(size: usize) -> (Sender<T>, Receiver<T>)
 {
 
-    let shared_details = Arc::new(BoundedSharedDetails::new(ArrayQueue::<T>::new(size), Semaphore::new(0), Semaphore::new(0))); //Notify::new(), Notify::new()));
+    let shared_details = Arc::new(BoundedSharedDetails::new(ArrayQueue::<T>::new(size), SemaphoreController::new(), SemaphoreController::with_permits(size))); //Semaphore::new(0), Semaphore::new(0))); //Notify::new(), Notify::new()));
 
     let sender_count = Arc::new(());
 

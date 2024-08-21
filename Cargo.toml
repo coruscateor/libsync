@@ -22,6 +22,6 @@ futures = "0.3.*"
 
 [features]
 std = []
-count_waiting_senders_and_receivers = []
+#count_waiting_senders_and_receivers = []
 #crossbeam = ["dep:crossbeam"]
 #tokio = ["dep:tokio"]

@@ -1,7 +1,7 @@
 use std::sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Weak};
 
-#[cfg(feature="count_waiting_senders_and_receivers")]
-use crate::ScopedIncrementer;
+//#[cfg(feature="count_waiting_senders_and_receivers")]
+//use crate::ScopedIncrementer;
 
 pub struct SharedDetails<Q, N = ()>
 {
@@ -11,9 +11,9 @@ pub struct SharedDetails<Q, N = ()>
     //receiver_count: Weak<()>,
     //active_receiver_count: AtomicUsize,
     receivers_notifier: N,
-    #[cfg(feature="count_waiting_senders_and_receivers")]
-    receivers_awiting_notification_count: AtomicUsize,
-    receivers_do_not_wait: AtomicBool
+    //#[cfg(feature="count_waiting_senders_and_receivers")]
+    //receivers_awiting_notification_count: AtomicUsize,
+    //receivers_do_not_wait: AtomicBool
 
 }
 
@@ -31,9 +31,9 @@ impl<Q, N> SharedDetails<Q, N>
             //receiver_count: Arc::downgrade(receiver_count),
             //active_receiver_count: AtomicUsize::new(0),
             receivers_notifier,
-            #[cfg(feature="count_waiting_senders_and_receivers")]
-            receivers_awiting_notification_count: AtomicUsize::new(0),
-            receivers_do_not_wait: AtomicBool::new(false)
+            //#[cfg(feature="count_waiting_senders_and_receivers")]
+            //receivers_awiting_notification_count: AtomicUsize::new(0),
+            //receivers_do_not_wait: AtomicBool::new(false)
 
         }
 
@@ -80,6 +80,7 @@ impl<Q, N> SharedDetails<Q, N>
 
     }
 
+    /*
     pub fn receivers_do_not_wait(&self) -> bool
     {
 
@@ -101,5 +102,6 @@ impl<Q, N> SharedDetails<Q, N>
         ScopedIncrementer::new(&self.receivers_awiting_notification_count) 
 
     }
-
+    */
+    
 }

@@ -4,7 +4,7 @@ use crossbeam::queue::SegQueue;
 
 use tokio::sync::{Notify, Semaphore};
 
-use crate::{crossbeam::mpmc::tokio::ChannelSemaphore, BoundedSendError, BoundedSendResult, BoundedSharedDetails, SendResult, SharedDetails, TimeoutBoundedSendError};
+use crate::{BoundedSendError, BoundedSendResult, BoundedSharedDetails, SendResult, SharedDetails, TimeoutBoundedSendError}; //crossbeam::mpmc::tokio::ChannelSemaphore, 
 
 use crate::crossbeam::mpmc::seg_queue::{Sender as BaseSender, Receiver};
 
@@ -13,6 +13,8 @@ use delegate::delegate;
 use std::clone::Clone;
 
 use tokio::time::timeout;
+
+use crate::tokio_helpers::SemaphoreController;
 
 //use futures::executor::block_on;
 
@@ -26,7 +28,7 @@ use tokio::time::timeout;
 pub struct Sender<T>
 {
 
-    base: BaseSender<T, ChannelSemaphore> //Notify>
+    base: BaseSender<T, SemaphoreController> //ChannelSemaphore> //Notify>
 
 }
 
@@ -37,7 +39,7 @@ pub struct Sender<T>
 impl<T> Sender<T>
 {
 
-    pub fn new(shared_details: &Arc<SharedDetails<SegQueue<T>, ChannelSemaphore>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self //Notify>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self
+    pub fn new(shared_details: &Arc<SharedDetails<SegQueue<T>, SemaphoreController>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self //ChannelSemaphore //Notify>>, sender_count: Arc<()>, receiver_count: &Arc<()>) -> Self
     {
 
         Self
@@ -69,7 +71,19 @@ impl<T> Sender<T>
 
         }
 
-    } 
+    }
+
+    delegate!
+    {
+
+        to self.base.receivers_notifier()
+        {
+
+            pub fn is_closed(&self) -> bool;
+
+        }
+
+    }
 
     ///
     /// Attempts to send a value, calls notify_one on the notifier if this was successful.
@@ -78,15 +92,28 @@ impl<T> Sender<T>
     {
 
         let res = self.base.send(value);
-        
+
         if res.is_ok()
         {
 
-            self.base.receivers_notifier().try_add_permit();
+            //Add a permit to the receivers_notifier if a value has successfully been sent.
+
+            self.base.receivers_notifier().add_permit(); //.try_add_permit();
 
         }
 
         res
+
+        /*
+        let rn = self.base.receivers_notifier();
+
+        if rn.has_permits()
+        {
+
+            return SendResult::Err(());
+
+        }
+        */
 
         /*
         let res = self.base.send(value);

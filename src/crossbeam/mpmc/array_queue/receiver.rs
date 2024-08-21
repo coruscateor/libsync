@@ -2,7 +2,7 @@ use std::{sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Weak}, thread
 
 use crossbeam::queue::ArrayQueue;
 
-use crate::{ReceiveError, ReceiveResult, BoundedSharedDetails, ScopedIncrementer};
+use crate::{ReceiveError, ReceiveResult, BoundedSharedDetails}; //, ScopedIncrementer};
 
 use delegate::delegate;
 
@@ -95,6 +95,7 @@ impl<T, N> Receiver<T, N>
 
             //pub fn current_active_receiver_count(&self) -> usize;
 
+            /*
             pub fn senders_do_not_wait(&self) -> bool;
     
             pub fn senders_do_not_wait_t(&self);
@@ -108,6 +109,7 @@ impl<T, N> Receiver<T, N>
 
             #[cfg(feature="count_waiting_senders_and_receivers")]
             pub fn temp_inc_senders_awaiting_notification_count<'a>(&'a self) -> ScopedIncrementer<'a>;
+            */
 
         }
 

@@ -2,7 +2,7 @@ use std::sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Weak};
 
 use crossbeam::queue::SegQueue;
 
-use crate::{SendResult, SharedDetails, ScopedIncrementer};
+use crate::{SendResult, SharedDetails}; //, ScopedIncrementer};
 
 use delegate::delegate;
 
@@ -67,6 +67,7 @@ impl<T, N> Sender<T, N>
 
             pub fn receivers_notifier(&self) -> &N;
 
+            /*
             pub fn receivers_do_not_wait(&self) -> bool;
 
             pub fn receivers_do_not_wait_t(&self);
@@ -80,6 +81,7 @@ impl<T, N> Sender<T, N>
 
             //#[cfg(feature="count_waiting_senders_and_receivers")]
             //pub fn temp_inc_senders_awiting_notification_count<'a>(&'a self) -> ScopedIncrementer<'a>;
+            */
 
         }
 

@@ -4,17 +4,17 @@ use crate::SharedDetails;
 
 use delegate::delegate;
 
-#[cfg(feature="count_waiting_senders_and_receivers")]
-use crate::ScopedIncrementer;
+//#[cfg(feature="count_waiting_senders_and_receivers")]
+//use crate::ScopedIncrementer;
 
 pub struct BoundedSharedDetails<Q, N = ()>
 {
 
     shared_details: SharedDetails<Q, N>,
     senders_notifier: N,
-    #[cfg(feature="count_waiting_senders_and_receivers")]
-    senders_awaiting_notification_count: AtomicUsize,
-    senders_do_not_wait: AtomicBool
+    //#[cfg(feature="count_waiting_senders_and_receivers")]
+    //senders_awaiting_notification_count: AtomicUsize,
+    //senders_do_not_wait: AtomicBool
 
 }
 
@@ -29,9 +29,9 @@ impl<Q, N> BoundedSharedDetails<Q, N>
 
             shared_details: SharedDetails::new(queue, receivers_notifier),
             senders_notifier,
-            #[cfg(feature="count_waiting_senders_and_receivers")]
-            senders_awaiting_notification_count: AtomicUsize::new(0),
-            senders_do_not_wait: AtomicBool::new(true)
+            //#[cfg(feature="count_waiting_senders_and_receivers")]
+            //senders_awaiting_notification_count: AtomicUsize::new(0),
+            //senders_do_not_wait: AtomicBool::new(true)
 
         }
 
@@ -59,13 +59,14 @@ impl<Q, N> BoundedSharedDetails<Q, N>
         
             pub fn receivers_notifier(&self) -> &N;
 
+            /*
             pub fn receivers_do_not_wait(&self) -> bool;
 
             pub fn receivers_do_not_wait_t(&self);
 
             #[cfg(feature="count_waiting_senders_and_receivers")]
             pub fn temp_inc_receivers_awaiting_notification_count<'a>(&'a self) -> ScopedIncrementer<'a>;
-
+            */
 
         }
 
@@ -78,6 +79,7 @@ impl<Q, N> BoundedSharedDetails<Q, N>
 
     }
 
+    /*
     pub fn senders_do_not_wait(&self) -> bool
     {
 
@@ -99,5 +101,6 @@ impl<Q, N> BoundedSharedDetails<Q, N>
         ScopedIncrementer::new(&self.senders_awaiting_notification_count) 
 
     }
+    */
 
 }

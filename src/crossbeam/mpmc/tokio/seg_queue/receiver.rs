@@ -6,7 +6,7 @@ use crossbeam::queue::SegQueue;
 
 use tokio::{sync::Notify, time::timeout};
 
-use crate::{crossbeam::mpmc::tokio::ChannelSemaphore, BoundedSharedDetails, ReceiveError, ReceiveResult, SharedDetails, TimeoutReceiveError};
+use crate::{BoundedSharedDetails, ReceiveError, ReceiveResult, SharedDetails, TimeoutReceiveError}; //crossbeam::mpmc::tokio::ChannelSemaphore, 
 
 use crate::crossbeam::mpmc::seg_queue::{Sender, Receiver as BaseReceiver};
 
@@ -16,11 +16,13 @@ use delegate::delegate;
 
 use std::clone::Clone;
 
+use crate::tokio_helpers::SemaphoreController;
+
 //#[derive(Clone)]
 pub struct Receiver<T>
 {
 
-    base: BaseReceiver<T, ChannelSemaphore> //Notify>
+    base: BaseReceiver<T, SemaphoreController> //ChannelSemaphore> //Notify>
 
 }
 
@@ -29,7 +31,7 @@ pub struct Receiver<T>
 impl<T> Receiver<T>
 {
 
-    pub fn new(shared_details: Arc<SharedDetails<SegQueue<T>, ChannelSemaphore>>, sender_count: Weak<()>, receiver_count: Arc<()>,) -> Self //Notify>>, sender_count: Weak<()>, receiver_count: Arc<()>,) -> Self
+    pub fn new(shared_details: Arc<SharedDetails<SegQueue<T>, SemaphoreController>>, sender_count: Weak<()>, receiver_count: Arc<()>,) -> Self //ChannelSemaphore //Notify>>, sender_count: Weak<()>, receiver_count: Arc<()>,) -> Self
     {
 
         Self
@@ -84,6 +86,28 @@ impl<T> Receiver<T>
     pub fn try_recv(&self) -> ReceiveResult<T>
     {
 
+        let res = self.base.try_recv();
+
+        //There must be one permit in the receivers_notifier for every item in the queue. 
+
+        self.base.receivers_notifier().forget_permit();
+
+        res
+
+        /*
+        if res.is_ok()
+        {
+
+            //There must be one permit in the receivers_notifier for every item in the queue. 
+
+            self.base.receivers_notifier().forget_permit();
+
+        }
+
+        res
+        */
+
+        /*
         if self.base.receivers_notifier().has_waiters()
         {
 
@@ -94,12 +118,70 @@ impl<T> Receiver<T>
         let res = self.base.try_recv();
 
         res
+        */
 
     }
 
     pub async fn recv(&self) -> ReceiveResult<T>
     {
 
+        //Loop until you receive something or there are no more senders.
+
+        loop
+        {
+
+            let acquired_or_not = self.base.receivers_notifier().acquire().await;
+
+            //let recvd;
+    
+            match acquired_or_not
+            {
+    
+                Ok(permit) =>
+                {
+    
+                    let recvd = self.base.try_recv();
+
+                    permit.forget();
+
+                    match recvd
+                    {
+                        
+                        Ok(res) =>
+                        {
+            
+                            return Ok(res);
+            
+                        }
+                        Err(err) =>
+                        {
+            
+                            match err
+                            {
+            
+                                ReceiveError::Empty => {},
+                                ReceiveError::NoSenders => return Err(err)
+            
+                            }
+            
+                        }
+            
+                    }
+    
+                }
+                Err(_err) =>
+                {
+    
+                    return self.base.try_recv();
+    
+                }
+    
+            }
+    
+
+        }
+
+        /*
         loop
         {
 
@@ -170,6 +252,7 @@ impl<T> Receiver<T>
             }
 
         }
+        */
 
             /*
             let pop_res = self.base.try_recv(); //self.try_recv();
@@ -223,6 +306,65 @@ impl<T> Receiver<T>
     pub async fn recv_or_timeout(&self, duration: Duration) -> Result<T, TimeoutReceiveError>
     {
 
+        let acquired_or_not= self.base.receivers_notifier().acquire_timeout(duration).await;
+
+        let recvd;
+
+        match acquired_or_not
+        {
+
+            Ok(res) =>
+            {
+
+                match res
+                {
+
+                    Ok(permit) =>
+                    {
+
+                        recvd = self.base.try_recv();
+
+                        permit.forget();
+
+                    }
+                    Err(_err) =>
+                    {
+
+                        recvd = self.base.try_recv();
+
+                    }
+
+                }
+
+            }
+            Err(_err) =>
+            {
+
+                return Err(TimeoutReceiveError::TimedOut);
+
+            }
+
+        }
+
+        match recvd
+        {
+
+            Ok(res) =>
+            {
+
+                Ok(res)
+
+            }
+            Err(err) =>
+            {
+
+                Err(TimeoutReceiveError::NotTimedOut(err))
+
+            }
+
+        }
+
+        /*
         let recvd;
 
         let mut acquired_or_not= self.base.receivers_notifier().try_acquire_timeout(duration).await;
@@ -362,6 +504,7 @@ impl<T> Receiver<T>
             }
 
         }
+        */
 
         /*
         let recv_res = self.try_recv();
