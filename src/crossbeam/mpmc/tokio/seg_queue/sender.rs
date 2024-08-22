@@ -130,14 +130,10 @@ impl<T> Sender<T>
 
     }
 
-    ///
-    /// Attempts to send a value, waiting until signalled if the queue is full. Returns BoundedSendError<T>::NoReceiver if there are no receivers on the other end.
-    ///
-    pub fn empty()
-    {
-
-    }
-
+    //
+    // Attempts to send a value, waiting until signalled if the queue is full. Returns BoundedSendError<T>::NoReceiver if there are no receivers on the other end.
+    //
+    
     /*
     pub async fn send(&self, value: T) -> Result<(), BoundedSendError<T>>
     {

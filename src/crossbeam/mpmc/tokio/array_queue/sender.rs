@@ -330,6 +330,8 @@ impl<T> Sender<T>
 
         let sent;
 
+        //let mut is_errord = false;
+
         match acquired_or_not
         {
 
@@ -349,6 +351,8 @@ impl<T> Sender<T>
                     }
                     Err(_err) =>
                     {
+
+                        //is_errord = true;
 
                         sent = self.base.try_send(value);
 
@@ -372,6 +376,10 @@ impl<T> Sender<T>
             Ok(res) =>
             {
 
+                //Add a permit for an item to be received.
+
+                self.base.receivers_notifier().add_permit();
+
                 Ok(res)
 
             }
@@ -383,7 +391,6 @@ impl<T> Sender<T>
             }
 
         }
-
 
         /*
         let send_res = self.try_send(value);

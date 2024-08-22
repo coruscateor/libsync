@@ -26,8 +26,6 @@ pub struct Receiver<T>
 
 }
 
-//The Recever notifies because the queue is full...
-
 impl<T> Receiver<T>
 {
 
@@ -621,6 +619,24 @@ impl<T> Receiver<T>
 
     }
     */
+
+}
+
+
+impl<T> Clone for Receiver<T>
+{
+
+    fn clone(&self) -> Self
+    {
+
+        Self
+        {
+            
+            base: self.base.clone()
+        
+        }
+
+    }
 
 }
 

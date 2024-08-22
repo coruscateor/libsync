@@ -1,8 +1,8 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 //use rand::rngs::ThreadRng;
 
-use tokio::sync::Notify;
+use tokio::{sync::{AcquireError, Notify}, time::error::Elapsed};
 
 //use super::ReturnStoreState; //, BaseReturnStore, BaseReturner};
 
@@ -10,10 +10,12 @@ use crate::std::return_store::{ReturnStoreState, BaseReturnStore, BaseReturner, 
 
 use delegate::delegate;
 
+use crate::tokio_helpers::SemaphoreController;
+
 pub struct ReturnStore<T>
 {
 
-    base_state: BaseReturnStore<T, Notify>
+    base_state: BaseReturnStore<T, SemaphoreController> //Notify>
 
 }
 
@@ -26,7 +28,7 @@ impl<T> ReturnStore<T>
         Self
         {
 
-            base_state: BaseReturnStore::new(Notify::new())
+            base_state: BaseReturnStore::new(SemaphoreController::new()) //Notify::new())
 
         }
 
@@ -48,6 +50,8 @@ impl<T> ReturnStore<T>
 
     pub fn new_returner(&mut self) -> Returner<T>
     {
+
+        self.base_state.notifier().forget_permit();
 
         self.base_state.new_returner()
 
@@ -82,7 +86,7 @@ impl<T> ReturnStore<T>
     pub async fn get(&self) -> Option<T>
     {
 
-        //Loop because the Notifiy object might already have a ticket
+        //Loop because the Semaphore might already have a ticket
 
         loop
         {
@@ -92,8 +96,15 @@ impl<T> ReturnStore<T>
             if should_wait
             {
     
-                self.base_state.notifier().notified().await;
+                let acquire_res = self.base_state.notifier().acquire().await; //.notified().await;
     
+                if let Ok(res) = acquire_res
+                {
+
+                    res.forget();
+                    
+                }
+
             }
             else
             {
@@ -119,19 +130,64 @@ impl<T> ReturnStore<T>
 
     }
 
+    pub async fn get_timeout(&self, duration: Duration) -> Result<Option<T>, Elapsed>
+    {
+
+        let (should_wait, item) = self.base_state.try_get_or_should_wait();
+
+        if should_wait
+        {
+
+            let acquire_timeout_res = self.base_state.notifier().acquire_timeout(duration).await;
+
+            match acquire_timeout_res
+            {
+
+                Ok(acquire_res) =>
+                {
+
+                    if let Ok(res) = acquire_res
+                    {
+    
+                        res.forget();
+                        
+                    }
+
+                }
+                Err(err) =>
+                {
+
+                    return Err(err);
+
+                }
+
+            }
+
+            Ok(self.base_state.try_get())
+
+        }
+        else
+        {
+
+            Ok(item)
+            
+        }
+
+    }
+
 }
 
 pub struct Returner<T>
 {
 
-    base_state: BaseReturner<T, Notify>
+    base_state: BaseReturner<T, SemaphoreController> //Notify>
 
 }
 
-impl<T> Returns<T, Notify> for Returner<T>
+impl<T> Returns<T, SemaphoreController> for Returner<T> //Notify
 {
 
-    fn new(state: &Arc<ReturnStoreState<T, Notify>>, state_id: u32) -> Self
+    fn new(state: &Arc<ReturnStoreState<T, SemaphoreController>>, state_id: u32) -> Self //Notify
     {
         
         Self
@@ -162,33 +218,48 @@ impl<T> Returns<T, Notify> for Returner<T>
     fn done(mut self, to_return: T)
     {
 
-        self.base_state.set_done(to_return);
+        if self.base_state.set_done(to_return)
+        {
+
+            self.base_state.notifier().add_permit();
+
+        }
 
         //self.base_state.notifier().notify_waiters();
         
-        self.base_state.notifier().notify_one();
+         //.notify_one();
 
     }
 
     fn opt_done(mut self, to_return: Option<T>)
     {
 
-        self.base_state.set_opt_done(to_return);
+        if self.base_state.set_opt_done(to_return)
+        {
+
+            self.base_state.notifier().add_permit();
+
+        }
 
         //self.base_state.notifier().notify_waiters();
 
-        self.base_state.notifier().notify_one();
+         //.notify_one();
 
     }
 
     fn done_none(mut self)
     {
 
-        self.base_state.set_done_none();
+        if self.base_state.set_done_none()
+        {
+
+            self.base_state.notifier().add_permit();
+
+        }
 
         //self.base_state.notifier().notify_waiters();
         
-        self.base_state.notifier().notify_one();
+         //.notify_one();
 
     }
 
@@ -205,7 +276,7 @@ impl<T> Drop for Returner<T>
         if self.base_state.invalidate()
         {
 
-            self.base_state.notifier().notify_one();
+            self.base_state.notifier().add_permit(); //.notify_one();
             
             //self.base_state.notifier().notify_waiters();
 

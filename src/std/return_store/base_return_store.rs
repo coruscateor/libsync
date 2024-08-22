@@ -222,17 +222,19 @@ impl<T, N> BaseReturner<T, N>
 
     //Called just prior to being dropped.
 
-    pub fn set_done(&mut self, to_return: T)
+    pub fn set_done(&mut self, to_return: T) -> bool
     {
 
-       self.set_opt_done(Some(to_return));
+       self.set_opt_done(Some(to_return))
 
     }
 
-    pub fn set_opt_done(&mut self, to_return: Option<T>)
+    pub fn set_opt_done(&mut self, to_return: Option<T>) -> bool
     {
 
-        if self.is_valid()
+        let is_valid = self.is_valid();
+
+        if is_valid
         {
 
             let ptr = self.state.storage.get();
@@ -250,12 +252,16 @@ impl<T, N> BaseReturner<T, N>
 
         }
 
+        //Was the value successfully set?
+
+        is_valid
+
     }
 
-    pub fn set_done_none(&mut self)
+    pub fn set_done_none(&mut self) -> bool
     {
 
-        self.set_opt_done(None);
+        self.set_opt_done(None)
 
     }
 

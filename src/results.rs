@@ -123,7 +123,7 @@ pub enum TimeoutSendError<T>
 pub enum TimeoutReceiveError
 {
 
-    NotTimedOut((ReceiveError)),
+    NotTimedOut(ReceiveError),
     TimedOut
 
 }

@@ -6,6 +6,7 @@ use crate::{ReceiveError, ReceiveResult, SharedDetails}; //, ScopedIncrementer};
 
 use delegate::delegate;
 
+//#[derive(Clone)]
 pub struct Receiver<T, N = ()>
 {
 
@@ -148,7 +149,7 @@ impl<T, N> Receiver<T, N>
 
 }
 
-impl<T> Clone for Receiver<T>
+impl<T, N> Clone for Receiver<T, N>
 {
 
     fn clone(&self) -> Self
@@ -171,6 +172,7 @@ impl<T> Clone for Receiver<T>
 
 }
 
+/*
 impl<T, N> Drop for Receiver<T, N>
 {
 
@@ -225,5 +227,5 @@ impl<T, N> Drop for Receiver<T, N>
     }
 
 }
-
+*/
 
