@@ -1,8 +1,9 @@
 
-#[cfg(all(feature="crossbeam", feature="tokio"))]
+//#[cfg(all(feature="crossbeam", feature="tokio"))]
+#[cfg(feature="crossbeam")]
 pub mod crossbeam;
 
-#[cfg(all(feature="std"))]
+#[cfg(feature="std")]
 pub mod std;
 
 mod results;
