@@ -20,6 +20,8 @@ futures = "0.3.*"
 
 #parking_lot = "0.12.*"
 
+#https://doc.rust-lang.org/cargo/reference/features.html#optional-dependencies
+
 [features]
 std = []
 #count_waiting_senders_and_receivers = []
