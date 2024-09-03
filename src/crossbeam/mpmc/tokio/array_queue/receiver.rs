@@ -79,7 +79,7 @@ impl<T> Receiver<T>
         if res.is_ok()
         {
 
-            //Remove an avalible permit from the senders side.
+            //Remove an avalible permit from the receivers side.
 
             self.base.receivers_notifier().forget_permit();
 
@@ -121,7 +121,7 @@ impl<T> Receiver<T>
                         Ok(res) =>
                         {
         
-                            //Add a permit for an item to be sent.
+                            //Add a permit for an item to be sent (a slot is now free).
         
                             self.base.senders_notifier().add_permit();
             
@@ -158,57 +158,7 @@ impl<T> Receiver<T>
     
             }
 
-        }        
-
-        /*
-        loop
-        {
-
-            let pop_res = self.base.try_recv();
-
-            match pop_res
-            {
-
-                Ok(val) =>
-                {
-
-                    self.base.senders_notifier().notify_one();
-
-                    return Ok(val);
-
-                }
-                Err(err) =>
-                {
-
-                    if let ReceiveError::Empty = err
-                    {
-                        
-                        if self.base.receivers_do_not_wait()
-                        {
-
-                            return Err(ReceiveError::NoSenders);
-
-                        }
-
-                        #[cfg(feature="count_waiting_senders_and_receivers")]
-                        let _sc_inc = self.base.temp_inc_receivers_awaiting_notification_count();
-
-                        self.base.receivers_notifier().notified().await;
-
-                    }
-                    else
-                    {
-
-                        return Err(err);
-                        
-                    }
-
-                }
-                
-            }
-            
         }
-        */
 
     }
 
@@ -277,102 +227,6 @@ impl<T> Receiver<T>
 
         }
 
-        /*
-        let recv_res = self.base.try_recv();
-        
-        match recv_res
-        {
-
-            Ok(val) =>
-            {
-
-                self.base.senders_notifier().notify_one();
-
-                return Ok(val);
-
-            }
-            Err(err) =>
-            {
-
-                match err
-                {
-
-                    ReceiveError::Empty =>
-                    {
-
-                        let res;
-
-                        {
-
-                            if self.base.receivers_do_not_wait()
-                            {
-
-                                return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::NoSenders));
-
-                            }
-
-                            #[cfg(feature="count_waiting_senders_and_receivers")]
-                            let _sc_inc = self.base.temp_inc_receivers_awaiting_notification_count();
-
-                            let notified = self.base.receivers_notifier().notified();
-
-                            res = timeout(timeout_time, notified).await;
-
-                        }
-
-                        match res
-                        {
-
-                            Ok(_) =>
-                            {
-
-                                //Try sending again if the task has not been timed out.
-
-                                let res = self.try_recv();
-
-                                match res
-                                {
-
-                                    Ok(res) =>
-                                    {
-
-                                        return Ok(res);
-
-                                    },
-                                    Err(err) =>
-                                    {
-
-                                        return Err(TimeoutReceiveError::NotTimedOut(err));
-
-                                    }
-
-                                }
-
-                            },
-                            Err(_err) =>
-                            {
-
-                                return Err(TimeoutReceiveError::TimedOut);
-
-                            }
-
-                        }
-
-                    }
-                    ReceiveError::NoSenders =>
-                    {
-
-                        Err(TimeoutReceiveError::NotTimedOut(err))
-                        
-                    }
-
-                }
-            
-            }
-
-        }
-        */
-
     }
 
     //Blocking
@@ -395,42 +249,26 @@ impl<T> Receiver<T>
 
 }
 
-impl<T> Drop for Receiver<T>
+impl<T> Drop for Receiver<T> //Sender<T>
 {
 
     fn drop(&mut self)
     {
 
-        if self.base.sender_strong_count() == 1
+        if self.base.receiver_strong_count() == 1
         {
 
+            //Engage free-for-all mode.
+
+            self.base.receivers_notifier().close();
+
             self.base.senders_notifier().close();
-
-            /*
-            self.base.senders_do_not_wait_t();
-
-            let mut len = self.base.len();
-
-            while len > 0
-            {
-
-                self.base.senders_notifier().notify_one();
-
-                len -= 1;    
-                
-            }
-
-            self.base.senders_notifier().notify_waiters();
-
-            */
 
         }
     
     }
 
 }
-
-
 
 
 
