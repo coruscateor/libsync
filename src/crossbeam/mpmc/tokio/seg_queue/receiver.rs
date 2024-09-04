@@ -101,7 +101,7 @@ impl<T> Receiver<T>
 
     }
     
-    pub async fn recv(&self) -> ReceiveResult<T>
+    pub async fn recv(&self) -> Option<T> //ReceiveResult<T>
     {
 
         //Loop until you receive something or there are no more senders.
@@ -127,7 +127,9 @@ impl<T> Receiver<T>
                         Ok(res) =>
                         {
             
-                            return Ok(res);
+                            //return Ok(res);
+
+                            return Some(res);
             
                         }
                         Err(err) =>
@@ -137,8 +139,13 @@ impl<T> Receiver<T>
                             {
             
                                 ReceiveError::Empty => { /* Try again */ }
-                                ReceiveError::NoSenders => return Err(err)
-            
+                                ReceiveError::NoSenders => //return Err(err)
+                                {
+
+                                    return None;
+
+                                }
+
                             }
             
                         }
@@ -149,8 +156,17 @@ impl<T> Receiver<T>
                 Err(_err) =>
                 {
     
-                    return self.base.try_recv();
-    
+                    //return self.base.try_recv();
+                    
+                    if let Ok(res) = self.base.try_recv()
+                    {
+
+                        return Some(res);
+
+                    }
+
+                    return None;
+
                 }
     
             }

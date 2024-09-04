@@ -18,7 +18,7 @@ use std::clone::Clone;
 
 use crate::tokio_helpers::SemaphoreController;
 
-#[derive(Clone)]
+//#[derive(Clone)]
 pub struct Receiver<T>
 {
 
@@ -95,7 +95,7 @@ impl<T> Receiver<T>
 
     }
 
-    pub async fn recv(&self) -> ReceiveResult<T>
+    pub async fn recv(&self) -> Option<T> //ReceiveResult<T>
     {
 
         //Loop until you send something or there are no more senders.
@@ -125,8 +125,10 @@ impl<T> Receiver<T>
         
                             self.base.senders_notifier().add_permit();
             
-                            return Ok(res);
+                            //return Ok(res);
             
+                            return Some(res);
+
                         }
                         Err(err) =>
                         {
@@ -138,7 +140,9 @@ impl<T> Receiver<T>
                                 ReceiveError::NoSenders =>
                                 {
 
-                                    return Err(err);
+                                    //return Err(err);
+
+                                    return None;
 
                                 }
 
@@ -152,8 +156,17 @@ impl<T> Receiver<T>
                 Err(_err) =>
                 {
     
-                    return self.base.try_recv();
+                    //return self.base.try_recv();
     
+                    if let Ok(res) = self.base.try_recv()
+                    {
+
+                        return Some(res);
+
+                    }
+
+                    return None;
+
                 }
     
             }
@@ -246,6 +259,23 @@ impl<T> Receiver<T>
 
     }
     */
+
+}
+
+impl<T> Clone for Receiver<T>
+{
+
+    fn clone(&self) -> Self
+    {
+
+        Self
+        { 
+            
+            base: self.base.clone()
+        
+        }
+
+    }
 
 }
 

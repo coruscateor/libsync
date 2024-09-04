@@ -1,6 +1,8 @@
+use std::fmt::{Display, Formatter};
 
 pub type SendResult<T> = Result<(), T>;
 
+#[derive(Debug)]
 pub enum BoundedSendError<T>
 {
 
@@ -62,6 +64,18 @@ impl<T> BoundedSendError<T>
 
 }
 
+impl<T> Display for BoundedSendError<T>
+{
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
+    {
+
+        write!(f, "{}", self)
+        
+    }
+
+}
+
 /*
 impl<T> Into<T> for BoundedSendError<T>
 {
@@ -91,6 +105,7 @@ pub enum BoundedSendErrorType
 
 }
 
+#[derive(Debug)]
 pub enum ReceiveError
 {
 
@@ -111,7 +126,19 @@ pub enum TimeoutBoundedSendError<T>
 
 }
 
+impl Display for ReceiveError
+{
 
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
+    {
+
+        write!(f, "{}", self)
+        
+    }
+    
+}
+
+#[derive(Debug)]
 pub enum TimeoutSendError<T>
 {
 
@@ -120,11 +147,36 @@ pub enum TimeoutSendError<T>
 
 }
 
+impl<T> Display for TimeoutSendError<T>
+{
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
+    {
+
+        write!(f, "{}", self)
+        
+    }
+
+}
+
+#[derive(Debug)]
 pub enum TimeoutReceiveError
 {
 
     NotTimedOut(ReceiveError),
     TimedOut
 
+}
+
+impl Display for TimeoutReceiveError
+{
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
+    {
+
+        write!(f, "{}", self)
+        
+    }
+    
 }
 

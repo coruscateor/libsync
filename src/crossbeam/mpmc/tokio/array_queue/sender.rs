@@ -24,7 +24,7 @@ use crate::tokio_helpers::SemaphoreController;
 
 //https://docs.rs/tokio/1.37.0/tokio/time/fn.timeout.html
 
-#[derive(Clone)]
+//#[derive(Clone)]
 pub struct Sender<T>
 {
 
@@ -264,6 +264,24 @@ impl<T> Sender<T>
     */
     
 }
+
+impl<T> Clone for Sender<T>
+{
+
+    fn clone(&self) -> Self
+    {
+
+        Self
+        { 
+            
+            base: self.base.clone()
+
+        }
+
+    }
+
+}
+
 
 impl<T> Drop for Sender<T> //Receiver<T>
 {
