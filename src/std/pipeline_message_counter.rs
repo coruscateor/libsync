@@ -49,30 +49,30 @@ impl PipelineMessageCounter
 
     }
 
-    pub fn increment_with_data<T>(&self, data: T) -> CountedPipelineMessage<T>
+    pub fn increment_with_message<T>(&self, message: T) -> CountedPipelineMessage<T>
     {
 
         let incremented = self.increment();
 
-        CountedPipelineMessage::new(incremented, data)
+        CountedPipelineMessage::new(incremented, message)
 
     }
 
-    pub fn increment_with_data_opt<T>(&self, data: T) -> CountedPipelineMessage<Option<T>>
+    pub fn increment_with_message_mut<T>(&self, message: T) -> MutCountedPipelineMessage<T>
     {
 
         let incremented = self.increment();
 
-        CountedPipelineMessage::new(incremented, Some(data))
+        MutCountedPipelineMessage::new(incremented, message)
         
     }
 
-    pub fn increment_with_data_opt_none<T>(&self) -> CountedPipelineMessage<Option<T>>
+    pub fn increment_without_message_mut<T>(&self) -> MutCountedPipelineMessage<T>
     {
 
         let incremented = self.increment();
 
-        CountedPipelineMessage::new(incremented, None)
+        MutCountedPipelineMessage::none(incremented)
         
     }
 
@@ -186,6 +186,7 @@ impl<T> AsMut<T> for CountedPipelineMessage<T>
 
 }
 
+/*
 impl<T> CountedPipelineMessage<Option<T>>
 {
 
@@ -211,6 +212,115 @@ impl<T> CountedPipelineMessage<Option<T>>
     }
 
 }
+*/
 
+///
+/// A counted message object that is mutable to the point where the message can be removed completely.
+/// 
+pub struct MutCountedPipelineMessage<T>
+{
 
+    incremented: IncrementedPipelineMessageCounter,
+    message: Option<T>
+
+}
+
+impl<T> MutCountedPipelineMessage<T>
+{
+
+    pub fn new(incremented: IncrementedPipelineMessageCounter, message: T) -> Self
+    {
+
+        Self
+        {
+
+            incremented,
+            message: Some(message)
+
+        }
+
+    }
+
+    pub fn none(incremented: IncrementedPipelineMessageCounter) -> Self
+    {
+
+        Self
+        {
+
+            incremented,
+            message: None
+
+        }
+
+    }
+
+    pub fn incremented(&self) -> &IncrementedPipelineMessageCounter
+    {
+
+        &self.incremented
+
+    }
+
+    fn as_ref(&self) -> &Option<T>
+    {
+
+        &self.message
+        
+    }
+
+    fn as_mut(&mut self) -> &mut Option<T>
+    {
+
+        &mut self.message
+
+    }
+
+    delegate!
+    {
+
+        to self.message
+        {
+
+            pub const fn is_some(&self) -> bool;
+
+            pub const fn is_none(&self) -> bool;
+
+            pub fn take(&mut self) -> Option<T>;
+
+            pub fn take_if<P>(&mut self, predictate: P) -> Option<T>
+                where P: FnOnce(&mut T) -> bool;
+            
+            pub fn replace(&mut self, value: T) -> Option<T>;
+
+        }
+
+    }
+
+}
+
+/*
+impl<T> AsRef<T> for MutCountedPipelineMessage<T>
+{
+
+    fn as_ref(&self) -> &Option<T>
+    {
+
+        &self.message
+        
+    }
+
+}
+
+impl<T> AsMut<T> for MutCountedPipelineMessage<T>
+{
+
+    fn as_mut(&mut self) -> &mut T
+    {
+
+        &mut self.message
+
+    }
+
+}
+*/
 

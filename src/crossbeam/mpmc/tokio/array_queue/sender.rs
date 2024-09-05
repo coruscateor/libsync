@@ -282,7 +282,6 @@ impl<T> Clone for Sender<T>
 
 }
 
-
 impl<T> Drop for Sender<T> //Receiver<T>
 {
 

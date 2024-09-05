@@ -224,7 +224,7 @@ impl<T> Receiver<T>
             Ok(res) =>
             {
 
-                //Add a permit for an item to be sent.
+                //Add a permit for an item to be sent (a slot is now free).
 
                 self.base.senders_notifier().add_permit();
 
