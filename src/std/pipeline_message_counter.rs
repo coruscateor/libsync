@@ -58,21 +58,21 @@ impl PipelineMessageCounter
 
     }
 
-    pub fn increment_with_message_mut<T>(&self, message: T) -> MutCountedPipelineMessage<T>
+    pub fn increment_with_message_mut<T>(&self, message: T) -> CountedPipelineMessageMut<T>
     {
 
         let incremented = self.increment();
 
-        MutCountedPipelineMessage::new(incremented, message)
+        CountedPipelineMessageMut::new(incremented, message)
         
     }
 
-    pub fn increment_without_message_mut<T>(&self) -> MutCountedPipelineMessage<T>
+    pub fn increment_without_message_mut<T>(&self) -> CountedPipelineMessageMut<T>
     {
 
         let incremented = self.increment();
 
-        MutCountedPipelineMessage::none(incremented)
+        CountedPipelineMessageMut::none(incremented)
         
     }
 
@@ -217,7 +217,7 @@ impl<T> CountedPipelineMessage<Option<T>>
 ///
 /// A counted message object that is mutable to the point where the message can be removed completely.
 /// 
-pub struct MutCountedPipelineMessage<T>
+pub struct CountedPipelineMessageMut<T>
 {
 
     incremented: IncrementedPipelineMessageCounter,
@@ -225,7 +225,7 @@ pub struct MutCountedPipelineMessage<T>
 
 }
 
-impl<T> MutCountedPipelineMessage<T>
+impl<T> CountedPipelineMessageMut<T>
 {
 
     pub fn new(incremented: IncrementedPipelineMessageCounter, message: T) -> Self
