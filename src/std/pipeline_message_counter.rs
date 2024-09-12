@@ -28,10 +28,12 @@ impl PipelineMessageCounter
 
     }
 
+    //The returned count should exclude the initial interior Arc instance which stays as part of the PipelineMessageCounter.
+
     pub fn count(&self) -> usize
     {
 
-        Arc::strong_count(self.counter.as_ref())
+        Arc::strong_count(self.counter.as_ref()) - 1
 
     }
 
@@ -82,6 +84,13 @@ impl PipelineMessageCounter
         Arc::ptr_eq(&self.counter, &other.counter)
 
     }
+    
+    pub fn instance_count(&self) -> usize
+    {
+
+        Arc::strong_count(&self.counter)
+
+    }
 
 }
 
@@ -110,10 +119,19 @@ impl IncrementedPipelineMessageCounter
 
     }
 
+    //There's always at least one of the provided and cloned Arc instance.
+
     pub fn count(&self) -> usize
     {
 
-        Arc::strong_count(&self.counter)
+        Arc::strong_count(&self.counter) - 1
+
+    }
+
+    pub fn has_messages(&self) -> bool
+    {
+
+        self.count() > 0
 
     }
 
@@ -236,6 +254,19 @@ impl<T> CountedPipelineMessageMut<T>
 
             incremented,
             message: Some(message)
+
+        }
+
+    }
+
+    pub fn option(incremented: IncrementedPipelineMessageCounter, message: Option<T>) -> Self
+    {
+
+        Self
+        {
+
+            incremented,
+            message
 
         }
 
