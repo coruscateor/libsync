@@ -178,6 +178,27 @@ impl<T> CountedPipelineMessage<T>
 
     }
 
+    pub fn take(self) -> T
+    {
+
+        self.message
+
+    }
+
+    pub fn take_incremented(self) -> IncrementedPipelineMessageCounter
+    {
+
+        self.incremented
+
+    }
+
+    pub fn take_both(self) -> (IncrementedPipelineMessageCounter, T)
+    {
+
+        (self.incremented, self.message)
+
+    }
+
 }
 
 impl<T> AsRef<T> for CountedPipelineMessage<T>
@@ -292,14 +313,28 @@ impl<T> CountedPipelineMessageMut<T>
 
     }
 
-    fn as_ref(&self) -> &Option<T>
+    pub fn take_incremented(self) -> IncrementedPipelineMessageCounter
+    {
+
+        self.incremented
+
+    }
+
+    pub fn take_both(self) -> (IncrementedPipelineMessageCounter, Option<T>)
+    {
+
+        (self.incremented, self.message)
+
+    }
+
+    pub fn as_ref(&self) -> &Option<T>
     {
 
         &self.message
         
     }
 
-    fn as_mut(&mut self) -> &mut Option<T>
+    pub fn as_mut(&mut self) -> &mut Option<T>
     {
 
         &mut self.message
