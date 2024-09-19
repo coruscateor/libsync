@@ -36,12 +36,13 @@ pub trait PipelineMessageContainerMut<T>
 
 }
 
-pub trait PipelineMessageContainerFactory<T>
+pub trait PipelineMessageContainerFactory
+    : Clone
 {
 
-    fn get(&self, message: T) -> impl PipelineMessageContainer<T>;
+    fn get<T>(&self, message: T) -> impl PipelineMessageContainer<T>;
 
-    fn get_mut(&self, message: T) -> impl PipelineMessageContainerMut<T>;
+    fn get_mut<T>(&self, message: T) -> impl PipelineMessageContainerMut<T>;
 
 }
 
@@ -184,14 +185,15 @@ impl<T> PipelineMessageContainerMut<T> for PlainPipelineMessageContainerMut<T>
 
 //PlainPipelineMessageContainerFactory
 
-pub struct PlainPipelineMessageContainerFactory<T>
+#[derive(Clone)]
+pub struct PlainPipelineMessageContainerFactory //<T>
 {
 
-    phantom_data: PhantomData<T>
+    //phantom_data: PhantomData<T>
 
 }
 
-impl<T> PlainPipelineMessageContainerFactory<T>
+impl PlainPipelineMessageContainerFactory
 {
 
     pub fn new() -> Self
@@ -200,7 +202,7 @@ impl<T> PlainPipelineMessageContainerFactory<T>
         Self
         {
 
-            phantom_data: PhantomData::default() 
+            //phantom_data: PhantomData::default() 
 
         }
 
@@ -208,17 +210,17 @@ impl<T> PlainPipelineMessageContainerFactory<T>
 
 }
 
-impl<T> PipelineMessageContainerFactory<T> for PlainPipelineMessageContainerFactory<T>
+impl PipelineMessageContainerFactory for PlainPipelineMessageContainerFactory
 {
 
-    fn get(&self, message: T) -> impl PipelineMessageContainer<T>
+    fn get<T>(&self, message: T) -> impl PipelineMessageContainer<T>
     {
 
         PlainPipelineMessageContainer::new(message)
         
     }
 
-    fn get_mut(&self, message: T) -> impl PipelineMessageContainerMut<T>
+    fn get_mut<T>(&self, message: T) -> impl PipelineMessageContainerMut<T>
     {
 
         PlainPipelineMessageContainerMut::new(message)
@@ -362,15 +364,16 @@ impl<T> PipelineMessageContainerMut<T> for CountedPipelineMessageContainerMut<T>
 
 //CountedPipelineMessageContainerFactory
 
-pub struct CountedPipelineMessageContainerFactory<T>
+#[derive(Clone)]
+pub struct CountedPipelineMessageContainerFactory //<T>
 {
 
     pipeline_message_counter: PipelineMessageCounter,
-    phantom_data: PhantomData<T>
+    //phantom_data: PhantomData<T>
 
 }
 
-impl<T> CountedPipelineMessageContainerFactory<T>
+impl CountedPipelineMessageContainerFactory
 {
 
     pub fn new(pipeline_message_counter: PipelineMessageCounter) -> Self
@@ -379,8 +382,8 @@ impl<T> CountedPipelineMessageContainerFactory<T>
         Self
         {
 
-            pipeline_message_counter,
-            phantom_data: PhantomData::default() 
+            pipeline_message_counter //,
+            //phantom_data: PhantomData::default() 
 
         }
 
@@ -388,17 +391,17 @@ impl<T> CountedPipelineMessageContainerFactory<T>
 
 }
 
-impl<T> PipelineMessageContainerFactory<T> for CountedPipelineMessageContainerFactory<T>
+impl PipelineMessageContainerFactory for CountedPipelineMessageContainerFactory
 {
 
-    fn get(&self, message: T) -> impl PipelineMessageContainer<T>
+    fn get<T>(&self, message: T) -> impl PipelineMessageContainer<T>
     {
 
         CountedPipelineMessageContainer::new(self.pipeline_message_counter.increment_with_message(message))
         
     }
 
-    fn get_mut(&self, message: T) -> impl PipelineMessageContainerMut<T>
+    fn get_mut<T>(&self, message: T) -> impl PipelineMessageContainerMut<T>
     {
 
         CountedPipelineMessageContainerMut::new(self.pipeline_message_counter.increment_with_message_mut(message))
