@@ -1,4 +1,4 @@
-use std::{sync::{Condvar, LockResult, Mutex, MutexGuard, PoisonError, TryLockError, WaitTimeoutResult}, time::Duration};
+use std::{sync::{Condvar, LockResult, Mutex, MutexGuard, PoisonError, TryLockError, TryLockResult, WaitTimeoutResult}, time::Duration};
 
 use delegate::delegate;
 
@@ -257,7 +257,9 @@ impl<'a, T> NotifierWaitTimeoutResult<'a, T>
 }
 */
 
-static FAILED_TO_UNLOCK_MUTEX_MESSAGE: &str = "Error: Failed to unlock Mutex.";
+static FAILED_TO_UNLOCK_MUTEX_MESSAGE: &str = "Failed to unlock Mutex.";
+
+//static SHOULD_NEVER_BE_POISONED_MESSAGE: &str = "This Mutex got poisoned somehow. This should never happen.";
 
 //#[derive(Default)]
 
@@ -303,13 +305,15 @@ impl<T> Notifier<T>
             Ok(res) =>
             {
 
-                self.cndvr.wait(res)
+                self.cndvr.wait(res) //.expect(SHOULD_NEVER_BE_POISONED_MESSAGE)
 
                 //mtx_lk = res;
 
             },
             Err(_) => 
             {
+
+                //panic!("{}", SHOULD_NEVER_BE_POISONED_MESSAGE)
 
                 mtx_lk_res
 
@@ -320,6 +324,43 @@ impl<T> Notifier<T>
         }
 
         //NotifierWaitResult::new(self.cndvr.wait(mtx_lk))
+
+    }
+
+    pub fn wait_fn<'a, F>(&'a self, mut func: F) -> Option<Result<MutexGuard<T>, PoisonError<MutexGuard<T>>>>
+        where F: FnMut(&mut MutexGuard<T>) -> bool
+    {
+
+        let mtx_lk_res = self.mtx.lock();
+
+        match mtx_lk_res
+        {
+
+            Ok(mut res) =>
+            {
+
+                if func(&mut res)
+                {
+
+                    Some(self.cndvr.wait(res))
+
+                }
+                else
+                {
+
+                    None
+                    
+                }
+
+            },
+            Err(_) => 
+            {
+
+                Some(mtx_lk_res)
+
+            }
+
+        }
 
     }
     
@@ -345,6 +386,49 @@ impl<T> Notifier<T>
             {
 
                 Err(err)
+
+            }
+
+        }
+
+        //Ok(NotifierWaitTimeoutResult::new(self.cndvr.wait_timeout(mtx_lk, dur)))
+
+    }
+
+    pub fn wait_timeout_fn<'a, F>(&'a self, dur: Duration, mut func: F) -> Option<Result<LockResult<(MutexGuard<'a, T>, WaitTimeoutResult)>, PoisonError<MutexGuard<'_, T>>>> //Result<NotifierWaitTimeoutResult<'a, T>, PoisonError<MutexGuard<'_, T>>>
+        where F: FnMut(&mut MutexGuard<T>) -> bool
+    {
+
+        let mtx_lk_res = self.mtx.lock();
+
+        //let mtx_lk;
+
+        match mtx_lk_res
+        {
+
+            Ok(mut res) =>
+            {
+
+                if func(&mut res)
+                {
+
+                    Some(Ok(self.cndvr.wait_timeout(res, dur)))
+
+                }
+                else
+                {
+
+                    None
+                    
+                }
+
+                //mtx_lk = res;
+
+            }
+            Err(err) => 
+            {
+
+                Some(Err(err))
 
             }
 
@@ -429,18 +513,44 @@ impl<T> Notifier<T>
     delegate! {
         to self.mtx {
 
+            pub fn lock(&self) -> Result<MutexGuard<'_, T>, PoisonError<MutexGuard<'_, T>>>;
+
+            pub fn try_lock(&self) -> TryLockResult<MutexGuard<'_, T>>;
+
             pub fn is_poisoned(&self);
 
             pub fn clear_poison(&self);
 
         }
+
     }
 
-    pub fn try_set_notify_one(&self, value: T) -> Result<(), T>
+    pub fn try_set_notify_one(&self, value: T) -> Result<(), PoisonError<MutexGuard<'_, T>>> //Result<(), T>
     {
 
-        let notify_one_res;
+        let mtx_lk_res = self.mtx.lock();
 
+        match mtx_lk_res
+        {
+
+            Ok(mut res) =>
+            {
+
+                *res = value;
+
+            },
+            Err(err) => 
+            {
+
+                return Err(err);
+
+            }
+
+        }
+
+        //let notify_one_res;
+
+        /*
         if let Ok(mut res) = self.mtx.lock()
         {
 
@@ -455,10 +565,13 @@ impl<T> Notifier<T>
             return Err(value);
 
         }
+        */
 
         self.cndvr.notify_one();
 
-        notify_one_res
+        Ok(())
+
+        //notify_one_res
 
         /*
 
@@ -497,9 +610,35 @@ impl<T> Notifier<T>
 
     }
 
-    pub fn try_set_notify_all(&self, value: T) -> Result<(), T>
+    pub fn try_set_notify_all(&self, value: T) -> Result<(), PoisonError<MutexGuard<'_, T>>> //Result<(), T>
     {
 
+        let mtx_lk_res = self.mtx.lock();
+
+        match mtx_lk_res
+        {
+
+            Ok(mut res) =>
+            {
+
+                *res = value;
+
+            },
+            Err(err) => 
+            {
+
+                return Err(err);
+
+            }
+
+        }
+
+        self.cndvr.notify_all();
+
+        Ok(())
+
+
+        /*
         let notify_all_res;
 
         if let Ok(mut res) = self.mtx.lock()
@@ -520,6 +659,7 @@ impl<T> Notifier<T>
         self.cndvr.notify_all();
 
         notify_all_res
+        */
 
         /*
 
@@ -723,6 +863,53 @@ impl<T> Notifier<T>
         self.cndvr.notify_all();
 
     }
+
+    /*
+    pub fn lock(&self) -> Result<MutexGuard<'_, T>, PoisonError<MutexGuard<'_, T>>>
+    {
+
+        self.mtx.lock()
+
+    }
+
+
+    pub fn try_lock(&self) -> TryLockResult<MutexGuard<'_, T>> //Option<MutexGuard<T>>
+    {
+
+        self.mtx.try_lock()
+
+         /*
+        match self.mtx.try_lock()
+        {
+            Ok(res) => Some(res),
+            Err(err) =>
+            {
+
+                match err
+                {
+
+                    TryLockError::Poisoned(_poison_error) =>
+                    {
+
+                        panic!("{}", SHOULD_NEVER_BE_POISONED_MESSAGE)
+
+                    }
+                    TryLockError::WouldBlock =>
+                    {
+
+                        None
+
+                    }
+
+                }
+
+            }
+
+        }
+        */
+
+    }
+    */
 
 }
 

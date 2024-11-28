@@ -277,7 +277,7 @@ impl<T, N> BaseReturner<T, N>
     pub fn invalidate(&self) -> bool
     {
 
-        if self.state_id == 1
+        if self.state_id <= 2
         {
 
             return false;

@@ -14,7 +14,8 @@ categories = ["asynchronous"]
 [dependencies]
 crossbeam = { version = "0.8.*", optional = true }
 tokio = { version = "1.40.0", features = ["sync", "time"], optional = true } #, "macros" "rt", "rt-multi-thread", 
-delegate = "0.*"
+#delegate = "0.*"
+delegate = "0.13.1"
 futures = "0.3.*"
 #rand = { version = "0.8.*", features = ["std", "std_rng"] }
 
@@ -27,3 +28,5 @@ std = []
 #count_waiting_senders_and_receivers = []
 #crossbeam = ["dep:crossbeam"]
 #tokio = ["dep:tokio"]
+
+
