@@ -337,31 +337,59 @@ impl<T> NotifyingReturner<T>
 
     }
 
-    pub fn set_opt_done(self, to_return: Option<T>)
+    pub fn set_opt_done(self, to_return: Option<T>) -> Result<(), Option<T>> //bool
     {
+        
+        let result;
+
+        //let is_valid;
 
         {
 
             let mut guard = self.arc_notfifer.lock().expect(SHOULD_NEVER_BE_POISONED_MESSAGE);
 
-            guard.item = to_return;
+            //is_valid = guard.state_id_is(self.state_id);
 
-            guard.state_id = 1;
+            if guard.state_id_is(self.state_id) //is_valid
+            {
+
+                guard.item = to_return;
+
+                guard.state_id = 1;
+
+                result = Ok(())
+
+            }
+            else
+            {
+
+                result = Err(to_return);
+                
+            }
 
         }
 
-        self.arc_notfifer.notify_one();
+        if result.is_ok() //is_valid
+        {
+
+            self.arc_notfifer.notify_one();
+
+        }
+
+        result
+
+        //is_valid
 
     }
 
-    pub fn set_done(self, to_return: T)
+    pub fn set_done(self, to_return: T) -> Result<(), Option<T>> //bool
     {
 
         self.set_opt_done(Some(to_return))
 
     }
 
-    pub fn set_done_none(self)
+    pub fn set_done_none(self) -> Result<(), Option<T>> //bool
     {
 
         self.set_opt_done(None)

@@ -75,21 +75,21 @@ impl<T, N> BaseReturnStore<T, N>
     }
     */
 
-    pub fn state_is_done(&self) -> bool
+    pub fn is_done(&self) -> bool
     {
 
         self.state.storage_state.load(Ordering::Acquire) == 1
 
     }
 
-    pub fn state_is_invalid(&self) -> bool
+    pub fn is_invalid(&self) -> bool
     {
 
         self.state.storage_state.load(Ordering::Acquire) == 0
 
     }
 
-    pub fn state_is_active(&self) -> bool
+    pub fn is_valid(&self) -> bool
     {
 
         self.state.storage_state.load(Ordering::Acquire) == self.state_id
@@ -139,7 +139,9 @@ impl<T, N> BaseReturnStore<T, N>
     pub fn try_get(&self) -> Option<T>
     {
 
-        if !self.state_is_active()
+        //Try and get the value whether valid or not.
+
+        if !self.is_valid()
         {
 
             let res = unsafe { self.state.storage.get().as_mut() };
@@ -160,7 +162,7 @@ impl<T, N> BaseReturnStore<T, N>
     pub fn try_get_or_should_wait(&self) -> (bool, Option<T>)
     {
 
-        if self.state_is_active()
+        if self.is_valid()
         {
 
             return (true, None);
@@ -222,19 +224,19 @@ impl<T, N> BaseReturner<T, N>
 
     //Called just prior to being dropped.
 
-    pub fn set_done(&mut self, to_return: T) -> bool
+    pub fn done(&mut self, to_return: T) -> Result<(), Option<T>> //bool
     {
 
-       self.set_opt_done(Some(to_return))
+       self.opt_done(Some(to_return))
 
     }
 
-    pub fn set_opt_done(&mut self, to_return: Option<T>) -> bool
+    pub fn opt_done(&mut self, to_return: Option<T>) -> Result<(), Option<T>> //bool
     {
 
-        let is_valid = self.is_valid();
+        //let is_valid = self.is_valid();
 
-        if is_valid
+        if self.is_valid() //is_valid
         {
 
             let ptr = self.state.storage.get();
@@ -250,18 +252,26 @@ impl<T, N> BaseReturner<T, N>
 
             self.state_id = 1;
 
+            Ok(())
+
+        }
+        else
+        {
+
+            Err(to_return)
+            
         }
 
         //Was the value successfully set?
 
-        is_valid
+        //is_valid
 
     }
 
-    pub fn set_done_none(&mut self) -> bool
+    pub fn done_none(&mut self) -> Result<(), Option<T>> //bool
     {
 
-        self.set_opt_done(None)
+        self.opt_done(None)
 
     }
 
@@ -305,11 +315,11 @@ pub trait Returns<T, N>
 
     fn invalidate(&self) -> bool;
 
-    fn done(self, to_return: T);
+    fn done(self, to_return: T) -> Result<(), Option<T>>;
 
-    fn opt_done(self, to_return: Option<T>);
+    fn opt_done(self, to_return: Option<T>) -> Result<(), Option<T>>;
 
-    fn done_none(self);
+    fn done_none(self) -> Result<(), Option<T>>;
 
 }
 

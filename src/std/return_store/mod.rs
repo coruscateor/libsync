@@ -10,3 +10,7 @@ mod notifying_return_store;
 
 pub use notifying_return_store::*;
 
+mod polled_return_store;
+
+pub use polled_return_store::*;
+

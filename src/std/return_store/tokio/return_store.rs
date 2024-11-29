@@ -6,7 +6,7 @@ use tokio::{sync::{AcquireError, Notify}, time::error::Elapsed};
 
 //use super::ReturnStoreState; //, BaseReturnStore, BaseReturner};
 
-use crate::std::return_store::{ReturnStoreState, BaseReturnStore, BaseReturner, Returns};
+use crate::{results, std::return_store::{BaseReturnStore, BaseReturner, ReturnStoreState, Returns}};
 
 use delegate::delegate;
 
@@ -71,11 +71,11 @@ impl<T> ReturnStore<T>
         to self.base_state
         {
 
-            pub fn state_is_done(&self) -> bool;
+            pub fn is_done(&self) -> bool;
 
-            pub fn state_is_invalid(&self) -> bool;
+            pub fn is_invalid(&self) -> bool;
 
-            pub fn state_is_active(&self) -> bool;
+            pub fn is_valid(&self) -> bool;
 
             pub fn try_get(&self) -> Option<T>;
 
@@ -215,15 +215,19 @@ impl<T> Returns<T, SemaphoreController> for Returner<T> //Notify
 
     //Call notify_waiters to avoid storing permits. - Bad...
 
-    fn done(mut self, to_return: T)
+    fn done(mut self, to_return: T) -> Result<(), Option<T>>
     {
 
-        if self.base_state.set_done(to_return)
+        let result = self.base_state.done(to_return);
+
+        if result.is_ok()
         {
 
             self.base_state.notifier().add_permit();
 
         }
+
+        result
 
         //self.base_state.notifier().notify_waiters();
         
@@ -231,15 +235,19 @@ impl<T> Returns<T, SemaphoreController> for Returner<T> //Notify
 
     }
 
-    fn opt_done(mut self, to_return: Option<T>)
+    fn opt_done(mut self, to_return: Option<T>) -> Result<(), Option<T>>
     {
 
-        if self.base_state.set_opt_done(to_return)
+        let result = self.base_state.opt_done(to_return);
+
+        if result.is_ok()
         {
 
             self.base_state.notifier().add_permit();
 
         }
+
+        result
 
         //self.base_state.notifier().notify_waiters();
 
@@ -247,15 +255,19 @@ impl<T> Returns<T, SemaphoreController> for Returner<T> //Notify
 
     }
 
-    fn done_none(mut self)
+    fn done_none(mut self) -> Result<(), Option<T>>
     {
 
-        if self.base_state.set_done_none()
+        let result = self.base_state.done_none();
+
+        if result.is_ok()
         {
 
             self.base_state.notifier().add_permit();
 
         }
+
+        result
 
         //self.base_state.notifier().notify_waiters();
         
