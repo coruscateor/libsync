@@ -65,12 +65,19 @@ impl<T> BoundedSendError<T>
 }
 
 impl<T> Display for BoundedSendError<T>
+    where T: Display
 {
 
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
     {
 
-        write!(f, "{}", self)
+        match self
+        {
+
+            BoundedSendError::Full(val) => write!(f, "Full({val})"),
+            BoundedSendError::NoReceivers(val) => write!(f, "NoSenders({val})")
+
+        }
         
     }
 
@@ -96,6 +103,7 @@ impl<T> Into<T> for BoundedSendError<T>
 
 pub type BoundedSendResult<T> = Result<(), BoundedSendError<T>>;
 
+#[derive(Debug)]
 pub enum BoundedSendErrorType
 {
 
@@ -103,6 +111,24 @@ pub enum BoundedSendErrorType
     NoReceivers,
     //ValueIrrecoverable
 
+}
+
+impl Display for BoundedSendErrorType
+{
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
+    {
+
+        match self
+        {
+
+            BoundedSendErrorType::Full => write!(f, "Full"),
+            BoundedSendErrorType::NoReceivers => write!(f, "NoReceivers")
+
+        }
+        
+    }
+    
 }
 
 #[derive(Debug)]
@@ -114,10 +140,29 @@ pub enum ReceiveError
 
 }
 
+impl Display for ReceiveError
+{
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
+    {
+
+        match self
+        {
+
+            ReceiveError::Empty => write!(f, "Empty"),
+            ReceiveError::NoSenders => write!(f, "NoSenders")
+
+        }
+        
+    }
+    
+}
+
 pub type ReceiveResult<T> = Result<T, ReceiveError>;
 
 //Timeouts
 
+#[derive(Debug)]
 pub enum TimeoutBoundedSendError<T>
 {
 
@@ -126,16 +171,23 @@ pub enum TimeoutBoundedSendError<T>
 
 }
 
-impl Display for ReceiveError
+impl<T> Display for TimeoutBoundedSendError<T>
+    where T: Display
 {
 
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
     {
 
-        write!(f, "{}", self)
-        
+        match self
+        {
+
+            TimeoutBoundedSendError::NotTimedOut(val) => write!(f, "NotTimedOut({val})"),
+            TimeoutBoundedSendError::TimedOut(val) => write!(f, "TimedOut({val})")
+
+        }
+         
     }
-    
+
 }
 
 #[derive(Debug)]
@@ -148,13 +200,20 @@ pub enum TimeoutSendError<T>
 }
 
 impl<T> Display for TimeoutSendError<T>
+    where T: Display
 {
 
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
     {
 
-        write!(f, "{}", self)
-        
+        match self
+        {
+
+            TimeoutSendError::NotTimedOut(val) => write!(f, "NotTimedOut({val})"),
+            TimeoutSendError::TimedOut(val) => write!(f, "TimedOut({val})")
+
+        }
+         
     }
 
 }
@@ -174,7 +233,13 @@ impl Display for TimeoutReceiveError
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
     {
 
-        write!(f, "{}", self)
+        match self
+        {
+
+            TimeoutReceiveError::NotTimedOut(val) => write!(f, "NotTimedOut({val})"),
+            TimeoutReceiveError::TimedOut=> write!(f, "TimedOut")
+
+        }
         
     }
     
