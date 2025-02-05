@@ -4,6 +4,8 @@ use crate::SharedDetails;
 
 use delegate::delegate;
 
+use std::fmt::Debug;
+
 //#[cfg(feature="count_waiting_senders_and_receivers")]
 //use crate::ScopedIncrementer;
 
@@ -43,7 +45,7 @@ impl<Q, N> BoundedSharedDetails<Q, N>
         to self.shared_details
         {
 
-            pub fn queue(&self) -> &Q;
+            pub fn queue_ref(&self) -> &Q;
         
             //active_receiver_count
         
@@ -57,7 +59,7 @@ impl<Q, N> BoundedSharedDetails<Q, N>
 
             //
         
-            pub fn receivers_notifier(&self) -> &N;
+            pub fn receivers_notifier_ref(&self) -> &N;
 
             /*
             pub fn receivers_do_not_wait(&self) -> bool;
@@ -72,7 +74,7 @@ impl<Q, N> BoundedSharedDetails<Q, N>
 
     }
     
-    pub fn senders_notifier(&self) -> &N
+    pub fn senders_notifier_ref(&self) -> &N
     {
 
         &self.senders_notifier
@@ -103,4 +105,15 @@ impl<Q, N> BoundedSharedDetails<Q, N>
     }
     */
 
+}
+
+impl<Q, N> Debug for BoundedSharedDetails<Q, N>
+    where Q: Debug,
+          N: Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BoundedSharedDetails").field("shared_details", &self.shared_details).field("senders_notifier", &self.senders_notifier).finish()
+    }
+    
 }

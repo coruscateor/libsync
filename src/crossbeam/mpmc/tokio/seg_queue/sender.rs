@@ -6,7 +6,7 @@ use tokio::sync::{Notify, Semaphore};
 
 use crate::{BoundedSendError, BoundedSendResult, BoundedSharedDetails, SendResult, SharedDetails, TimeoutBoundedSendError}; //crossbeam::mpmc::tokio::ChannelSemaphore, 
 
-use crate::crossbeam::mpmc::seg_queue::{Sender as BaseSender, Receiver};
+use crate::crossbeam::mpmc::base::seg_queue::{Sender as BaseSender, Receiver};
 
 use delegate::delegate;
 
@@ -15,6 +15,8 @@ use std::clone::Clone;
 use tokio::time::timeout;
 
 use crate::tokio_helpers::SemaphoreController;
+
+use std::fmt::Debug;
 
 //use futures::executor::block_on;
 
@@ -76,7 +78,7 @@ impl<T> Sender<T>
     delegate!
     {
 
-        to self.base.receivers_notifier()
+        to self.base.receivers_notifier_ref()
         {
 
             pub fn is_closed(&self) -> bool;
@@ -98,7 +100,7 @@ impl<T> Sender<T>
 
             //Add a permit to the receivers_notifier if a value has successfully been sent.
 
-            self.base.receivers_notifier().add_permit();
+            self.base.receivers_notifier_ref().add_permit();
 
         }
 
@@ -143,6 +145,16 @@ impl<T> Clone for Sender<T>
 
 }
 
+impl<T> Debug for Sender<T>
+    where T: Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Sender").field("base", &self.base).finish()
+    }
+    
+}
+
 /* */
 impl<T> Drop for Sender<T>
 {
@@ -155,7 +167,7 @@ impl<T> Drop for Sender<T>
 
             //Engage free-for-all mode.
 
-            self.base.receivers_notifier().close();
+            self.base.receivers_notifier_ref().close();
 
         }
     

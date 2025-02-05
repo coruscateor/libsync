@@ -6,7 +6,7 @@ use tokio::sync::{Notify, Semaphore};
 
 use crate::{BoundedSendError, BoundedSendResult, BoundedSharedDetails, SendResult, TimeoutBoundedSendError};
 
-use crate::crossbeam::mpmc::array_queue::{Sender as BaseSender, Receiver};
+use crate::crossbeam::mpmc::base::array_queue::{Sender as BaseSender, Receiver};
 
 use delegate::delegate;
 
@@ -15,6 +15,8 @@ use std::clone::Clone;
 use tokio::time::timeout;
 
 use crate::tokio_helpers::SemaphoreController;
+
+use std::fmt::Debug;
 
 //use futures::executor::block_on;
 
@@ -86,11 +88,11 @@ impl<T> Sender<T>
 
             //Add a permit to the receivers_notifier if a value has successfully been sent.
 
-            self.base.receivers_notifier().add_permit();
+            self.base.receivers_notifier_ref().add_permit();
 
             //Remove an avalible slot.
 
-            self.base.senders_notifier().forget_permit();
+            self.base.senders_notifier_ref().forget_permit();
 
         }
 
@@ -111,7 +113,7 @@ impl<T> Sender<T>
         loop
         {
 
-            let acquired_or_not = self.base.senders_notifier().acquire().await;
+            let acquired_or_not = self.base.senders_notifier_ref().acquire().await;
     
             match acquired_or_not
             {
@@ -131,7 +133,7 @@ impl<T> Sender<T>
         
                             //Add a permit for an item to be received.
         
-                            self.base.receivers_notifier().add_permit();
+                            self.base.receivers_notifier_ref().add_permit();
             
                             return Ok(res);
             
@@ -177,7 +179,7 @@ impl<T> Sender<T>
     pub async fn send_or_timeout(&self, value: T, duration: Duration) -> Result<(), TimeoutBoundedSendError<T>>
     {
 
-        let acquired_or_not= self.base.senders_notifier().acquire_timeout(duration).await;
+        let acquired_or_not= self.base.senders_notifier_ref().acquire_timeout(duration).await;
 
         let sent;
 
@@ -229,7 +231,7 @@ impl<T> Sender<T>
 
                 //Add a permit for an item to be received.
 
-                self.base.receivers_notifier().add_permit();
+                self.base.receivers_notifier_ref().add_permit();
 
                 Ok(res)
 
@@ -282,6 +284,16 @@ impl<T> Clone for Sender<T>
 
 }
 
+impl<T> Debug for Sender<T>
+    where T: Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Sender").field("base", &self.base).finish()
+    }
+    
+}
+
 impl<T> Drop for Sender<T> //Receiver<T>
 {
 
@@ -293,9 +305,9 @@ impl<T> Drop for Sender<T> //Receiver<T>
 
             //Engage free-for-all mode.
 
-            self.base.senders_notifier().close();
+            self.base.senders_notifier_ref().close();
 
-            self.base.receivers_notifier().close();
+            self.base.receivers_notifier_ref().close();
 
         }
     

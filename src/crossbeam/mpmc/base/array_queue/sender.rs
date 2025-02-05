@@ -6,6 +6,8 @@ use crate::{BoundedSendError, BoundedSendResult, BoundedSharedDetails}; //, Scop
 
 use delegate::delegate;
 
+use std::fmt::Debug;
+
 pub struct Sender<T, N = ()>
 {
 
@@ -53,7 +55,7 @@ impl<T, N> Sender<T, N>
         if self.receiver_count.strong_count() > 0 //active_receiver_count > 0
         {
 
-            let res = self.shared_details.queue().push(value);
+            let res = self.shared_details.queue_ref().push(value);
 
             if let Err(val) = res
             {
@@ -76,11 +78,11 @@ impl<T, N> Sender<T, N>
         to self.shared_details
         {
 
-            pub fn senders_notifier(&self) -> &N;
+            pub fn senders_notifier_ref(&self) -> &N;
 
             //pub fn senders_notifier_count(&self) -> &AtomicUsize;
 
-            pub fn receivers_notifier(&self) -> &N;
+            pub fn receivers_notifier_ref(&self) -> &N;
 
             /*
             pub fn receivers_do_not_wait(&self) -> bool;
@@ -109,7 +111,7 @@ impl<T, N> Sender<T, N>
     delegate!
     {
 
-        to self.shared_details.queue()
+        to self.shared_details.queue_ref()
         {
         
             pub fn capacity(&self) -> usize;
@@ -193,6 +195,17 @@ impl<T, N> Clone for Sender<T, N>
 
     }
 
+}
+
+impl<T, N> Debug for Sender<T, N>
+    where T: Debug,
+          N: Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Sender").field("shared_details", &self.shared_details).field("sender_count", &self.sender_count).field("receiver_count", &self.receiver_count).finish()
+    }
+    
 }
 
 //If all the senders drop then all the receivers should be able to receive the messages in the buffer.

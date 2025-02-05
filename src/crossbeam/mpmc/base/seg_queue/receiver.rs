@@ -6,6 +6,8 @@ use crate::{ReceiveError, ReceiveResult, SharedDetails}; //, ScopedIncrementer};
 
 use delegate::delegate;
 
+use std::fmt::Debug;
+
 //#[derive(Clone)]
 pub struct Receiver<T, N = ()>
 {
@@ -40,7 +42,7 @@ impl<T, N> Receiver<T, N>
     pub fn try_recv(&self) -> ReceiveResult<T>
     {
 
-        if let Some(res) = self.shared_details.queue().pop()
+        if let Some(res) = self.shared_details.queue_ref().pop()
         {
 
             return Ok(res);
@@ -77,7 +79,7 @@ impl<T, N> Receiver<T, N>
 
             //pub fn senders_notifier_count(&self) -> &AtomicUsize;
 
-            pub fn receivers_notifier(&self) -> &N;
+            pub fn receivers_notifier_ref(&self) -> &N;
 
             /*
             pub fn receivers_do_not_wait(&self) -> bool;
@@ -102,7 +104,7 @@ impl<T, N> Receiver<T, N>
     delegate!
     {
 
-        to self.shared_details.queue()
+        to self.shared_details.queue_ref()
         {
         
             //pub fn capacity(&self) -> usize;
@@ -171,6 +173,18 @@ impl<T, N> Clone for Receiver<T, N>
     }
 
 }
+
+impl<T, N> Debug for Receiver<T, N>
+    where T: Debug,
+          N: Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Receiver").field("shared_details", &self.shared_details).field("sender_count", &self.sender_count).field("receiver_count", &self.receiver_count).finish()
+    }
+    
+}
+
 
 /*
 impl<T, N> Drop for Receiver<T, N>

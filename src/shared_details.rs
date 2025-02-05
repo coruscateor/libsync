@@ -1,4 +1,4 @@
-use std::sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Weak};
+use std::{fmt::Debug, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Weak}};
 
 //#[cfg(feature="count_waiting_senders_and_receivers")]
 //use crate::ScopedIncrementer;
@@ -39,7 +39,7 @@ impl<Q, N> SharedDetails<Q, N>
 
     }
 
-    pub fn queue(&self) -> &Q
+    pub fn queue_ref(&self) -> &Q
     {
 
         &self.queue
@@ -73,7 +73,7 @@ impl<Q, N> SharedDetails<Q, N>
 
     //
 
-    pub fn receivers_notifier(&self) -> &N
+    pub fn receivers_notifier_ref(&self) -> &N
     {
 
         &self.receivers_notifier
@@ -103,5 +103,16 @@ impl<Q, N> SharedDetails<Q, N>
 
     }
     */
+    
+}
+
+impl<Q, N> Debug for SharedDetails<Q, N>
+    where Q: Debug,
+          N: Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SharedDetails").field("queue", &self.queue).field("receivers_notifier", &self.receivers_notifier).finish()
+    }
     
 }

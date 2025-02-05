@@ -6,6 +6,8 @@
 
 use super::{Sender, Receiver, channel};
 
+use std::fmt::Debug;
+
 ///
 /// For use on the “client side” of the actor.
 /// 
@@ -70,6 +72,17 @@ impl<IM, OM> Clone for IOClient<IM, OM>
             
         }
 
+    }
+
+}
+
+impl<IM, OM> Debug for IOClient<IM, OM>
+    where IM: Debug,
+          OM: Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IOClient").field("input_sender", &self.input_sender).field("output_receiver", &self.output_receiver).finish()
     }
 
 }
@@ -140,6 +153,17 @@ impl<IM, OM> Clone for IOServer<IM, OM>
 
     }
 
+}
+
+impl<IM, OM> Debug for IOServer<IM, OM>
+    where IM: Debug,
+          OM: Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IOServer").field("input_receiver", &self.input_receiver).field("output_sender", &self.output_sender).finish()
+    }
+    
 }
 
 ///

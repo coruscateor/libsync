@@ -8,7 +8,7 @@ use tokio::{sync::Notify, time::timeout};
 
 use crate::{BoundedSharedDetails, ReceiveError, ReceiveResult, SharedDetails, TimeoutReceiveError}; //crossbeam::mpmc::tokio::ChannelSemaphore, 
 
-use crate::crossbeam::mpmc::seg_queue::{Sender, Receiver as BaseReceiver};
+use crate::crossbeam::mpmc::base::seg_queue::{Sender, Receiver as BaseReceiver};
 
 //use crate::crossbeam::mpmc::array_queue::
 
@@ -17,6 +17,8 @@ use delegate::delegate;
 use std::clone::Clone;
 
 use crate::tokio_helpers::SemaphoreController;
+
+use std::fmt::Debug;
 
 //#[derive(Clone)]
 pub struct Receiver<T>
@@ -70,7 +72,7 @@ impl<T> Receiver<T>
     delegate!
     {
 
-        to self.base.receivers_notifier()
+        to self.base.receivers_notifier_ref()
         {
 
             pub fn is_closed(&self) -> bool;
@@ -93,7 +95,7 @@ impl<T> Receiver<T>
 
             //Only forget a permit if we know one existed.
 
-            self.base.receivers_notifier().forget_permit();
+            self.base.receivers_notifier_ref().forget_permit();
 
         }
 
@@ -109,7 +111,7 @@ impl<T> Receiver<T>
         loop
         {
 
-            let acquired_or_not = self.base.receivers_notifier().acquire().await;
+            let acquired_or_not = self.base.receivers_notifier_ref().acquire().await;
     
             match acquired_or_not
             {
@@ -178,7 +180,7 @@ impl<T> Receiver<T>
     pub async fn recv_or_timeout(&self, duration: Duration) -> Result<T, TimeoutReceiveError>
     {
 
-        let acquired_or_not= self.base.receivers_notifier().acquire_timeout(duration).await;
+        let acquired_or_not= self.base.receivers_notifier_ref().acquire_timeout(duration).await;
 
         let recvd;
 
@@ -275,6 +277,16 @@ impl<T> Clone for Receiver<T>
 
 }
 
+impl<T> Debug for Receiver<T>
+    where T: Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Receiver").field("base", &self.base).finish()
+    }
+    
+}
+
 impl<T> Drop for Receiver<T>
 {
 
@@ -286,7 +298,7 @@ impl<T> Drop for Receiver<T>
 
             //Engage free-for-all mode.
 
-            self.base.receivers_notifier().close();
+            self.base.receivers_notifier_ref().close();
 
         }
     

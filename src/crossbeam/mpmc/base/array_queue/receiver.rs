@@ -1,4 +1,4 @@
-use std::{sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Weak}, thread::{sleep, sleep_ms, Thread}, time::Duration};
+use std::{fmt::Debug, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, Weak}, thread::{sleep, sleep_ms, Thread}, time::Duration};
 
 use crossbeam::queue::ArrayQueue;
 
@@ -52,7 +52,7 @@ impl<T, N> Receiver<T, N>
     pub fn try_recv(&self) -> ReceiveResult<T>
     {
 
-        if let Some(res) = self.shared_details.queue().pop()
+        if let Some(res) = self.shared_details.queue_ref().pop()
         {
 
             return Ok(res);
@@ -85,11 +85,11 @@ impl<T, N> Receiver<T, N>
         to self.shared_details
         {
 
-            pub fn senders_notifier(&self) -> &N;
+            pub fn senders_notifier_ref(&self) -> &N;
 
             //pub fn senders_notifier_count(&self) -> &AtomicUsize;
 
-            pub fn receivers_notifier(&self) -> &N;
+            pub fn receivers_notifier_ref(&self) -> &N;
         
             //pub fn receivers_notifier_count(&self) -> &AtomicUsize;
 
@@ -118,7 +118,7 @@ impl<T, N> Receiver<T, N>
     delegate!
     {
 
-        to self.shared_details.queue()
+        to self.shared_details.queue_ref()
         {
         
             pub fn capacity(&self) -> usize;
@@ -222,6 +222,17 @@ impl<T, N> Clone for Receiver<T, N>
 
 }
 
+impl<T, N> Debug for Receiver<T, N>
+    where T: Debug,
+          N: Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Receiver").field("shared_details", &self.shared_details).field("sender_count", &self.sender_count).field("receiver_count", &self.receiver_count).finish()
+    }
+
+}
+
 /*
 
 Above:
@@ -253,6 +264,7 @@ impl<T> Clone for Receiver<T>
 
  */
 
+ /*
 impl<T, N> Drop for Receiver<T, N>
 {
 
@@ -347,5 +359,6 @@ impl<T, N> Drop for Receiver<T, N>
     }*/
 
 }
+*/
 
 
