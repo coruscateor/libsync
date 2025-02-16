@@ -97,11 +97,45 @@ impl<T> Receiver<T>
 
     }
 
-    pub async fn recv(&self) -> Option<T> //ReceiveResult<T>
+    pub async fn recv(&self) -> ReceiveResult<T> //Option<T> 
     {
 
         //Loop until you send something or there are no more senders.
 
+        loop
+        {
+
+            let can_receive_or_not = self.base.receivers_notifier_ref().acquire().await;
+    
+            let sent;
+
+            match can_receive_or_not
+            {
+    
+                Ok(permit) =>
+                {
+    
+                    permit.forget();
+
+                    sent = self.base.try_recv()?;
+
+                    return Ok(sent);
+                    
+                }
+                Err(_err) =>
+                {
+    
+                    sent = self.base.try_recv()?;
+
+                    return Ok(sent);
+
+                }
+    
+            }
+
+        }
+
+        /*
         loop
         {
 
@@ -174,6 +208,7 @@ impl<T> Receiver<T>
             }
 
         }
+        */
 
     }
 
