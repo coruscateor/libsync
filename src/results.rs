@@ -2,6 +2,9 @@ use std::fmt::{Display, Formatter};
 
 pub type SendResult<T> = Result<(), T>;
 
+///
+/// Provides the reason for the error if a message cannot be sent on a bounded channel.
+/// 
 #[derive(Debug)]
 pub enum BoundedSendError<T>
 {
@@ -131,6 +134,9 @@ impl Display for BoundedSendErrorType
     
 }
 
+///
+/// Provides the reasons for why a value cannot be received from a channel.
+/// 
 #[derive(Debug)]
 pub enum ReceiveError
 {
@@ -162,6 +168,9 @@ pub type ReceiveResult<T> = Result<T, ReceiveError>;
 
 //Timeouts
 
+///
+/// Was there a BoundedSendError or a time-out?
+/// 
 #[derive(Debug)]
 pub enum TimeoutBoundedSendError<T>
 {
@@ -190,6 +199,9 @@ impl<T> Display for TimeoutBoundedSendError<T>
 
 }
 
+///
+/// Did the operation time-out or was there another issue?
+/// 
 #[derive(Debug)]
 pub enum TimeoutSendError<T>
 {
@@ -218,6 +230,9 @@ impl<T> Display for TimeoutSendError<T>
 
 }
 
+///
+/// Was there a ReceiveError or a time-out?
+/// 
 #[derive(Debug)]
 pub enum TimeoutReceiveError
 {

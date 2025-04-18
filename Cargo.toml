@@ -1,6 +1,6 @@
 [package]
 name = "libsync"
-version = "0.1.0"
+version = "0.2.0-beta"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "A library containing channels and other synchronisation object implementations."
@@ -29,4 +29,6 @@ std = []
 #crossbeam = ["dep:crossbeam"]
 #tokio = ["dep:tokio"]
 
-
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

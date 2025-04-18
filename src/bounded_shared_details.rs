@@ -9,6 +9,9 @@ use std::fmt::Debug;
 //#[cfg(feature="count_waiting_senders_and_receivers")]
 //use crate::ScopedIncrementer;
 
+///
+/// Details that are shared between bounded senders and receivers.
+/// 
 pub struct BoundedSharedDetails<Q, N = ()>
 {
 

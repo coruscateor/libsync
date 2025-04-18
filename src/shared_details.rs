@@ -3,6 +3,9 @@ use std::{fmt::Debug, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, W
 //#[cfg(feature="count_waiting_senders_and_receivers")]
 //use crate::ScopedIncrementer;
 
+///
+/// Details that are shared between unbounded senders and receivers.
+/// 
 pub struct SharedDetails<Q, N = ()>
 {
 

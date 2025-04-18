@@ -39,6 +39,8 @@ This project uses a coding style the emphasises the use of white space over keep
 So this:
 
 ```rust
+fn bar() {}
+
 fn foo()
 {
 
@@ -51,6 +53,8 @@ fn foo()
 Not this:
 
 ```rust
+fn bar() {}
+
 fn foo()
 {
     bar();
