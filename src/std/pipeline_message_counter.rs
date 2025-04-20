@@ -3,7 +3,7 @@ use std::sync::Arc;
 use delegate::delegate;
 
 ///
-/// For maintaining a count of messages sent though pipelines.
+/// For maintaining a count of the messages sent though pipelines.
 /// 
 #[derive(Clone)]
 pub struct PipelineMessageCounter

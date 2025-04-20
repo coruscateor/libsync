@@ -1,5 +1,5 @@
 //!
-//! Multi-producer multi-consumer channels based on Crossbeam queues.
+//! Multi-producer multi-consumer channels based on [Crossbeam queues](https://docs.rs/crossbeam/0.8.4/crossbeam/queue/index.html).
 //! 
 
 //pub mod array_queue;

@@ -1,5 +1,8 @@
 use std::fmt::{Display, Formatter};
 
+///
+/// The result of a send attempt on a channel.
+/// 
 pub type SendResult<T> = Result<(), T>;
 
 ///
@@ -104,6 +107,9 @@ impl<T> Into<T> for BoundedSendError<T>
 }
 */
 
+///
+/// The result of a send attempt on a bounded channel.
+/// 
 pub type BoundedSendResult<T> = Result<(), BoundedSendError<T>>;
 
 #[derive(Debug)]
@@ -164,6 +170,9 @@ impl Display for ReceiveError
     
 }
 
+///
+/// The result of a receive attempt on a channel.
+/// 
 pub type ReceiveResult<T> = Result<T, ReceiveError>;
 
 //Timeouts

@@ -1,3 +1,6 @@
+//!
+//! For creating re-usable locations where values can be "returned" from one thread to another.
+//! 
 
 mod base_return_store;
 

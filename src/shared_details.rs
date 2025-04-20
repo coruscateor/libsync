@@ -4,7 +4,7 @@ use std::{fmt::Debug, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc, W
 //use crate::ScopedIncrementer;
 
 ///
-/// Details that are shared between unbounded senders and receivers.
+/// Details that are shared between sender and receiver parts of a channel.
 /// 
 pub struct SharedDetails<Q, N = ()>
 {

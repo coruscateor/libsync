@@ -1,7 +1,5 @@
 //!
-//! IO Channels: Sometimes one channel isn't enough.
-//! 
-//! Call io_channels to get IOClient and IOServer objects in circumstances where you need both input and output channels.
+//! Call io_channels to get IOClient and IOServer objects in circumstances where you need both input and output channels e.g. with actors.
 //! 
 
 use super::{Sender, Receiver, channel};

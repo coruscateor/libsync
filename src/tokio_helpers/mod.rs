@@ -1,3 +1,6 @@
+//!
+//! Helper objects for Tokio objects.
+//! 
 
 mod semaphore_controller;
 

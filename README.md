@@ -13,28 +13,34 @@
 [Youtube](https://www.youtube.com/@coruscateor) | 
 [Mastodon](https://mastodon.social/@Coruscateor) | 
 [GitHub](https://github.com/coruscateor) | 
-[GitHub Sponsors](https://github.com/sponsors/coruscateor)
-
-LibSync is a library which contains objects which can be used in the synchronisation of application threads.
-
-This this library is structured to compound the features of other “lower level” libraries e.g. it combines crossbeam ArrayQueue objects with Tokio Notify objects to produce a multi-producer-multi-consumer channel that can be waited on asynchronously at both ends.
+[GitHub Sponsors](https://github.com/sponsors/coruscateor) 
 
 </div>
 
 </br>
 
+LibSync is a library which contains objects which can be used in the synchronisation of application threads.
+
+This this library combines the features of “lower level” library objects e.g. it combines crossbeam ArrayQueue objects with Tokio Semaphore objects to produce a multi-producer-multi-consumer channel that can be waited on asynchronously at both sides.
+
+It also has objects that help you keep count of messages in a pipeline and "return stores" for "returning" values from one thread to another using a reusable location.
+
+In addition to message counters, you may find IO channels useful when working with actors.
+
+</br>
+
 ## Todo
 
-- Add crossbeam::mpmc::tokio::seg_queue implementation.
-- Complete std::Notifier
-- Add documentation
+- Add more documentation
 - Add tests
+- Decide on what is staying in the library.
+- Add IO channels using crossbeam channels.
 
 </br>
 
 ## Coding Style
 
-This project uses a coding style the emphasises the use of white space over keeping the line and column counts as low as possible.
+This project uses a coding style that emphasises the use of white space over keeping the line and column counts as low as possible.
 
 So this:
 

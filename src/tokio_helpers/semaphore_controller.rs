@@ -5,9 +5,9 @@ use delegate::delegate;
 use std::{future::Future, sync::atomic::{AtomicUsize, Ordering}, time::Duration};
 
 ///
-///Receivers side: Permits to receive popped objects. Permit count starts at zero (empty queue).
+/// Receivers side: Permits to receive popped objects. Permit count starts at zero (empty queue).
 ///
-///Senders side: Permits to send objects. Permit count starts at the length of the queue (On permit for each empty sot in the queue (if applicable)).
+/// Senders side: Permits to send objects. Permit count starts at the length of the queue (One permit for each empty slot in the queue (if applicable)).
 ///
 #[derive(Debug)]
 pub struct SemaphoreController

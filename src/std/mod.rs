@@ -1,4 +1,6 @@
-//! Synchronisation - from corlin::sync
+//!
+//! Synchronisation - originally from corlib::sync.
+//!
 
 mod notifier;
 

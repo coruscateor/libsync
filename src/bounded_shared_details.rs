@@ -10,7 +10,7 @@ use std::fmt::Debug;
 //use crate::ScopedIncrementer;
 
 ///
-/// Details that are shared between bounded senders and receivers.
+/// Details that are shared between bounded sender and receiver parts of a channel.
 /// 
 pub struct BoundedSharedDetails<Q, N = ()>
 {
