@@ -178,6 +178,9 @@ pub fn io_channels<IM, OM>(input_buffer_size: usize, output_buffer_size: usize) 
 
 }
 
+///
+/// Initialises unbounded input and output channels, both with the same buffer sizes.
+/// 
 pub fn io_channel_both<IM, OM>(buffer_size: usize) -> (IOClient<IM, OM>, IOServer<IM, OM>)
 {
 

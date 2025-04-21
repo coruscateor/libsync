@@ -21,7 +21,7 @@
 
 LibSync is a library which contains objects which can be used in the synchronisation of application threads.
 
-This this library combines the features of “lower level” library objects e.g. it combines crossbeam ArrayQueue objects with Tokio Semaphore objects to produce a multi-producer-multi-consumer channel that can be waited on asynchronously at both sides.
+This this library combines the features of “lower level” library objects e.g. it combines crossbeam ArrayQueue objects with Tokio Semaphore objects to produce a multi-producer-multi-consumer channel that can be waited on asynchronously on both sides.
 
 It also has objects that help you keep count of messages in a pipeline and "return stores" for "returning" values from one thread to another using a reusable location.
 
@@ -34,7 +34,6 @@ In addition to message counters, you may find IO channels useful when working wi
 - Add more documentation
 - Add tests
 - Decide on what is staying in the library.
-- Add IO channels using crossbeam channels.
 
 </br>
 
