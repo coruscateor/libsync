@@ -1,5 +1,5 @@
 
-da52b8c0318e7e238548ee0a28e5ed0cea57be31
+da52b8c0318e7e238548ee0a28e5ed0cea57be31 -
 
 - Corrected spelling
 
@@ -18,7 +18,7 @@ da52b8c0318e7e238548ee0a28e5ed0cea57be31
 
 
 
-a44d392bfbff64dfc7d7f78acf999662aa804936
+a44d392bfbff64dfc7d7f78acf999662aa804936 -
 
 Added the return_store module with ReturnStoreState, BaseReturnStore, Ba…
 …seReturner structs and the Returns trait directly under it and a tokio sub-module with ReturnStore and Returner structs.
@@ -26,7 +26,7 @@ Added the return_store module with ReturnStoreState, BaseReturnStore, Ba…
 
 
 
-5ed939d608b414d762509d3efc147927e31dbe06
+5ed939d608b414d762509d3efc147927e31dbe06 -
 
 - Improved handling of waiting and potentially waiting tasks when sides …
 …of channels are dropped.
@@ -39,7 +39,7 @@ Added the return_store module with ReturnStoreState, BaseReturnStore, Ba…
 
 
 
-0d6ed92cf6c485263369b7688bd93a732fab3cd7
+0d6ed92cf6c485263369b7688bd93a732fab3cd7 -
 
 - Began the process of switching Tokio Notify objects with Semaphores in…
 … the tokio module, starting with seg_queue.
@@ -50,16 +50,17 @@ Added the return_store module with ReturnStoreState, BaseReturnStore, Ba…
 
 
 
-b4ff48b454cb584804d2c8d8b7f750f5d8a428f1
+b4ff48b454cb584804d2c8d8b7f750f5d8a428f1 -
 
 - Disabled the count_waiting_senders_and_receivers feature.
+
 - Added a tokio_helpers module at the base with a SemaphoreController object.
 
 - Got about three-quarters of the way into re-implementing the channels.
 
 
 
-95849eeee62bb904bb545d38538391d3cabeffc9
+95849eeee62bb904bb545d38538391d3cabeffc9 -
 
 - Re-implemented the crossbeam/mpmc/tokio/array_queue Receiver object.
 
@@ -69,7 +70,7 @@ b4ff48b454cb584804d2c8d8b7f750f5d8a428f1
 
 
 
-ec4d21dc4ff019f27a15cdb1ec6acf568b544e80
+ec4d21dc4ff019f27a15cdb1ec6acf568b544e80 -
 
 - Updated the std Notifier struct level documentation.
 
@@ -79,19 +80,19 @@ ec4d21dc4ff019f27a15cdb1ec6acf568b544e80
 
 
 
-8821ea6a5723845e873f77c8e60727e4af276e99
+8821ea6a5723845e873f77c8e60727e4af276e99 -
 
 Fixed the feature flags on modules.
 
 
 
-6667e4abc857d39594face2935dee4ab9eb73093
+6667e4abc857d39594face2935dee4ab9eb73093 -
 
 I got tokio versioning problems...
 
 
 
-853006ec1b4b55302c5f67e79559dcb7abc25d2f
+853006ec1b4b55302c5f67e79559dcb7abc25d2f -
 
 - Updated the Tokio dependency to 1.40.0.
 
@@ -103,7 +104,7 @@ I got tokio versioning problems...
 
 
 
-d4e2a5f7a0435519e85e0ac8515905be555114cd
+d4e2a5f7a0435519e85e0ac8515905be555114cd -
 
 - The Crossbeam MPMC Tokio array and seg queue channels Receiver objects…
 … recv methods now return Options instead of ReceiveResults.
@@ -116,7 +117,7 @@ d4e2a5f7a0435519e85e0ac8515905be555114cd
 
 
 
-b82b76100cb7421543ff49d28533f5bf217717e6
+b82b76100cb7421543ff49d28533f5bf217717e6 -
 
 - Manually implemented Clone on the crossbeam/mpmc/tokio/seg_queue/Sende…
 …r object.
@@ -127,7 +128,7 @@ b82b76100cb7421543ff49d28533f5bf217717e6
 
 
 
-684249464fbb6e823d27c4329db43bf75b730295
+684249464fbb6e823d27c4329db43bf75b730295 -
 
 Renamed MutCountedPipelineMessage to CountedPipelineMessageMut in the st…
 …d module.
