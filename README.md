@@ -2,10 +2,10 @@
 
 # LibSync
 
-[![Crates.io](https://img.shields.io/crates/v/gtk_estate)](https://crates.io/crates/libsync)
+[![Crates.io](https://img.shields.io/crates/v/libsync)](https://crates.io/crates/libsync)
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue)](#license)
-[![Downloads](https://img.shields.io/crates/d/gtk_estate)](https://crates.io/crates/libsync)
-[![Docs](https://docs.rs/gtk_estate/badge.svg)](https://docs.rs/gtk_estate/latest/libsync)
+[![Downloads](https://img.shields.io/crates/d/libsync)](https://crates.io/crates/libsync)
+[![Docs](https://docs.rs/libsync/badge.svg)](https://docs.rs/libsync/latest/libsync)
 [![Twitch Status](https://img.shields.io/twitch/status/coruscateor)](https://www.twitch.tv/coruscateor)
 
 [X](https://twitter.com/Coruscateor) | 
@@ -19,9 +19,7 @@
 
 </br>
 
-LibSync is a library which contains objects which can be used in the synchronisation of application threads.
-
-This this library combines the features of “lower level” library objects e.g. it combines crossbeam ArrayQueue objects with Tokio Semaphore objects to produce a multi-producer-multi-consumer channel that can be waited on asynchronously on both sides.
+LibSync combines “lower level” library objects to produce channels and other synchronisation objects e.g. it combines Crossbeam ArrayQueue objects with Tokio Semaphore objects to produce a multi-producer-multi-consumer channel that can be waited on asynchronously on both sides.
 
 It also has objects that help you keep count of messages in a pipeline and "return stores" for "returning" values from one thread to another using a reusable location.
 
@@ -34,6 +32,13 @@ In addition to message counters, you may find IO channels useful when working wi
 - Add more documentation
 - Add tests
 - Decide on what is staying in the library.
+- Get the channels to work with other async runtimes, preferably via generics.
+
+</br>
+
+## Maybe
+
+- Add synchronous channel implementations.
 
 </br>
 
