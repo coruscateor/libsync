@@ -151,7 +151,7 @@ da52b8c0318e7e238548ee0a28e5ed0cea57be31
 
 0d6ed92cf6c485263369b7688bd93a732fab3cd7
 
--- Began the process of switching Tokio Notify objects with Semaphores in the tokio module, starting with seg_queue. (Completed?)
+-- Began the process of switching Tokio Notify objects with Semaphores in the tokio module, starting with seg_queue. (Completed: 95849eeee62bb904bb545d38538391d3cabeffc9 (Partial))
 
 
 
@@ -159,7 +159,7 @@ b4ff48b454cb584804d2c8d8b7f750f5d8a428f1
 
 - Disabled the count_waiting_senders_and_receivers feature.
 
--- Got about three-quarters of the way into re-implementing the channels. (Completed?)
+-- Got about three-quarters of the way into re-implementing the channels. (Completed: 95849eeee62bb904bb545d38538391d3cabeffc9 (Partial))
 
 
 
