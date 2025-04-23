@@ -135,7 +135,7 @@ Renamed MutCountedPipelineMessage to CountedPipelineMessageMut in the st…
 
 
 
-4574f7f9752613e3be225f0eccfd9d9a49768acb
+4574f7f9752613e3be225f0eccfd9d9a49768acb -
 
 - Updated how the std/PipelineMessageCounter and the std/IncrementedPipe…
 …lineMessageCounter objects handle message counts.
@@ -148,7 +148,7 @@ Renamed MutCountedPipelineMessage to CountedPipelineMessageMut in the st…
 
 
 
-ba2942bf55301e72588c5deda32e403cfab973d3
+ba2942bf55301e72588c5deda32e403cfab973d3 -
 
 - Added methods take, take_incremented and take_both to the CountedPipel…
 …ineMessage object.
@@ -163,7 +163,7 @@ ba2942bf55301e72588c5deda32e403cfab973d3
 
 
 
-3f543310f0a777af3ef00c5d7edc5c8687884ffd
+3f543310f0a777af3ef00c5d7edc5c8687884ffd -
 
 - PipelineMessageContainerFactory now requires all implementers to imple…
 …ment Clone.
@@ -172,7 +172,7 @@ ba2942bf55301e72588c5deda32e403cfab973d3
 
 
 
-e512ebbfe5cbd26d04457be5eec522aeacff22ac
+e512ebbfe5cbd26d04457be5eec522aeacff22ac -
 
 - Updated the project dependencies.
 
@@ -180,9 +180,11 @@ e512ebbfe5cbd26d04457be5eec522aeacff22ac
 
 - Added wait_fn, wait_timeout_fn, lock and try_lock methods to Notifier and updated other methods in the struct implementation.
 
+- Added NotifyingReturnStoreState, NotifyingReturnStore and NotifyingReturner under std/return_store.
 
 
-821f7332958486d114d50325129ac56c52e52553
+
+821f7332958486d114d50325129ac56c52e52553 -
 
 - Added PolledReturnStore and PolledReturner.
 
@@ -190,21 +192,21 @@ e512ebbfe5cbd26d04457be5eec522aeacff22ac
 
 
 
-acb21026c36e3ecb578acc0e078dd2c4d0229ec1
+acb21026c36e3ecb578acc0e078dd2c4d0229ec1 -
 
 Added io_channels modules to the crossbeam::mpmc::tokio::array_queue and…
 … seg_queue modules. These modules contain IOClient and IOServer structs and io_channels functions. Additionally the array_queue sub-module contains an io_channel_both function.
 
 
 
-91d07bd562cf73efe551009101db797ba7672dd7
+91d07bd562cf73efe551009101db797ba7672dd7 -
 
 Fixed the Display implementations of the result types so they don’t caus…
 …e stack overflows.
 
 
 
-c45497fbaa90d5165d148a495353dde577252ca1
+c45497fbaa90d5165d148a495353dde577252ca1 -
 
 - Conditionally implemented std::fmt::Debug on SharedDetails, BoundedSha…
 …redDetails, crossbeam::mpmc::tokio::array_queue::IOClient, IOServer, Sender, Receiver and for the same-named objects in crossbeam::mpmc::tokio::seg_queue sub-module.
@@ -217,14 +219,14 @@ c45497fbaa90d5165d148a495353dde577252ca1
 
 
 
-dbf25645563fbe231866862938e0ce5e4af0a134
+dbf25645563fbe231866862938e0ce5e4af0a134 -
 
 - The the recv methods of both the crossbeam::mpmc::tokio::array_queue::…
 …Receiver and crossbeam::mpmc::tokio::seg_queue::Receiver objects now return ReceiveResult objects instead of Options.
 
 
 
-1b95a216016d81cb890f84462d6a67ec2c48cb9e
+1b95a216016d81cb890f84462d6a67ec2c48cb9e -
 
 - Updated the version to 0.2.0-beta.
 
@@ -238,7 +240,7 @@ dbf25645563fbe231866862938e0ce5e4af0a134
 
 
 
-7bbc8e879b458afe72a4777a8cfdf26395f67ddb
+7bbc8e879b458afe72a4777a8cfdf26395f67ddb -
 
 - Updated the crossbeam dependency to version 0.8.4.
 
@@ -254,7 +256,7 @@ dbf25645563fbe231866862938e0ce5e4af0a134
 
 
 
-a82259234a1acd7854f86d84f40944a1a133e564
+a82259234a1acd7854f86d84f40944a1a133e564 -
 
 - Updated the readme
 
@@ -262,7 +264,7 @@ a82259234a1acd7854f86d84f40944a1a133e564
 
 
 
-4b9508ed89ae51168cc3617cfe113fb07ed30877
+4b9508ed89ae51168cc3617cfe113fb07ed30877 -
 
 - Updated the readme
 
