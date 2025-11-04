@@ -21,6 +21,10 @@ futures = "0.3.31"
 
 #parking_lot = "0.12.*"
 
+paste = "1.0.15"
+
+accessorise = "0.2.0"
+
 #https://doc.rust-lang.org/cargo/reference/features.html#optional-dependencies
 
 [features]

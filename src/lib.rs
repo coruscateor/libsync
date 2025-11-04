@@ -30,7 +30,11 @@ pub use scoped_incrementer::*;
 */
 
 #[cfg(feature="tokio")]
-pub mod tokio_helpers; 
+pub mod tokio_helpers;
+
+mod limited_notifier;
+
+pub use limited_notifier::*;
 
 /*
 pub fn add(left: usize, right: usize) -> usize {

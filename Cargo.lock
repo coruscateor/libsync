@@ -3,6 +3,12 @@
 version = 4
 
 [[package]]
+name = "accessorise"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e86cf82339b10210c4212aee2e4f034fb6b9d181d98d07b98eb98f90b2aca91c"
+
+[[package]]
 name = "addr2line"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -216,9 +222,11 @@ checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
 name = "libsync"
 version = "0.2.0"
 dependencies = [
+ "accessorise",
  "crossbeam",
  "delegate",
  "futures",
+ "paste",
  "tokio",
 ]
 
@@ -245,6 +253,12 @@ checksum = "62948e14d923ea95ea2c7c86c71013138b66525b86bdc08d2dcc262bdb497b87"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "paste"
+version = "1.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "pin-project-lite"
