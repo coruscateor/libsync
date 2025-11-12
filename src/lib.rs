@@ -36,6 +36,10 @@ mod limited_notifier;
 
 pub use limited_notifier::*;
 
+mod waker_queue;
+
+pub use waker_queue::*;
+
 /*
 pub fn add(left: usize, right: usize) -> usize {
     left + right
