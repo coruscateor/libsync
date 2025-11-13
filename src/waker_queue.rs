@@ -8,7 +8,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use std::task::{Poll, Waker};
 
@@ -58,7 +58,8 @@ pub struct WakerQueueInternals
 
     pub queue: VecDeque<QueuedWaker>,
     pub handle: usize,
-    pub handle_states: HashMap<usize, bool>
+    //pub handle_states: HashMap<usize, bool>
+    pub active_handles: HashSet<usize>
 
 }
 
@@ -73,7 +74,8 @@ impl WakerQueueInternals
 
             queue: VecDeque::new(),
             handle: 0,
-            handle_states: HashMap::new()
+            //handle_states: HashMap::new()
+            active_handles: HashSet::new()
 
         }
 
@@ -87,7 +89,8 @@ impl WakerQueueInternals
 
             queue: VecDeque::with_capacity(capacity),
             handle: 0,
-            handle_states: HashMap::with_capacity(capacity)
+            //handle_states: HashMap::with_capacity(capacity)
+            active_handles: HashSet::with_capacity(capacity)
 
         }
 
@@ -257,6 +260,8 @@ impl WakerQueue
                     if let Some(front_waker) = val.queue.pop_front()
                     {
 
+                        val.active_handles.remove(&front_waker.handle);
+
                         waker = front_waker;
 
                     }
@@ -267,7 +272,39 @@ impl WakerQueue
                         
                     }
 
-                    val.handle_states.entry(key)
+                    /*
+                    if val.active_handles.remove(&waker.handle)
+                    {
+
+                        waker.wake();
+
+                        return true;
+
+                    }
+                    else
+                    {
+
+                        //Could panic here in debug maybe.
+
+                        let mut inserted = false;
+
+                        while !inserted
+                        {
+
+                            let new_handle = val.handle.wpp();
+
+                            waker.handle = new_handle;
+
+                            inserted = val.active_handles.insert(new_handle);
+                            
+                        }
+
+                        val.queue.push_back(waker);
+
+                    }
+                    */
+
+                    //val.handle_states.entry(key)
 
                 }
                 None =>
@@ -399,6 +436,63 @@ impl Future for WakerQueueWakeMe<'_>
 
                 Some(val) =>
                 {
+
+                    match self.opt_waker_handle
+                    {
+
+                        Some(handle) =>
+                        {
+
+                            if !val.active_handles.contains(&handle)
+                            {
+
+                                //The task has been successfully awoken.
+
+                                return Poll::Ready(Ok(()));
+
+                            }
+
+                        }
+                        None =>
+                        {
+
+                            //The task is going to "sleep". Update the WQI so it can be woken up later.
+
+                            let mut inserted = false;
+
+                            let waker = cx.waker().clone();
+
+                            let mut handle = 0;
+
+                            //
+
+                            while !inserted
+                            {
+
+                                handle = val.handle.wpp();
+
+                                inserted = val.active_handles.insert(handle);
+                                
+                            }
+
+                            let queued_waker = QueuedWaker::new(waker, handle);
+
+                            val.queue.push_back(queued_waker);
+
+                            //
+
+                            let self_mut = unsafe
+                            {
+                                
+                                self.get_unchecked_mut()
+
+                            };
+
+                            self_mut.opt_waker_handle = Some(handle);                     
+
+                        }
+
+                    }
 
                     /*
                     if val.queue.is_empty()
