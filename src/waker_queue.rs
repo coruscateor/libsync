@@ -8,14 +8,98 @@ use std::sync::{Mutex, MutexGuard};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 use std::task::{Poll, Waker};
+
+use paste::paste;
+
+use accessorise::impl_get_val;
+
+use inc_dec::IntIncDecSelf;
+
+pub struct QueuedWaker
+{
+
+    waker: Waker,
+    handle: usize
+
+}
+
+impl QueuedWaker
+{
+
+    pub fn new(waker: Waker, handle: usize) -> Self
+    {
+
+        Self
+        {
+
+            waker,
+            handle
+
+        }
+
+    }
+
+    impl_get_val!(handle, usize);
+
+    pub fn wake(self)
+    {
+
+        self.waker.wake();
+
+    }
+    
+}
+
+pub struct WakerQueueInternals
+{
+
+    pub queue: VecDeque<QueuedWaker>,
+    pub handle: usize,
+    pub handle_states: HashMap<usize, bool>
+
+}
+
+impl WakerQueueInternals
+{
+
+    pub fn new() -> Self
+    {
+
+        Self
+        {
+
+            queue: VecDeque::new(),
+            handle: 0,
+            handle_states: HashMap::new()
+
+        }
+
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self
+    {
+
+        Self
+        {
+
+            queue: VecDeque::with_capacity(capacity),
+            handle: 0,
+            handle_states: HashMap::with_capacity(capacity)
+
+        }
+
+    }
+
+
+}
 
 pub struct WakerQueue
 {
 
-    waker_queue: Mutex<Option<VecDeque<Waker>>>
+    waker_queue_internals: Mutex<Option<WakerQueueInternals>>
 
 }
 
@@ -28,19 +112,7 @@ impl WakerQueue
         Self
         {
 
-            waker_queue: Mutex::new(Some(VecDeque::new()))
-
-        }
-
-    }
-
-    pub fn with_permits(count: usize) -> Self
-    {
-
-        Self
-        {
-
-            waker_queue: Mutex::new(Some(VecDeque::with_capacity(count)))
+            waker_queue_internals: Mutex::new(Some(WakerQueueInternals::new()))
 
         }
 
@@ -52,16 +124,16 @@ impl WakerQueue
         Self
         {
 
-            waker_queue: Mutex::new(Some(VecDeque::with_capacity(size)))
+            waker_queue_internals: Mutex::new(Some(WakerQueueInternals::with_capacity(size)))
 
         }
 
     }
 
-    fn clear_poison_get_mg(&self) -> MutexGuard<'_, Option<VecDeque<Waker>>>
+    fn clear_poison_get_mg(&self) -> MutexGuard<'_, Option<WakerQueueInternals>>
     {
 
-        let lock_result = self.waker_queue.lock();
+        let lock_result = self.waker_queue_internals.lock();
 
         match lock_result
         {
@@ -75,7 +147,7 @@ impl WakerQueue
             Err(err) =>
             {
 
-                self.waker_queue.clear_poison();
+                self.waker_queue_internals.clear_poison();
 
                 err.into_inner()
 
@@ -86,7 +158,7 @@ impl WakerQueue
     }
 
     pub fn when_open_ref<T, F>(&self, func: F) -> Option<T>
-        where F: Fn(&VecDeque<Waker>) -> T
+        where F: Fn(&WakerQueueInternals) -> T
     {
 
         let mg = self.clear_poison_get_mg();
@@ -107,7 +179,7 @@ impl WakerQueue
     }
 
     pub fn when_open_mut<T, F>(&self, func: F) -> Option<T>
-        where F: Fn(&mut VecDeque<Waker>) -> T
+        where F: Fn(&mut WakerQueueInternals) -> T
     {
 
         let mut mg = self.clear_poison_get_mg();
@@ -130,9 +202,10 @@ impl WakerQueue
     pub fn len(&self) -> Option<usize>
     {
 
-        self.when_open_ref(|queue| {
+        self.when_open_ref(|internals|
+        {
 
-            queue.len()
+            internals.queue.len()
 
         })
 
@@ -158,9 +231,9 @@ impl WakerQueue
     pub fn capacity(&self) -> Option<usize>
     {
 
-        self.when_open_ref(|queue| {
+        self.when_open_ref(|internals| {
 
-            queue.capacity()
+            internals.queue.capacity()
 
         })
 
@@ -181,7 +254,7 @@ impl WakerQueue
                 Some(val) =>
                 {
 
-                    if let Some(front_waker) = val.pop_front()
+                    if let Some(front_waker) = val.queue.pop_front()
                     {
 
                         waker = front_waker;
@@ -193,6 +266,8 @@ impl WakerQueue
                         return false;
                         
                     }
+
+                    val.handle_states.entry(key)
 
                 }
                 None =>
@@ -212,10 +287,29 @@ impl WakerQueue
 
     }
 
-    pub fn wake_me()
+    pub fn wake_me<'a>(&'a self) -> WakerQueueWakeMe<'a>
     {
 
+        WakerQueueWakeMe::new(self)
 
+        /*
+        let mg = self.clear_poison_get_mg();
+
+        match &*mg
+        {
+
+            Some(val) =>
+            {
+
+                let new_handle = val.handle.wpp();
+
+                
+
+            }
+            None => None
+            
+        }
+        */
 
     }
 
@@ -265,20 +359,22 @@ impl Error for WakerQueueWakeMeClosedError
 pub struct WakerQueueWakeMe<'a>
 {
 
-    waker_queue_ref: &'a WakerQueue
+    waker_queue_ref: &'a WakerQueue,
+    opt_waker_handle: Option<usize>
 
 }
 
 impl<'a> WakerQueueWakeMe<'a>
 {
 
-    pub fn new(waker_queue_ref: &'a WakerQueue) -> Self
+    pub fn new(waker_queue_ref: &'a WakerQueue) -> Self //, waker_handle: usize) -> Self
     {
 
         Self
         {
 
-            waker_queue_ref
+            waker_queue_ref,
+            opt_waker_handle: None //Some(waker_handle)
 
         }
 
@@ -304,7 +400,8 @@ impl Future for WakerQueueWakeMe<'_>
                 Some(val) =>
                 {
 
-                    if val.is_empty()
+                    /*
+                    if val.queue.is_empty()
                     {
 
                         return Poll::Ready(Ok(()));
@@ -318,6 +415,7 @@ impl Future for WakerQueueWakeMe<'_>
                         val.push_back(waker);
                         
                     }
+                    */
 
                 }
                 None =>
