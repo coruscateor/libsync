@@ -242,7 +242,7 @@ impl WakerQueue
 
     }
 
-    pub fn try_wake_one(&self) -> bool
+    pub fn wake_one(&self) -> bool
     {
 
         let waker;
@@ -427,103 +427,130 @@ impl Future for WakerQueueWakeMe<'_>
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
     {
 
+        match self.opt_waker_handle
         {
 
-            let mut mg = self.waker_queue_ref.clear_poison_get_mg();
-
-            match &mut *mg
+            Some(handle) =>
             {
 
-                Some(val) =>
+                let mut mg = self.waker_queue_ref.clear_poison_get_mg();
+
+                match &mut *mg
                 {
 
-                    match self.opt_waker_handle
+                    Some(val) =>
                     {
 
-                        Some(handle) =>
+                        if !val.active_handles.contains(&handle)
                         {
 
-                            if !val.active_handles.contains(&handle)
-                            {
+                            //The task has been successfully awoken.
 
-                                //The task has been successfully awoken.
-
-                                return Poll::Ready(Ok(()));
-
-                            }
-
-                        }
-                        None =>
-                        {
-
-                            //The task is going to "sleep". Update the WQI so it can be woken up later.
-
-                            let mut inserted = false;
-
-                            let waker = cx.waker().clone();
-
-                            let mut handle = 0;
-
-                            //
-
-                            while !inserted
-                            {
-
-                                handle = val.handle.wpp();
-
-                                inserted = val.active_handles.insert(handle);
-                                
-                            }
-
-                            let queued_waker = QueuedWaker::new(waker, handle);
-
-                            val.queue.push_back(queued_waker);
-
-                            //
-
-                            let self_mut = unsafe
-                            {
-                                
-                                self.get_unchecked_mut()
-
-                            };
-
-                            self_mut.opt_waker_handle = Some(handle);                     
+                            return Poll::Ready(Ok(()));
 
                         }
 
                     }
-
-                    /*
-                    if val.queue.is_empty()
+                    None =>
                     {
 
-                        return Poll::Ready(Ok(()));
+                        return Poll::Ready(WakerQueueWakeMeClosedError::err());
 
                     }
-                    else
-                    {
-
-                        let waker = cx.waker().clone();
-
-                        val.push_back(waker);
-                        
-                    }
-                    */
 
                 }
-                None =>
+
+            }
+            None =>
+            {
+
+                //The task is going to "sleep". Update the WQI so it can be woken up later.
+
+                let mut inserted = false;
+
+                let waker = cx.waker().clone();
+
+                let mut handle = 0;
+
+                //
+
+                let mut mg = self.waker_queue_ref.clear_poison_get_mg();
+
+                match &mut *mg
                 {
 
-                    return Poll::Ready(WakerQueueWakeMeClosedError::err());
+                    Some(val) =>
+                    {
+
+                        while !inserted
+                        {
+
+                            //Find the next avalible handle.
+
+                            handle = val.handle.wpp();
+
+                            inserted = val.active_handles.insert(handle);
+                            
+                        }
+
+                        let queued_waker = QueuedWaker::new(waker, handle);
+
+                        val.queue.push_back(queued_waker);
+
+                    }
+                    None =>
+                    {
+
+                        return Poll::Ready(WakerQueueWakeMeClosedError::err());
+
+                    }
 
                 }
+
+                //
+
+                //Store the handle in the future.
+
+                let self_mut = unsafe
+                {
+                    
+                    self.get_unchecked_mut()
+
+                };
+
+                self_mut.opt_waker_handle = Some(handle);                     
 
             }
 
         }
 
         Poll::Pending
+
+    }
+
+}
+
+impl Drop for WakerQueueWakeMe<'_>
+{
+
+    fn drop(&mut self)
+    {
+
+        // Make sure that the waker handle gets removed.
+        
+        if let Some(handle) = self.opt_waker_handle
+        {
+
+            let mut mg = self.waker_queue_ref.clear_poison_get_mg();
+
+            if let Some(wqi) = &mut *mg
+            {
+
+                wqi.active_handles.remove(&handle);
+
+            }
+            
+        }
 
     }
 
