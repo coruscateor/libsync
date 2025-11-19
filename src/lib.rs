@@ -32,9 +32,9 @@ pub use scoped_incrementer::*;
 #[cfg(feature="tokio")]
 pub mod tokio_helpers;
 
-mod limited_notifier;
+mod waker_permit_queue;
 
-pub use limited_notifier::*;
+pub use waker_permit_queue::*;
 
 mod waker_queue;
 

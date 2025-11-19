@@ -1,0 +1,628 @@
+use std::error::Error;
+
+use std::fmt::Display;
+
+use std::future::Future;
+
+use std::sync::{Mutex, MutexGuard};
+
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use std::collections::{HashMap, HashSet, VecDeque};
+
+use std::task::{Poll, Waker};
+
+//use core::result::Result;
+
+use crossbeam::queue;
+use futures::stream::iter;
+use inc_dec::{IncDecSelf, IntIncDecSelf};
+use paste::paste;
+
+use accessorise::impl_get_val;
+
+use crate::QueuedWaker;
+
+pub struct WakerPermitQueueInternals
+{
+
+    pub queue: VecDeque<QueuedWaker>,
+    pub handle: usize,
+    pub active_handles: HashMap<usize, bool>, //Waker Handle, should've awoken
+    pub permits: usize
+
+}
+
+impl WakerPermitQueueInternals
+{
+
+    pub fn new() -> Self
+    {
+
+        Self
+        {
+
+            queue: VecDeque::new(),
+            handle: 0,
+            active_handles: HashMap::new(),
+            permits: 0
+
+        }
+
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self
+    {
+
+        Self
+        {
+
+            queue: VecDeque::with_capacity(capacity),
+            handle: 0,
+            active_handles: HashMap::with_capacity(capacity),
+            permits: 0
+
+        }
+
+    }
+
+    pub fn with_permits(permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            queue: VecDeque::with_capacity(permits),
+            handle: 0,
+            active_handles: HashMap::with_capacity(permits),
+            permits: permits
+
+        }
+
+    }
+
+    pub fn with_capacity_and_permits(capacity: usize, permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            queue: VecDeque::with_capacity(capacity),
+            handle: 0,
+            active_handles: HashMap::with_capacity(capacity),
+            permits
+
+        }
+
+    }
+
+}
+
+pub struct WakerPermitQueue
+{
+
+    limted_notifier: Mutex<Option<WakerPermitQueueInternals>>
+
+}
+
+impl WakerPermitQueue
+{
+
+    pub fn new() -> Self
+    {
+
+        Self
+        {
+
+            limted_notifier: Mutex::new(Some(WakerPermitQueueInternals::new()))
+
+        }
+
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self
+    {
+
+        Self
+        {
+
+            limted_notifier: Mutex::new(Some(WakerPermitQueueInternals::with_capacity(capacity)))
+
+        }
+
+    }
+
+    pub fn with_permits(permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            limted_notifier: Mutex::new(Some(WakerPermitQueueInternals::with_capacity(permits)))
+
+        }
+
+    }
+
+    pub fn with_capacity_and_permits(capacity: usize, permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            limted_notifier: Mutex::new(Some(WakerPermitQueueInternals::with_capacity_and_permits(capacity, permits)))
+
+        }
+
+    }
+
+    fn clear_poison_get_mg(&self) -> MutexGuard<'_, Option<WakerPermitQueueInternals>>
+    {
+
+        let lock_result = self.limted_notifier.lock();
+
+        match lock_result
+        {
+
+            Ok(mg) =>
+            {
+
+                mg
+
+            }
+            Err(err) =>
+            {
+
+                self.limted_notifier.clear_poison();
+
+                err.into_inner()
+
+            }
+
+        }
+
+    }
+
+    pub fn avalible_permits(&self) -> Option<usize>
+    {
+
+        let mut mg = self.clear_poison_get_mg();
+
+        if let Some(val) = &mut *mg
+        {
+
+            return Some(val.permits);
+
+        } 
+
+        None
+
+    }
+
+    pub fn add_permits(&self, count: usize) -> bool
+    {
+
+        if count == 0
+        {
+
+            return false;
+
+        }
+
+        let mut mg = self.clear_poison_get_mg();
+
+        if let Some(val) = &mut *mg
+        {
+
+            let permits = val.permits;
+
+            if let Some(mut permits) = permits.checked_add(count)
+            {
+
+                val.permits = permits;
+
+                while permits > 0
+                {
+
+                    //Check for wakers and wake them if present.
+
+                    let opt_front_waker = val.queue.pop_front();
+
+                    if let Some(front_waker) = opt_front_waker
+                    {
+
+                        if let Some(shouldve_awoken) = val.active_handles.get_mut(&front_waker.handle())
+                        {
+
+                            *shouldve_awoken = true;
+
+                        }
+
+                        //does the waker need to be marked as "should wake"?
+
+                        front_waker.wake();
+
+                    }
+                    else
+                    {
+
+                        break;
+
+                    }
+
+                    permits.mm();
+                    
+                }
+
+                return true;
+
+            }
+
+        }
+
+        false
+
+    }
+
+    pub fn add_permit(&self)
+    {
+
+        self.add_permits(1);
+
+    }
+
+    pub fn remove_permits(&self, count: usize) -> bool
+    {
+
+        if count == 0
+        {
+
+            return false;
+
+        }
+
+        let mut mg = self.clear_poison_get_mg();
+
+        if let Some(val) = &mut *mg
+        {
+
+            let permits = val.permits;
+
+            if let Some(permits) = permits.checked_sub(count)
+            {
+
+                val.permits = permits;
+
+                return true;
+
+            }
+
+        }
+
+        false
+
+    }
+
+    pub fn remove_permit(&self)
+    {
+
+        self.remove_permits(1);
+
+    }
+
+    pub fn aquire<'a>(&'a self) -> WakerPermitQueueAquire<'a>
+    {
+
+        WakerPermitQueueAquire::new(self)
+
+    }
+
+    pub fn close(&self)
+    {
+
+        let opt_internals;
+
+        {
+
+            let mut mg = self.clear_poison_get_mg();
+
+            opt_internals = mg.take();
+
+        }
+
+        if let Some(mut internals) = opt_internals
+        {
+
+            for item in internals.queue.drain(..)
+            {
+
+                item.wake();
+
+            }
+
+        }
+
+    }
+
+    pub fn is_closed(&self) -> bool
+    {
+
+        let mg = self.clear_poison_get_mg();
+
+        mg.is_none()
+
+    }
+
+    //impl_get_val!(max_number_of_permits, usize);
+
+    /*
+    pub fn add_permit(&self)
+    {
+
+        self.avalible_permits.compare_exchange(current, new, success, failure)
+
+    }
+    */
+    
+}
+
+#[derive(Debug)]
+pub struct WakerPermitQueueClosedError
+{
+}
+
+impl WakerPermitQueueClosedError
+{
+
+    pub fn new() -> Self
+    {
+
+        Self
+        {}
+
+    }
+
+    pub fn err() -> Result<(), Self>
+    {
+
+        Err(Self::new())
+
+    }
+
+}
+
+impl Display for WakerPermitQueueClosedError
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        
+        write!(f, "WakerPermitQueue Closed")
+
+    }
+
+}
+
+impl Error for WakerPermitQueueClosedError
+{    
+}
+
+pub struct WakerPermitQueueAquire<'a>
+{
+
+    waker_permit_queue_ref: &'a WakerPermitQueue,
+    opt_waker_handle: Option<usize>
+
+}
+
+impl<'a> WakerPermitQueueAquire<'a>
+{
+
+    pub fn new(waker_permit_queue_ref: &'a WakerPermitQueue) -> Self
+    {
+
+        Self
+        {
+
+            waker_permit_queue_ref,
+            opt_waker_handle: None
+
+        }
+
+    }
+    
+}
+
+impl Future for WakerPermitQueueAquire<'_>
+{
+
+    type Output = Result<(), WakerPermitQueueClosedError>;
+
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
+    {
+
+        match self.opt_waker_handle
+        {
+
+            Some(handle) =>
+            {
+
+                let mut mg = self.waker_permit_queue_ref.clear_poison_get_mg();
+
+                match &mut *mg
+                {
+
+                    Some(val) =>
+                    {
+
+                        //Make sure this is a proper wakup.
+
+                        if let Some(shouldve_awoken) = val.active_handles.get(&handle)
+                        {
+
+                            if *shouldve_awoken
+                            {
+
+                                val.active_handles.remove(&handle);
+
+                                return Poll::Ready(Ok(()));
+
+                            }
+
+                        }
+                        else
+                        {
+
+                            //make sure this Task doen't get trapped if there's an error. 
+
+                            return Poll::Ready(Ok(()));
+
+                        }
+
+                        /*
+                        if !val.active_handles.contains_key(&handle)
+                        {
+
+                            //The task has been successfully awoken.
+
+                            return Poll::Ready(Ok(()));
+
+                        }
+                        */
+
+                    }
+                    None =>
+                    {
+
+                        return Poll::Ready(WakerPermitQueueClosedError::err());
+
+                    }
+
+                }
+
+            }
+            None =>
+            {
+
+                //The task is going to "sleep". Update the WQI so it can be woken up later.
+
+                let mut inserted = false;
+
+                let waker = cx.waker().clone();
+
+                let mut handle = 0;
+
+                //
+
+                let mut mg = self.waker_permit_queue_ref.clear_poison_get_mg();
+
+                match &mut *mg
+                {
+
+                    Some(val) =>
+                    {
+
+                        while !inserted
+                        {
+
+                            //Find the next avalible handle.
+
+                            handle = val.handle.wpp();
+
+                            inserted = val.active_handles.insert(handle, false).is_some();
+                            
+                        }
+
+                        let queued_waker = QueuedWaker::new(waker, handle);
+
+                        val.queue.push_back(queued_waker);
+
+                    }
+                    None =>
+                    {
+
+                        return Poll::Ready(WakerPermitQueueClosedError::err());
+
+                    }
+
+                }
+
+                //
+
+                //Store the handle in the future.
+
+                let self_mut = unsafe
+                {
+                    
+                    self.get_unchecked_mut()
+
+                };
+
+                self_mut.opt_waker_handle = Some(handle);                     
+
+            }
+
+        }
+
+        Poll::Pending
+        
+    }
+
+}
+
+impl Drop for WakerPermitQueueAquire<'_>
+{
+
+    fn drop(&mut self)
+    {
+
+        // Make sure that the waker handle gets removed.
+        
+        if let Some(handle) = self.opt_waker_handle
+        {
+
+            let mut mg = self.waker_permit_queue_ref.clear_poison_get_mg();
+
+            if let Some(wqi) = &mut *mg
+            {
+
+                //Remove the relevant entry from the active handles HashMap.
+
+                wqi.active_handles.remove(&handle);
+
+                let mut index = 0;
+
+                let mut index_found = false;
+
+                //Remove the queued waker.
+
+                for item in wqi.queue.iter()
+                {
+
+                    if handle == item.handle()
+                    {
+
+                        index_found = true;
+
+                        break;
+
+                    }  
+
+                    index.pp();
+                    
+                }
+
+                if index_found
+                {
+
+                    wqi.queue.remove(index);
+
+                }
+
+            }
+            
+        }
+
+    }
+
+}
