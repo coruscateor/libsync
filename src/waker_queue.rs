@@ -96,7 +96,6 @@ impl WakerQueueInternals
 
     }
 
-
 }
 
 pub struct WakerQueue

@@ -4,11 +4,11 @@ use std::fmt::Display;
 
 use std::future::Future;
 
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 
 use std::task::{Poll, Waker};
 
@@ -16,82 +16,246 @@ use std::task::{Poll, Waker};
 
 use crossbeam::queue;
 use futures::stream::iter;
+use inc_dec::IncDecSelf;
 use paste::paste;
 
 use accessorise::impl_get_val;
 
+use crate::QueuedWaker;
+
+pub struct LimitedNotifierInternals
+{
+
+    pub queue: VecDeque<QueuedWaker>,
+    pub handle: usize,
+    pub active_handles: HashSet<usize>,
+    pub permits: usize
+
+}
+
+
+impl LimitedNotifierInternals
+{
+
+    pub fn new() -> Self
+    {
+
+        Self
+        {
+
+            queue: VecDeque::new(),
+            handle: 0,
+            active_handles: HashSet::new(),
+            permits: 0
+
+        }
+
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self
+    {
+
+        Self
+        {
+
+            queue: VecDeque::with_capacity(capacity),
+            handle: 0,
+            active_handles: HashSet::with_capacity(capacity),
+            permits: 0
+
+        }
+
+    }
+
+    pub fn with_permits(permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            queue: VecDeque::with_capacity(permits),
+            handle: 0,
+            active_handles: HashSet::with_capacity(permits),
+            permits: permits
+
+        }
+
+    }
+
+    pub fn with_capacity_and_permits(capacity: usize, permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            queue: VecDeque::with_capacity(capacity),
+            handle: 0,
+            active_handles: HashSet::with_capacity(capacity),
+            permits
+
+        }
+
+    }
+
+}
+
 pub struct LimitedNotifier
 {
 
-    //max_number_of_permits: usize,
-    avalible_permits: AtomicUsize,
-    waker_queue: Mutex<Option<VecDeque<Waker>>>
+    limted_notifier: Mutex<Option<LimitedNotifierInternals>>
 
 }
 
 impl LimitedNotifier
 {
 
-    pub fn new() -> Self //max_number_of_permits: usize) -> Self
+    pub fn new() -> Self
     {
 
         Self
         {
 
-            //max_number_of_permits,
-            avalible_permits: AtomicUsize::new(0),
-            waker_queue: Mutex::new(Some(VecDeque::new())) //with_capacity(max_number_of_permits))
+            limted_notifier: Mutex::new(Some(LimitedNotifierInternals::new()))
 
         }
 
     }
 
-    pub fn with_permits(count: usize) -> Self
+    pub fn with_capacity(capacity: usize) -> Self
     {
 
         Self
         {
 
-            avalible_permits: AtomicUsize::new(count),
-            waker_queue: Mutex::new(Some(VecDeque::with_capacity(count)))
+            limted_notifier: Mutex::new(Some(LimitedNotifierInternals::with_capacity(capacity)))
 
         }
 
     }
 
-    pub fn with_capacity(size: usize) -> Self
+    pub fn with_permits(permits: usize) -> Self
     {
 
         Self
         {
 
-            avalible_permits: AtomicUsize::new(0),
-            waker_queue: Mutex::new(Some(VecDeque::with_capacity(size)))
+            limted_notifier: Mutex::new(Some(LimitedNotifierInternals::with_capacity(permits)))
 
         }
 
     }
 
-    pub fn avalible_permits(&self) -> usize
+    pub fn with_capacity_and_permits(capacity: usize, permits: usize) -> Self
     {
 
-        self.avalible_permits.load(Ordering::Acquire)
+        Self
+        {
+
+            limted_notifier: Mutex::new(Some(LimitedNotifierInternals::with_capacity_and_permits(capacity, permits)))
+
+        }
 
     }
 
-    pub fn add_permits(&self, count: usize)
+    fn clear_poison_get_mg(&self) -> MutexGuard<'_, Option<LimitedNotifierInternals>>
+    {
+
+        let lock_result = self.limted_notifier.lock();
+
+        match lock_result
+        {
+
+            Ok(mg) =>
+            {
+
+                mg
+
+            }
+            Err(err) =>
+            {
+
+                self.limted_notifier.clear_poison();
+
+                err.into_inner()
+
+            }
+
+        }
+
+    }
+
+    pub fn avalible_permits(&self) -> Option<usize>
+    {
+
+        let mut mg = self.clear_poison_get_mg();
+
+        if let Some(val) = &mut *mg
+        {
+
+            return Some(val.permits);
+
+        } 
+
+        None
+
+    }
+
+    pub fn add_permits(&self, count: usize) -> bool
     {
 
         if count == 0
         {
 
-            return;
+            return false;
 
         }
 
-        self.avalible_permits.fetch_add(count, Ordering::SeqCst);
+        let mut mg = self.clear_poison_get_mg();
 
-        //Check for wakers and wake them if present.
+        if let Some(val) = &mut *mg
+        {
+
+            let permits = val.permits;
+
+            if let Some(mut permits) = permits.checked_add(count)
+            {
+
+                val.permits = permits;
+
+                while permits > 0
+                {
+
+                    //Check for wakers and wake them if present.
+
+                    let opt_front_waker = val.queue.pop_front();
+
+                    if let Some(front_waker) = opt_front_waker
+                    {
+
+                        //does the waker need to be marked as "should wake"?
+
+                        front_waker.wake();
+
+                    }
+                    else
+                    {
+
+                        break;
+
+                    }
+
+                    permits.mm();
+
+                    
+                }
+
+                return true;
+
+            }
+
+        }
+
+        false
 
     }
 
@@ -102,17 +266,35 @@ impl LimitedNotifier
 
     }
 
-    pub fn remove_permits(&self, count: usize)
+    pub fn remove_permits(&self, count: usize) -> bool
     {
 
         if count == 0
         {
 
-            return;
+            return false;
 
         }
 
-        self.avalible_permits.fetch_sub(count, Ordering::SeqCst);
+        let mut mg = self.clear_poison_get_mg();
+
+        if let Some(val) = &mut *mg
+        {
+
+            let permits = val.permits;
+
+            if let Some(permits) = permits.checked_sub(count)
+            {
+
+                val.permits = permits;
+
+                return true;
+
+            }
+
+        }
+
+        false
 
     }
 
@@ -133,42 +315,20 @@ impl LimitedNotifier
     pub fn close(&self)
     {
 
-        let taken_opt_queue;
+        let opt_internals;
 
         {
 
-            let lock_result = self.waker_queue.lock();
+            let mut mg = self.clear_poison_get_mg();
 
-            let mut opt_queue;
-
-            match lock_result
-            {
-
-                Ok(mg) =>
-                {
-
-                    opt_queue = mg;
-
-                }
-                Err(err) =>
-                {
-
-                    self.waker_queue.clear_poison();
-
-                    opt_queue = err.into_inner();
-
-                }
-
-            }
-
-            taken_opt_queue = opt_queue.take();
+            opt_internals = mg.take();
 
         }
 
-        if let Some(mut queue) = taken_opt_queue
+        if let Some(mut internals) = opt_internals
         {
 
-            for item in queue.drain(..)
+            for item in internals.queue.drain(..)
             {
 
                 item.wake();
@@ -177,37 +337,14 @@ impl LimitedNotifier
 
         }
 
-
     }
 
     pub fn is_closed(&self) -> bool
     {
 
-        let lock_result = self.waker_queue.lock();
+        let mg = self.clear_poison_get_mg();
 
-        let opt_queue;
-
-        match lock_result
-        {
-
-            Ok(mg) =>
-            {
-
-                opt_queue = mg;
-
-            }
-            Err(err) =>
-            {
-
-                self.waker_queue.clear_poison();
-
-                opt_queue = err.into_inner();
-
-            }
-
-        }
-
-        opt_queue.is_none()
+        mg.is_none()
 
     }
 
