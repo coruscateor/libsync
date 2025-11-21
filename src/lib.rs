@@ -40,6 +40,10 @@ mod waker_queue;
 
 pub use waker_queue::*;
 
+mod drop_waker;
+
+pub use drop_waker::*;
+
 /*
 pub fn add(left: usize, right: usize) -> usize {
     left + right
