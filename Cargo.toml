@@ -27,6 +27,8 @@ accessorise = "0.2.0"
 
 inc_dec = "0.1.0"
 
+scc = { version = "3.4.2", optional = true }
+
 #https://doc.rust-lang.org/cargo/reference/features.html#optional-dependencies
 
 [features]
