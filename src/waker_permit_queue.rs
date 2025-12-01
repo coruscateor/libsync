@@ -156,7 +156,7 @@ impl WakerPermitQueue
 
     }
 
-    fn clear_poison_get_mg(&self) -> MutexGuard<'_, Option<WakerPermitQueueInternals>>
+    fn get_mg(&self) -> MutexGuard<'_, Option<WakerPermitQueueInternals>>
     {
 
         let lock_result = self.limted_notifier.lock();
@@ -186,7 +186,7 @@ impl WakerPermitQueue
     pub fn avalible_permits(&self) -> Option<usize>
     {
 
-        let mut mg = self.clear_poison_get_mg();
+        let mut mg = self.get_mg();
 
         if let Some(val) = &mut *mg
         {
@@ -209,7 +209,7 @@ impl WakerPermitQueue
 
         }
 
-        let mut mg = self.clear_poison_get_mg();
+        let mut mg = self.get_mg();
 
         if let Some(val) = &mut *mg
         {
@@ -281,7 +281,7 @@ impl WakerPermitQueue
 
         }
 
-        let mut mg = self.clear_poison_get_mg();
+        let mut mg = self.get_mg();
 
         if let Some(val) = &mut *mg
         {
@@ -324,7 +324,7 @@ impl WakerPermitQueue
 
         {
 
-            let mut mg = self.clear_poison_get_mg();
+            let mut mg = self.get_mg();
 
             opt_internals = mg.take();
 
@@ -347,7 +347,7 @@ impl WakerPermitQueue
     pub fn is_closed(&self) -> bool
     {
 
-        let mg = self.clear_poison_get_mg();
+        let mg = self.get_mg();
 
         mg.is_none()
 
@@ -447,7 +447,7 @@ impl Future for WakerPermitQueueAquire<'_>
             Some(handle) =>
             {
 
-                let mut mg = self.waker_permit_queue_ref.clear_poison_get_mg();
+                let mut mg = self.waker_permit_queue_ref.get_mg();
 
                 match &mut *mg
                 {
@@ -464,6 +464,24 @@ impl Future for WakerPermitQueueAquire<'_>
                             {
 
                                 val.active_handles.remove(&handle);
+
+                                //Drop the mg here?
+
+                                //Make sure the waker handle is dropped locally as well.
+
+                                let self_mut = self.get_mut();
+
+                                /*
+                                let self_mut = unsafe
+                                {
+                                    
+                                    self.get_unchecked_mut()
+
+                                };
+                                */
+
+                                self_mut.opt_waker_handle = None;                     
+
 
                                 return Poll::Ready(Ok(()));
 
@@ -514,7 +532,7 @@ impl Future for WakerPermitQueueAquire<'_>
 
                 //
 
-                let mut mg = self.waker_permit_queue_ref.clear_poison_get_mg();
+                let mut mg = self.waker_permit_queue_ref.get_mg();
 
                 match &mut *mg
                 {
@@ -551,12 +569,16 @@ impl Future for WakerPermitQueueAquire<'_>
 
                 //Store the handle in the future.
 
+                let self_mut = self.get_mut();
+
+                /*
                 let self_mut = unsafe
                 {
                     
                     self.get_unchecked_mut()
 
                 };
+                */
 
                 self_mut.opt_waker_handle = Some(handle);                     
 
@@ -581,7 +603,7 @@ impl Drop for WakerPermitQueueAquire<'_>
         if let Some(handle) = self.opt_waker_handle
         {
 
-            let mut mg = self.waker_permit_queue_ref.clear_poison_get_mg();
+            let mut mg = self.waker_permit_queue_ref.get_mg();
 
             if let Some(wqi) = &mut *mg
             {
