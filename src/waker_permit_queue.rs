@@ -310,6 +310,10 @@ impl WakerPermitQueue
 
     }
 
+    //decrement_permits_or_wait
+
+    //increment_permits_or_wait
+    
     pub fn aquire<'a>(&'a self) -> WakerPermitQueueAquire<'a>
     {
 
@@ -433,6 +437,8 @@ impl<'a> WakerPermitQueueAquire<'a>
     
 }
 
+//Handles "sleeping", "waking" and permit incrementation/decrementation.
+
 impl Future for WakerPermitQueueAquire<'_>
 {
 
@@ -463,6 +469,25 @@ impl Future for WakerPermitQueueAquire<'_>
                             if *shouldve_awoken
                             {
 
+                                //"Take" a permit.
+
+                                let permits = val.permits;
+
+                                if let Some(new_permits) = permits.checked_sub(1)
+                                {
+
+                                    val.permits = new_permits;
+
+                                }
+                                else
+                                {
+
+                                    //The value of the permits should've been greater that one so this tasks get to proceed if it wakes up spuriously next time.
+
+                                    return Poll::Pending;
+                                    
+                                }
+
                                 val.active_handles.remove(&handle);
 
                                 //Drop the mg here?
@@ -480,8 +505,7 @@ impl Future for WakerPermitQueueAquire<'_>
                                 };
                                 */
 
-                                self_mut.opt_waker_handle = None;                     
-
+                                self_mut.opt_waker_handle = None;
 
                                 return Poll::Ready(Ok(()));
 
@@ -539,6 +563,28 @@ impl Future for WakerPermitQueueAquire<'_>
 
                     Some(val) =>
                     {
+
+                        //Is there a queue?
+
+                        if val.queue.is_empty()
+                        {
+
+                            //"Take" a permit.
+
+                            let permits = val.permits;
+
+                            if let Some(new_permits) = permits.checked_sub(1)
+                            {
+
+                                val.permits = new_permits;
+
+                                //There was at least one permit available so we don't need to wait.
+
+                                return Poll::Ready(Ok(()));
+
+                            }
+
+                        }
 
                         while !inserted
                         {
