@@ -314,10 +314,10 @@ impl WakerPermitQueue
 
     //increment_permits_or_wait
     
-    pub fn aquire<'a>(&'a self) -> WakerPermitQueueAquire<'a>
+    pub fn decrement_permits_or_wait<'a>(&'a self) -> WakerPermitQueueDecrementPermitsOrWait<'a>
     {
 
-        WakerPermitQueueAquire::new(self)
+        WakerPermitQueueDecrementPermitsOrWait::new(self)
 
     }
 
@@ -411,7 +411,7 @@ impl Error for WakerPermitQueueClosedError
 {    
 }
 
-pub struct WakerPermitQueueAquire<'a>
+pub struct WakerPermitQueueDecrementPermitsOrWait<'a>
 {
 
     waker_permit_queue_ref: &'a WakerPermitQueue,
@@ -419,7 +419,7 @@ pub struct WakerPermitQueueAquire<'a>
 
 }
 
-impl<'a> WakerPermitQueueAquire<'a>
+impl<'a> WakerPermitQueueDecrementPermitsOrWait<'a>
 {
 
     pub fn new(waker_permit_queue_ref: &'a WakerPermitQueue) -> Self
@@ -439,7 +439,7 @@ impl<'a> WakerPermitQueueAquire<'a>
 
 //Handles "sleeping", "waking" and permit incrementation/decrementation.
 
-impl Future for WakerPermitQueueAquire<'_>
+impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 {
 
     type Output = Result<(), WakerPermitQueueClosedError>;
@@ -638,7 +638,7 @@ impl Future for WakerPermitQueueAquire<'_>
 
 }
 
-impl Drop for WakerPermitQueueAquire<'_>
+impl Drop for WakerPermitQueueDecrementPermitsOrWait<'_>
 {
 
     fn drop(&mut self)
