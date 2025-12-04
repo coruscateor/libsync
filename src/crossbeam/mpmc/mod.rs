@@ -13,3 +13,6 @@ pub mod base;
 
 #[cfg(feature="tokio")]
 pub mod tokio;
+
+pub mod array_queue;
+
