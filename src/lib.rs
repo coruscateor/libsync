@@ -47,6 +47,10 @@ pub use drop_waker::*;
 #[cfg(feature="scc")]
 pub mod scc;
 
+mod channel_shared_details;
+
+pub use channel_shared_details::*;
+
 /*
 pub fn add(left: usize, right: usize) -> usize {
     left + right

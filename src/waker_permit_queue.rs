@@ -14,14 +14,14 @@ use std::task::{Poll, Waker};
 
 //use core::result::Result;
 
-use crossbeam::queue;
-use futures::stream::iter;
 use inc_dec::{IncDecSelf, IntIncDecSelf};
 use paste::paste;
 
 use accessorise::impl_get_val;
 
 use crate::QueuedWaker;
+
+use std::sync::TryLockError;
 
 pub struct WakerPermitQueueInternals
 {
@@ -183,6 +183,49 @@ impl WakerPermitQueue
 
     }
 
+    fn try_get_mg(&self) -> Option<MutexGuard<'_, Option<WakerPermitQueueInternals>>>
+    {
+
+        let lock_result = self.limted_notifier.try_lock();
+
+        match lock_result
+        {
+
+            Ok(val) =>
+            {
+
+                Some(val)
+
+            }
+            Err(err) =>
+            {
+
+                match err
+                {
+
+                    TryLockError::Poisoned(poison_error) =>
+                    {
+
+                        self.limted_notifier.clear_poison();
+
+                        Some(poison_error.into_inner())
+
+                    }
+                    TryLockError::WouldBlock =>
+                    {
+
+                        None
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+
     pub fn avalible_permits(&self) -> Option<usize>
     {
 
@@ -197,6 +240,94 @@ impl WakerPermitQueue
 
         None
 
+    }
+
+    pub fn try_add_permits(&self, count: usize) -> bool
+    {
+
+        if count == 0
+        {
+
+            return false;
+
+        }
+
+        let mut mg;
+
+        let opt_mg = self.try_get_mg();
+
+        if let Some(val) = opt_mg
+        {
+
+            mg = val;
+
+        }
+        else
+        {
+
+            return false;
+
+
+        }
+
+        if let Some(val) = &mut *mg
+        {
+
+            let permits = val.permits;
+
+            if let Some(mut permits) = permits.checked_add(count)
+            {
+
+                val.permits = permits;
+
+                while permits > 0
+                {
+
+                    //Check for wakers and wake them if present.
+
+                    let opt_front_waker = val.queue.pop_front();
+
+                    if let Some(front_waker) = opt_front_waker
+                    {
+
+                        if let Some(shouldve_awoken) = val.active_handles.get_mut(&front_waker.handle())
+                        {
+
+                            *shouldve_awoken = true;
+
+                        }
+
+                        //does the waker need to be marked as "should wake"?
+
+                        front_waker.wake();
+
+                    }
+                    else
+                    {
+
+                        break;
+
+                    }
+
+                    permits.mm();
+                    
+                }
+
+                return true;
+
+            }
+
+        }
+
+        false
+
+    }
+
+    pub fn try_add_permit(&self) -> bool
+    {
+
+        self.try_add_permits(1)
+        
     }
 
     pub fn add_permits(&self, count: usize) -> bool
@@ -264,10 +395,10 @@ impl WakerPermitQueue
 
     }
 
-    pub fn add_permit(&self)
+    pub fn add_permit(&self) -> bool
     {
 
-        self.add_permits(1);
+        self.add_permits(1)
 
     }
 
@@ -310,10 +441,43 @@ impl WakerPermitQueue
 
     }
 
-    //decrement_permits_or_wait
+    pub fn try_decrement_permits(&self) -> bool
+    {
 
-    //increment_permits_or_wait
-    
+        let opt_mg = self.try_get_mg();
+
+        if let Some(mut mg) = opt_mg
+        {
+
+            match &mut *mg
+            {
+
+                Some(val) =>
+                {
+
+                    //"Take" a permit.
+
+                    let permits = val.permits;
+
+                    if let Some(new_permits) = permits.checked_sub(1)
+                    {
+
+                        val.permits = new_permits;
+
+                        return true;
+
+                    }
+
+                }
+                None => {}
+
+            }
+
+        }
+
+        false        
+
+    }
     pub fn decrement_permits_or_wait<'a>(&'a self) -> WakerPermitQueueDecrementPermitsOrWait<'a>
     {
 
