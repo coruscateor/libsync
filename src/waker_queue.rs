@@ -22,27 +22,27 @@ pub struct QueuedWaker
 {
 
     waker: Waker,
-    handle: usize
+    id: usize
 
 }
 
 impl QueuedWaker
 {
 
-    pub fn new(waker: Waker, handle: usize) -> Self
+    pub fn new(waker: Waker, id: usize) -> Self
     {
 
         Self
         {
 
             waker,
-            handle
+            id
 
         }
 
     }
 
-    impl_get_val!(handle, usize);
+    impl_get_val!(id, usize);
 
     pub fn wake(self)
     {
@@ -57,9 +57,9 @@ pub struct WakerQueueInternals
 {
 
     pub queue: VecDeque<QueuedWaker>,
-    pub handle: usize,
-    //pub handle_states: HashMap<usize, bool>
-    pub active_handles: HashSet<usize>
+    pub id: usize,
+    //pub id_states: HashMap<usize, bool>
+    pub active_ids: HashSet<usize>
 
 }
 
@@ -73,9 +73,9 @@ impl WakerQueueInternals
         {
 
             queue: VecDeque::new(),
-            handle: 0,
-            //handle_states: HashMap::new()
-            active_handles: HashSet::new()
+            id: 0,
+            //id_states: HashMap::new()
+            active_ids: HashSet::new()
 
         }
 
@@ -88,9 +88,9 @@ impl WakerQueueInternals
         {
 
             queue: VecDeque::with_capacity(capacity),
-            handle: 0,
-            //handle_states: HashMap::with_capacity(capacity)
-            active_handles: HashSet::with_capacity(capacity)
+            id: 0,
+            //id_states: HashMap::with_capacity(capacity)
+            active_ids: HashSet::with_capacity(capacity)
 
         }
 
@@ -259,7 +259,7 @@ impl WakerQueue
                     if let Some(front_waker) = val.queue.pop_front()
                     {
 
-                        val.active_handles.remove(&front_waker.handle);
+                        val.active_ids.remove(&front_waker.id);
 
                         waker = front_waker;
 
@@ -272,7 +272,7 @@ impl WakerQueue
                     }
 
                     /*
-                    if val.active_handles.remove(&waker.handle)
+                    if val.active_ids.remove(&waker.id)
                     {
 
                         waker.wake();
@@ -290,11 +290,11 @@ impl WakerQueue
                         while !inserted
                         {
 
-                            let new_handle = val.handle.wpp();
+                            let new_id = val.id.wpp();
 
-                            waker.handle = new_handle;
+                            waker.id = new_id;
 
-                            inserted = val.active_handles.insert(new_handle);
+                            inserted = val.active_ids.insert(new_id);
                             
                         }
 
@@ -303,7 +303,7 @@ impl WakerQueue
                     }
                     */
 
-                    //val.handle_states.entry(key)
+                    //val.id_states.entry(key)
 
                 }
                 None =>
@@ -337,7 +337,7 @@ impl WakerQueue
             Some(val) =>
             {
 
-                let new_handle = val.handle.wpp();
+                let new_id = val.id.wpp();
 
                 
 
@@ -396,21 +396,21 @@ pub struct WakerQueueWakeMe<'a>
 {
 
     waker_queue_ref: &'a WakerQueue,
-    opt_waker_handle: Option<usize>
+    opt_waker_id: Option<usize>
 
 }
 
 impl<'a> WakerQueueWakeMe<'a>
 {
 
-    pub fn new(waker_queue_ref: &'a WakerQueue) -> Self //, waker_handle: usize) -> Self
+    pub fn new(waker_queue_ref: &'a WakerQueue) -> Self //, waker_id: usize) -> Self
     {
 
         Self
         {
 
             waker_queue_ref,
-            opt_waker_handle: None //Some(waker_handle)
+            opt_waker_id: None //Some(waker_id)
 
         }
 
@@ -426,10 +426,10 @@ impl Future for WakerQueueWakeMe<'_>
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
     {
 
-        match self.opt_waker_handle
+        match self.opt_waker_id
         {
 
-            Some(handle) =>
+            Some(id) =>
             {
 
                 let mut mg = self.waker_queue_ref.clear_poison_get_mg();
@@ -440,7 +440,7 @@ impl Future for WakerQueueWakeMe<'_>
                     Some(val) =>
                     {
 
-                        if !val.active_handles.contains(&handle)
+                        if !val.active_ids.contains(&id)
                         {
 
                             //The task has been successfully awoken.
@@ -469,7 +469,7 @@ impl Future for WakerQueueWakeMe<'_>
 
                 let waker = cx.waker().clone();
 
-                let mut handle = 0;
+                let mut id = 0;
 
                 //
 
@@ -484,15 +484,15 @@ impl Future for WakerQueueWakeMe<'_>
                         while !inserted
                         {
 
-                            //Find the next avalible handle.
+                            //Find the next avalible id.
 
-                            handle = val.handle.wpp();
+                            id = val.id.wpp();
 
-                            inserted = val.active_handles.insert(handle);
+                            inserted = val.active_ids.insert(id);
                             
                         }
 
-                        let queued_waker = QueuedWaker::new(waker, handle);
+                        let queued_waker = QueuedWaker::new(waker, id);
 
                         val.queue.push_back(queued_waker);
 
@@ -508,7 +508,7 @@ impl Future for WakerQueueWakeMe<'_>
 
                 //
 
-                //Store the handle in the future.
+                //Store the id in the future.
 
                 let self_mut = unsafe
                 {
@@ -517,7 +517,7 @@ impl Future for WakerQueueWakeMe<'_>
 
                 };
 
-                self_mut.opt_waker_handle = Some(handle);                     
+                self_mut.opt_waker_id = Some(id);                     
 
             }
 
@@ -535,9 +535,9 @@ impl Drop for WakerQueueWakeMe<'_>
     fn drop(&mut self)
     {
 
-        // Make sure that the waker handle gets removed.
+        // Make sure that the waker id gets removed.
         
-        if let Some(handle) = self.opt_waker_handle
+        if let Some(id) = self.opt_waker_id
         {
 
             let mut mg = self.waker_queue_ref.clear_poison_get_mg();
@@ -545,7 +545,7 @@ impl Drop for WakerQueueWakeMe<'_>
             if let Some(wqi) = &mut *mg
             {
 
-                wqi.active_handles.remove(&handle);
+                wqi.active_ids.remove(&id);
 
             }
             

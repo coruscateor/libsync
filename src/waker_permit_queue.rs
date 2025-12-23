@@ -27,9 +27,9 @@ use std::sync::TryLockError;
 pub struct WakerPermitQueueInternals
 {
 
-    pub queue: VecDeque<QueuedWaker>,
-    pub handle: usize,
-    pub active_handles: HashMap<usize, bool>, //Waker Handle, should've awoken
+    pub no_permits_queue: VecDeque<QueuedWaker>,
+    pub id: usize,
+    pub active_ids: HashMap<usize, bool>, //Waker Handle, should've awoken
     pub permits: usize
 
 }
@@ -43,9 +43,9 @@ impl WakerPermitQueueInternals
         Self
         {
 
-            queue: VecDeque::new(),
-            handle: 0,
-            active_handles: HashMap::new(),
+            no_permits_queue: VecDeque::new(),
+            id: 0,
+            active_ids: HashMap::new(),
             permits: 0
 
         }
@@ -58,9 +58,9 @@ impl WakerPermitQueueInternals
         Self
         {
 
-            queue: VecDeque::with_capacity(capacity),
-            handle: 0,
-            active_handles: HashMap::with_capacity(capacity),
+            no_permits_queue: VecDeque::with_capacity(capacity),
+            id: 0,
+            active_ids: HashMap::with_capacity(capacity),
             permits: 0
 
         }
@@ -73,9 +73,9 @@ impl WakerPermitQueueInternals
         Self
         {
 
-            queue: VecDeque::with_capacity(permits),
-            handle: 0,
-            active_handles: HashMap::with_capacity(permits),
+            no_permits_queue: VecDeque::with_capacity(permits),
+            id: 0,
+            active_ids: HashMap::with_capacity(permits),
             permits: permits
 
         }
@@ -88,9 +88,9 @@ impl WakerPermitQueueInternals
         Self
         {
 
-            queue: VecDeque::with_capacity(capacity),
-            handle: 0,
-            active_handles: HashMap::with_capacity(capacity),
+            no_permits_queue: VecDeque::with_capacity(capacity),
+            id: 0,
+            active_ids: HashMap::with_capacity(capacity),
             permits
 
         }
@@ -286,12 +286,12 @@ impl WakerPermitQueue
 
                     //Check for wakers and wake them if present.
 
-                    let opt_front_waker = val.queue.pop_front();
+                    let opt_front_waker = val.no_permits_queue.pop_front();
 
                     if let Some(front_waker) = opt_front_waker
                     {
 
-                        if let Some(shouldve_awoken) = val.active_handles.get_mut(&front_waker.handle())
+                        if let Some(shouldve_awoken) = val.active_ids.get_mut(&front_waker.id())
                         {
 
                             *shouldve_awoken = true;
@@ -331,7 +331,7 @@ impl WakerPermitQueue
         
     }
 
-    pub fn add_permits(&self, count: usize) -> bool
+    pub fn add_permits(&self, count: usize, buffer: &mut VecDeque<QueuedWaker>) -> bool
     {
 
         if count == 0
@@ -341,65 +341,143 @@ impl WakerPermitQueue
 
         }
 
-        let mut mg = self.get_mg();
+        let mut added_permits = false;
 
-        if let Some(val) = &mut *mg
         {
 
-            let permits = val.permits;
+            let mut mg = self.get_mg();
 
-            if let Some(mut permits) = permits.checked_add(count)
+            if let Some(val) = &mut *mg
             {
 
-                val.permits = permits;
+                let permits = val.permits;
 
-                while permits > 0
+                if let Some(mut permits) = permits.checked_add(count)
                 {
 
-                    //Check for wakers and wake them if present.
+                    added_permits = true;
 
-                    let opt_front_waker = val.queue.pop_front();
+                    val.permits = permits;
 
-                    if let Some(front_waker) = opt_front_waker
+                    while permits > 0
                     {
 
-                        if let Some(shouldve_awoken) = val.active_handles.get_mut(&front_waker.handle())
+                        //Check for wakers and wake them if present.
+
+                        let opt_front_waker = val.no_permits_queue.pop_front();
+
+                        if let Some(front_waker) = opt_front_waker
                         {
 
-                            *shouldve_awoken = true;
+                            if let Some(shouldve_awoken) = val.active_ids.get_mut(&front_waker.id())
+                            {
+
+                                *shouldve_awoken = true;
+
+                            }
+
+                            buffer.push_back(front_waker);
+
+                            //does the waker need to be marked as "should wake"?
+
+                            //front_waker.wake();
+
+                        }
+                        else
+                        {
+
+                            break;
 
                         }
 
-                        //does the waker need to be marked as "should wake"?
-
-                        front_waker.wake();
-
-                    }
-                    else
-                    {
-
-                        break;
-
+                        permits.mm();
+                        
                     }
 
-                    permits.mm();
-                    
+                    //return true;
+
                 }
-
-                return true;
 
             }
 
         }
 
-        false
+        for item in buffer.drain(..)
+        {
+
+            item.wake();
+
+        }
+
+        added_permits
 
     }
 
     pub fn add_permit(&self) -> bool
     {
 
-        self.add_permits(1)
+        let mut opt_waker = None;
+
+        {
+
+            let mut mg = self.get_mg();
+
+            if let Some(val) = &mut *mg
+            {
+
+                let permits = val.permits;
+
+                if let Some(permits) = permits.checked_add(1)
+                {
+
+                    val.permits = permits;
+
+                    //Check for wakers and wake them if present.
+
+                    opt_waker = val.no_permits_queue.pop_front();
+
+                    if let Some(front_waker) = &opt_waker
+                    {
+
+                        if let Some(shouldve_awoken) = val.active_ids.get_mut(&front_waker.id())
+                        {
+
+                            *shouldve_awoken = true;
+
+                        }
+
+                        //opt_waker = Some(front_waker);
+
+                        //does the waker need to be marked as "should wake"?
+
+                        //front_waker.wake();
+                    
+                    }
+                    else
+                    {
+
+                        return true;
+                        
+                    }
+
+                }
+
+            }
+
+        }
+
+        if let Some(waker) = opt_waker
+        {
+
+            //Wake the waker outside the mg.
+
+            waker.wake();
+
+            return true;
+            
+        }
+
+        true
 
     }
 
@@ -435,10 +513,10 @@ impl WakerPermitQueue
 
     }
 
-    pub fn remove_permit(&self)
+    pub fn remove_permit(&self) -> bool
     {
 
-        self.remove_permits(1);
+        self.remove_permits(1)
 
     }
 
@@ -502,7 +580,7 @@ impl WakerPermitQueue
         if let Some(mut internals) = opt_internals
         {
 
-            for item in internals.queue.drain(..)
+            for item in internals.no_permits_queue.drain(..)
             {
 
                 item.wake();
@@ -580,7 +658,7 @@ pub struct WakerPermitQueueDecrementPermitsOrWait<'a>
 {
 
     waker_permit_queue_ref: &'a WakerPermitQueue,
-    opt_waker_handle: Option<usize>
+    opt_waker_id: Option<usize>
 
 }
 
@@ -594,7 +672,7 @@ impl<'a> WakerPermitQueueDecrementPermitsOrWait<'a>
         {
 
             waker_permit_queue_ref,
-            opt_waker_handle: None
+            opt_waker_id: None
 
         }
 
@@ -612,10 +690,10 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
     {
 
-        match self.opt_waker_handle
+        match self.opt_waker_id
         {
 
-            Some(handle) =>
+            Some(id) =>
             {
 
                 let mut mg = self.waker_permit_queue_ref.get_mg();
@@ -628,7 +706,7 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                         //Make sure this is a proper wakup.
 
-                        if let Some(shouldve_awoken) = val.active_handles.get(&handle)
+                        if let Some(shouldve_awoken) = val.active_ids.get(&id)
                         {
 
                             if *shouldve_awoken
@@ -651,19 +729,19 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                                     let waker = cx.waker().clone();
 
-                                    let queued_waker = QueuedWaker::new(waker, handle);
+                                    let queued_waker = QueuedWaker::new(waker, id);
 
-                                    val.queue.push_back(queued_waker);
+                                    val.no_permits_queue.push_back(queued_waker);
 
                                     return Poll::Pending;
                                     
                                 }
 
-                                val.active_handles.remove(&handle);
+                                val.active_ids.remove(&id);
 
                                 //Drop the mg here?
 
-                                //Make sure the waker handle is dropped locally as well.
+                                //Make sure the waker id is dropped locally as well.
 
                                 let self_mut = self.get_mut();
 
@@ -676,7 +754,7 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
                                 };
                                 */
 
-                                self_mut.opt_waker_handle = None;
+                                self_mut.opt_waker_id = None;
 
                                 return Poll::Ready(Ok(()));
 
@@ -693,7 +771,7 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
                         }
 
                         /*
-                        if !val.active_handles.contains_key(&handle)
+                        if !val.active_ids.contains_key(&id)
                         {
 
                             //The task has been successfully awoken.
@@ -723,7 +801,7 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                 let waker = cx.waker().clone();
 
-                let mut handle = 0;
+                let mut id = 0;
 
                 //
 
@@ -737,7 +815,7 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                         //Is there a queue?
 
-                        if val.queue.is_empty()
+                        if val.no_permits_queue.is_empty()
                         {
 
                             //"Take" a permit.
@@ -760,17 +838,17 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
                         while !inserted
                         {
 
-                            //Find the next avalible handle.
+                            //Find the next avalible id.
 
-                            handle = val.handle.wpp();
+                            id = val.id.wpp();
 
-                            inserted = val.active_handles.insert(handle, false).is_some();
+                            inserted = val.active_ids.insert(id, false).is_some();
                             
                         }
 
-                        let queued_waker = QueuedWaker::new(waker, handle);
+                        let queued_waker = QueuedWaker::new(waker, id);
 
-                        val.queue.push_back(queued_waker);
+                        val.no_permits_queue.push_back(queued_waker);
 
                     }
                     None =>
@@ -784,7 +862,7 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                 //
 
-                //Store the handle in the future.
+                //Store the id in the future.
 
                 let self_mut = self.get_mut();
 
@@ -797,7 +875,7 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
                 };
                 */
 
-                self_mut.opt_waker_handle = Some(handle);                     
+                self_mut.opt_waker_id = Some(id);                     
 
             }
 
@@ -819,9 +897,9 @@ impl Drop for WakerPermitQueueDecrementPermitsOrWait<'_>
 
         // https://doc.rust-lang.org/std/pin/index.html#implementing-drop-for-types-with-address-sensitive-states
 
-        // Make sure that the waker handle gets removed.
+        // Make sure that the waker id gets removed.
         
-        if let Some(handle) = self.opt_waker_handle
+        if let Some(id) = self.opt_waker_id
         {
 
             let mut mg = self.waker_permit_queue_ref.get_mg();
@@ -829,9 +907,9 @@ impl Drop for WakerPermitQueueDecrementPermitsOrWait<'_>
             if let Some(wqi) = &mut *mg
             {
 
-                //Remove the relevant entry from the active handles HashMap.
+                //Remove the relevant entry from the active ids HashMap.
 
-                wqi.active_handles.remove(&handle);
+                wqi.active_ids.remove(&id);
 
                 let mut index = 0;
 
@@ -839,10 +917,10 @@ impl Drop for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                 //Remove the queued waker.
 
-                for item in wqi.queue.iter()
+                for item in wqi.no_permits_queue.iter()
                 {
 
-                    if handle == item.handle()
+                    if id == item.id()
                     {
 
                         index_found = true;
@@ -858,7 +936,7 @@ impl Drop for WakerPermitQueueDecrementPermitsOrWait<'_>
                 if index_found
                 {
 
-                    wqi.queue.remove(index);
+                    wqi.no_permits_queue.remove(index);
 
                 }
 
