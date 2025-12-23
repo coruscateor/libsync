@@ -51,6 +51,10 @@ mod channel_shared_details;
 
 pub use channel_shared_details::*;
 
+mod single_waker;
+
+pub use single_waker::*;
+
 /*
 pub fn add(left: usize, right: usize) -> usize {
     left + right

@@ -15,6 +15,7 @@ use std::task::{Poll, Waker};
 //use core::result::Result;
 
 use inc_dec::{IncDecSelf, IntIncDecSelf};
+
 use paste::paste;
 
 use accessorise::impl_get_val;
@@ -648,6 +649,12 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                                     //The value of the permits should've been greater that one so this tasks get to proceed if it wakes up spuriously next time.
 
+                                    let waker = cx.waker().clone();
+
+                                    let queued_waker = QueuedWaker::new(waker, handle);
+
+                                    val.queue.push_back(queued_waker);
+
                                     return Poll::Pending;
                                     
                                 }
@@ -807,6 +814,10 @@ impl Drop for WakerPermitQueueDecrementPermitsOrWait<'_>
 
     fn drop(&mut self)
     {
+
+        // This type does not have any address-senstive states, therefore it does not pin the self reference.
+
+        // https://doc.rust-lang.org/std/pin/index.html#implementing-drop-for-types-with-address-sensitive-states
 
         // Make sure that the waker handle gets removed.
         
