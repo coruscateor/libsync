@@ -4,6 +4,7 @@ use std::fmt::Display;
 
 use std::future::Future;
 
+#[cfg(feature="use_std_mutexes")]
 use std::sync::{Mutex, MutexGuard};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -22,7 +23,16 @@ use accessorise::impl_get_val;
 
 use crate::QueuedWaker;
 
+#[cfg(feature="use_std_mutexes")]
 use std::sync::TryLockError;
+
+#[cfg(feature="use_parking_lot_mutexes")]
+use parking_lot::Mutex;
+
+#[cfg(feature="use_parking_lot_fair_mutexes")]
+use parking_lot::FairMutex;
+
+use super::PreferredMutexType;
 
 pub struct WakerPermitQueueInternals
 {
@@ -73,16 +83,31 @@ impl WakerPermitQueueInternals
         Self
         {
 
-            no_permits_queue: VecDeque::with_capacity(permits),
+            no_permits_queue: VecDeque::new(), //VecDeque::with_capacity(permits),
             id: 0,
-            active_ids: HashMap::with_capacity(permits),
+            active_ids: HashMap::new(), //HashMap::with_capacity(permits),
             permits: permits
 
         }
 
     }
 
-    pub fn with_capacity_and_permits(capacity: usize, permits: usize) -> Self
+    pub fn with_capacity_and_permits(capacity_and_permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            no_permits_queue: VecDeque::with_capacity(capacity_and_permits),
+            id: 0,
+            active_ids: HashMap::with_capacity(capacity_and_permits),
+            permits: capacity_and_permits
+
+        }
+
+    }
+
+    pub fn with_capacity_and_permits_separate(capacity: usize, permits: usize) -> Self
     {
 
         Self
@@ -102,7 +127,7 @@ impl WakerPermitQueueInternals
 pub struct WakerPermitQueue
 {
 
-    internals: Mutex<Option<WakerPermitQueueInternals>>
+    internals: PreferredMutexType<Option<WakerPermitQueueInternals>>
 
 }
 
@@ -115,7 +140,7 @@ impl WakerPermitQueue
         Self
         {
 
-            internals: Mutex::new(Some(WakerPermitQueueInternals::new()))
+            internals: PreferredMutexType::new(Some(WakerPermitQueueInternals::new()))
 
         }
 
@@ -127,7 +152,7 @@ impl WakerPermitQueue
         Self
         {
 
-            internals: Mutex::new(Some(WakerPermitQueueInternals::with_capacity(capacity)))
+            internals: PreferredMutexType::new(Some(WakerPermitQueueInternals::with_capacity(capacity)))
 
         }
 
@@ -139,24 +164,37 @@ impl WakerPermitQueue
         Self
         {
 
-            internals: Mutex::new(Some(WakerPermitQueueInternals::with_capacity(permits)))
+            internals: PreferredMutexType::new(Some(WakerPermitQueueInternals::with_capacity(permits)))
 
         }
 
     }
 
-    pub fn with_capacity_and_permits(capacity: usize, permits: usize) -> Self
+    pub fn with_capacity_and_permits(capacity_and_permits: usize) -> Self
     {
 
         Self
         {
 
-            internals: Mutex::new(Some(WakerPermitQueueInternals::with_capacity_and_permits(capacity, permits)))
+            internals: PreferredMutexType::new(Some(WakerPermitQueueInternals::with_capacity_and_permits(capacity_and_permits)))
 
         }
 
     }
 
+    pub fn with_capacity_and_permits_separate(capacity: usize, permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            internals: PreferredMutexType::new(Some(WakerPermitQueueInternals::with_capacity_and_permits_separate(capacity, permits)))
+
+        }
+
+    }
+
+    #[cfg(feature="use_std_mutexes")]
     fn get_mg(&self) -> MutexGuard<'_, Option<WakerPermitQueueInternals>>
     {
 
@@ -184,6 +222,7 @@ impl WakerPermitQueue
 
     }
 
+    #[cfg(feature="use_std_mutexes")]
     fn try_get_mg(&self) -> Option<MutexGuard<'_, Option<WakerPermitQueueInternals>>>
     {
 
@@ -230,7 +269,11 @@ impl WakerPermitQueue
     pub fn avalible_permits(&self) -> Option<usize>
     {
 
+        #[cfg(feature="use_std_mutexes")]
         let mut mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+        let mut mg = self.internals.lock();
 
         if let Some(val) = &mut *mg
         {
@@ -349,7 +392,11 @@ impl WakerPermitQueue
 
         {
 
+            #[cfg(feature="use_std_mutexes")]
             let mut mg = self.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+            let mut mg = self.internals.lock();
 
             if let Some(val) = &mut *mg
             {
@@ -424,7 +471,11 @@ impl WakerPermitQueue
 
         {
 
+            #[cfg(feature="use_std_mutexes")]
             let mut mg = self.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+            let mut mg = self.internals.lock();
 
             if let Some(val) = &mut *mg
             {
@@ -495,7 +546,11 @@ impl WakerPermitQueue
 
         }
 
+        #[cfg(feature="use_std_mutexes")]
         let mut mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+        let mut mg = self.internals.lock();
 
         if let Some(val) = &mut *mg
         {
@@ -527,7 +582,11 @@ impl WakerPermitQueue
     pub fn try_decrement_permits(&self) -> bool
     {
 
+        #[cfg(feature="use_std_mutexes")]
         let opt_mg = self.try_get_mg();
+
+        #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+        let opt_mg = self.internals.try_lock();
 
         if let Some(mut mg) = opt_mg
         {
@@ -575,7 +634,11 @@ impl WakerPermitQueue
 
         {
 
+            #[cfg(feature="use_std_mutexes")]
             let mut mg = self.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+            let mut mg = self.internals.lock();
 
             opt_internals = mg.take();
 
@@ -598,7 +661,11 @@ impl WakerPermitQueue
     pub fn is_closed(&self) -> bool
     {
 
+        #[cfg(feature="use_std_mutexes")]
         let mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+        let mg = self.internals.lock();
 
         mg.is_none()
 
@@ -617,7 +684,7 @@ impl WakerPermitQueue
     
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct WakerPermitQueueClosedError
 {
 }
@@ -700,7 +767,11 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
             Some(id) =>
             {
 
+                #[cfg(feature="use_std_mutexes")]
                 let mut mg = self.waker_permit_queue_ref.get_mg();
+
+                #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+                let mut mg = self.waker_permit_queue_ref.internals.lock();
 
                 match &mut *mg
                 {
@@ -809,7 +880,11 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                 //
 
+                #[cfg(feature="use_std_mutexes")]
                 let mut mg = self.waker_permit_queue_ref.get_mg();
+
+                #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+                let mut mg = self.waker_permit_queue_ref.internals.lock();
 
                 match &mut *mg
                 {
@@ -846,7 +921,7 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                             id = val.id.wpp();
 
-                            inserted = val.active_ids.insert(id, false).is_some();
+                            inserted = val.active_ids.insert(id, false).is_none(); //.is_some();
                             
                         }
 
@@ -906,7 +981,11 @@ impl Drop for WakerPermitQueueDecrementPermitsOrWait<'_>
         if let Some(id) = self.opt_waker_id
         {
 
+            #[cfg(feature="use_std_mutexes")]
             let mut mg = self.waker_permit_queue_ref.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+            let mut mg = self.waker_permit_queue_ref.internals.lock();
 
             if let Some(wqi) = &mut *mg
             {
