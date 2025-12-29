@@ -36,6 +36,12 @@ mod waker_permit_queue;
 
 pub use waker_permit_queue::*;
 
+#[cfg(test)]
+mod waker_permit_queue_tests;
+
+//#[cfg(test)]
+//pub use waker_permit_queue_tests::*;
+
 mod waker_queue;
 
 pub use waker_queue::*;

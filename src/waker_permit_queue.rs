@@ -102,7 +102,7 @@ impl WakerPermitQueueInternals
 pub struct WakerPermitQueue
 {
 
-    limted_notifier: Mutex<Option<WakerPermitQueueInternals>>
+    internals: Mutex<Option<WakerPermitQueueInternals>>
 
 }
 
@@ -115,7 +115,7 @@ impl WakerPermitQueue
         Self
         {
 
-            limted_notifier: Mutex::new(Some(WakerPermitQueueInternals::new()))
+            internals: Mutex::new(Some(WakerPermitQueueInternals::new()))
 
         }
 
@@ -127,7 +127,7 @@ impl WakerPermitQueue
         Self
         {
 
-            limted_notifier: Mutex::new(Some(WakerPermitQueueInternals::with_capacity(capacity)))
+            internals: Mutex::new(Some(WakerPermitQueueInternals::with_capacity(capacity)))
 
         }
 
@@ -139,7 +139,7 @@ impl WakerPermitQueue
         Self
         {
 
-            limted_notifier: Mutex::new(Some(WakerPermitQueueInternals::with_capacity(permits)))
+            internals: Mutex::new(Some(WakerPermitQueueInternals::with_capacity(permits)))
 
         }
 
@@ -151,7 +151,7 @@ impl WakerPermitQueue
         Self
         {
 
-            limted_notifier: Mutex::new(Some(WakerPermitQueueInternals::with_capacity_and_permits(capacity, permits)))
+            internals: Mutex::new(Some(WakerPermitQueueInternals::with_capacity_and_permits(capacity, permits)))
 
         }
 
@@ -160,7 +160,7 @@ impl WakerPermitQueue
     fn get_mg(&self) -> MutexGuard<'_, Option<WakerPermitQueueInternals>>
     {
 
-        let lock_result = self.limted_notifier.lock();
+        let lock_result = self.internals.lock();
 
         match lock_result
         {
@@ -174,7 +174,7 @@ impl WakerPermitQueue
             Err(err) =>
             {
 
-                self.limted_notifier.clear_poison();
+                self.internals.clear_poison();
 
                 err.into_inner()
 
@@ -187,7 +187,7 @@ impl WakerPermitQueue
     fn try_get_mg(&self) -> Option<MutexGuard<'_, Option<WakerPermitQueueInternals>>>
     {
 
-        let lock_result = self.limted_notifier.try_lock();
+        let lock_result = self.internals.try_lock();
 
         match lock_result
         {
@@ -207,7 +207,7 @@ impl WakerPermitQueue
                     TryLockError::Poisoned(poison_error) =>
                     {
 
-                        self.limted_notifier.clear_poison();
+                        self.internals.clear_poison();
 
                         Some(poison_error.into_inner())
 
@@ -243,6 +243,9 @@ impl WakerPermitQueue
 
     }
 
+    //Disabled
+    
+    /*
     pub fn try_add_permits(&self, count: usize) -> bool
     {
 
@@ -330,6 +333,7 @@ impl WakerPermitQueue
         self.try_add_permits(1)
         
     }
+    */
 
     pub fn add_permits(&self, count: usize, buffer: &mut VecDeque<QueuedWaker>) -> bool
     {
