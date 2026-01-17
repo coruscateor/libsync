@@ -6,6 +6,8 @@ use crate::{ChannelSharedDetails, SendResult, WakerPermitQueue};
 
 use delegate::delegate;
 
+use std::fmt::Debug;
+
 pub struct Sender<T>
 {
 
@@ -32,15 +34,18 @@ impl<T> Sender<T>
 
     }
 
+    //Disabled
+
+    /*
     pub fn try_send(&self, value: T) -> SendResult<T>
     {
 
         if self.receivers_count.strong_count() > 0
         {
 
-            self.shared_details.notifier_ref().add_permit();
-
             self.shared_details.message_queue_ref().push(value);
+
+            self.shared_details.notifier_ref().add_permit();
 
             return Ok(());
 
@@ -49,6 +54,7 @@ impl<T> Sender<T>
         Err(value)
 
     }
+    */
 
     pub fn send(&self, value: T) -> SendResult<T>
     {
@@ -65,6 +71,15 @@ impl<T> Sender<T>
         }
 
         Err(value)
+
+    }
+
+    pub fn send_regardless(&self, value: T)
+    {
+
+        self.shared_details.message_queue_ref().push(value);
+
+        self.shared_details.notifier_ref().add_permit();
 
     }
 
@@ -103,10 +118,10 @@ impl<T> Sender<T>
         {
 
             #[call(strong_count)]
-            pub fn receiver_strong_count(&self) -> usize;
+            pub fn receivers_strong_count(&self) -> usize;
 
             #[call(weak_count)]
-            pub fn receiver_weak_count(&self) -> usize;
+            pub fn receivers_weak_count(&self) -> usize;
 
         }
 
@@ -134,3 +149,31 @@ impl<T> Clone for Sender<T>
 
 }
 
+impl<T> Debug for Sender<T>
+    where T: Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Sender").field("shared_details", &self.shared_details).field("senders_count", &self.senders_count).field("receivers_count", &self.receivers_count).finish()
+    }
+    
+}
+
+impl<T> Drop for Sender<T>
+{
+
+    fn drop(&mut self)
+    {
+
+        if self.strong_count() == 1
+        {
+
+            //Engage free-for-all mode.
+
+            self.shared_details.notifier_ref().close();
+
+        }
+    
+    }
+
+}

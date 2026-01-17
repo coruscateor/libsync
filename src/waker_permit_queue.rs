@@ -23,6 +23,8 @@ use accessorise::impl_get_val;
 
 use crate::QueuedWaker;
 
+use std::fmt::Debug;
+
 #[cfg(feature="use_std_mutexes")]
 use std::sync::TryLockError;
 
@@ -34,6 +36,7 @@ use parking_lot::FairMutex;
 
 use super::PreferredMutexType;
 
+#[derive(Debug)]
 pub struct WakerPermitQueueInternals
 {
 
@@ -124,6 +127,18 @@ impl WakerPermitQueueInternals
 
 }
 
+/*
+impl Debug for WakerPermitQueueInternals
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WakerPermitQueueInternals").field("no_permits_queue", &self.no_permits_queue).field("id", &self.id).field("active_ids", &self.active_ids).field("permits", &self.permits).finish()
+    }
+
+}
+*/
+
+#[derive(Debug)]
 pub struct WakerPermitQueue
 {
 
@@ -508,13 +523,13 @@ impl WakerPermitQueue
                         //front_waker.wake();
                     
                     }
-                    else
-                    {
 
-                        return true;
-                        
-                    }
+                }
+                else
+                {
 
+                    return false;
+                    
                 }
 
             }
@@ -528,7 +543,7 @@ impl WakerPermitQueue
 
             waker.wake();
 
-            return true;
+            //return true;
             
         }
 
@@ -1030,3 +1045,14 @@ impl Drop for WakerPermitQueueDecrementPermitsOrWait<'_>
     }
 
 }
+
+/*
+impl Debug for WakerPermitQueue
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WakerPermitQueue").field("internals", &self.internals).finish()
+    }
+
+}
+*/

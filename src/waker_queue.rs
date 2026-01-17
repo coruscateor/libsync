@@ -18,6 +18,7 @@ use accessorise::impl_get_val;
 
 use inc_dec::IntIncDecSelf;
 
+#[derive(Debug)]
 pub struct QueuedWaker
 {
 

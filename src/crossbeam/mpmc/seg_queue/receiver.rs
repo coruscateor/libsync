@@ -6,6 +6,8 @@ use crate::{ChannelSharedDetails, ReceiveError, ReceiveResult, SendResult, Waker
 
 use delegate::delegate;
 
+use std::fmt::Debug;
+
 pub struct Receiver<T>
 {
 
@@ -46,7 +48,7 @@ impl<T> Receiver<T>
         else
         {
 
-            if self.senders_count.strong_count() > 0
+            if self.senders_count.strong_count() == 0
             {
 
                 return Err(ReceiveError::NoSenders);
@@ -54,6 +56,50 @@ impl<T> Receiver<T>
             }
 
             Err(ReceiveError::Empty)
+
+        }
+
+    }
+
+    delegate!
+    {
+
+        to self.shared_details.message_queue_ref()
+        {
+        
+            pub fn is_empty(&self) -> bool;
+
+            pub fn len(&self) -> usize;
+
+        }
+
+    }
+
+    pub fn strong_count(&self) -> usize
+    {
+
+        Arc::strong_count(&self.receivers_count)
+
+    }
+
+    pub fn weak_count(&self) -> usize
+    {
+
+        Arc::weak_count(&self.receivers_count)
+        
+    }
+
+    delegate!
+    {
+
+        to self.senders_count
+        {
+
+            #[call(strong_count)]
+            pub fn senders_strong_count(&self) -> usize;
+
+            #[call(weak_count)]
+            pub fn senders_weak_count(&self) -> usize;
 
         }
 
@@ -82,4 +128,31 @@ impl<T> Clone for Receiver<T>
 
 }
 
+impl<T> Debug for Receiver<T>
+    where T: Debug
+{
 
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Receiver").field("shared_details", &self.shared_details).field("senders_count", &self.senders_count).field("receivers_count", &self.receivers_count).finish()
+    }
+    
+}
+
+impl<T> Drop for Receiver<T>
+{
+
+    fn drop(&mut self)
+    {
+
+        if self.strong_count() == 1
+        {
+
+            //Engage free-for-all mode.
+
+            self.shared_details.notifier_ref().close();
+
+        }
+    
+    }
+
+}
