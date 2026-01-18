@@ -20,6 +20,9 @@ pub struct Receiver<T>
 impl<T> Receiver<T>
 {
 
+    ///
+    /// Create a new channel Receiver object.
+    /// 
     pub fn new(shared_details: Arc<ChannelSharedDetails<SegQueue<T>, WakerPermitQueue>>, senders_count: Weak<()>, receivers_count: Arc<()>) -> Self
     {
 
@@ -34,6 +37,11 @@ impl<T> Receiver<T>
 
     }
 
+    ///
+    /// Attempt to receive a value.
+    /// 
+    /// Returns an error if the channels queue is empty and there are no instantiated Senders detected.
+    /// 
     pub async fn recv(&self) -> ReceiveResult<T>
     {
 
@@ -67,14 +75,23 @@ impl<T> Receiver<T>
         to self.shared_details.message_queue_ref()
         {
         
+            ///
+            /// Is the channel empty?
+            /// 
             pub fn is_empty(&self) -> bool;
 
+            ///
+            /// How many messages are in the channels queue?
+            /// 
             pub fn len(&self) -> usize;
 
         }
 
     }
 
+    ///
+    /// The total number of Receiver instances.
+    /// 
     pub fn strong_count(&self) -> usize
     {
 
@@ -82,6 +99,9 @@ impl<T> Receiver<T>
 
     }
 
+    ///
+    /// The total number of potential Receiver instances.
+    /// 
     pub fn weak_count(&self) -> usize
     {
 
@@ -95,9 +115,15 @@ impl<T> Receiver<T>
         to self.senders_count
         {
 
+            ///
+            /// The total number of Sender instances.
+            /// 
             #[call(strong_count)]
             pub fn senders_strong_count(&self) -> usize;
 
+            ///
+            /// The total number of potential Sender instances.
+            /// 
             #[call(weak_count)]
             pub fn senders_weak_count(&self) -> usize;
 

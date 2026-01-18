@@ -20,6 +20,9 @@ pub struct Sender<T>
 impl<T> Sender<T>
 {
 
+    ///
+    /// Create a new channel Sender object.
+    /// 
     pub fn new(shared_details: &Arc<ChannelSharedDetails<SegQueue<T>, WakerPermitQueue>>, senders_count: Arc<()>, receivers_count: &Arc<()>) -> Self
     {
 
@@ -56,6 +59,11 @@ impl<T> Sender<T>
     }
     */
 
+    ///
+    /// Sends a value, only if there are any receiver objects still existent.
+    /// 
+    /// Returns it in a Result::Err variant otherwise.
+    /// 
     pub fn send(&self, value: T) -> SendResult<T>
     {
 
@@ -74,6 +82,9 @@ impl<T> Sender<T>
 
     }
 
+    ///
+    /// Sends a value regardless of whether or not there are still any receiver objects that are instantiated.
+    /// 
     pub fn send_regardless(&self, value: T)
     {
 
@@ -89,14 +100,23 @@ impl<T> Sender<T>
         to self.shared_details.message_queue_ref()
         {
         
+            ///
+            /// Is the channel empty?
+            /// 
             pub fn is_empty(&self) -> bool;
 
+            ///
+            /// How many messages are in the channels queue?
+            /// 
             pub fn len(&self) -> usize;
 
         }
 
     }
 
+    ///
+    /// The total number of Sender instances.
+    /// 
     pub fn strong_count(&self) -> usize
     {
 
@@ -104,6 +124,9 @@ impl<T> Sender<T>
 
     }
 
+    ///
+    /// The total number of potential Sender instances.
+    /// 
     pub fn weak_count(&self) -> usize
     {
 
@@ -117,9 +140,15 @@ impl<T> Sender<T>
         to self.receivers_count
         {
 
+            ///
+            /// The total number of Receiver instances.
+            /// 
             #[call(strong_count)]
             pub fn receivers_strong_count(&self) -> usize;
 
+            ///
+            /// The total number of potential Receiver instances.
+            /// 
             #[call(weak_count)]
             pub fn receivers_weak_count(&self) -> usize;
 
