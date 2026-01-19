@@ -61,13 +61,13 @@ mod single_waker;
 
 pub use single_waker::*;
 
-#[cfg(feature="use_std_mutexes")]
+#[cfg(feature="use_std_sync")]
 pub type PreferredMutexType<T> = std::sync::Mutex<T>;
 
-#[cfg(feature="use_parking_lot_mutexes")]
+#[cfg(feature="use_parking_lot_sync")]
 pub type PreferredMutexType<T> = parking_lot::Mutex<T>;
 
-#[cfg(feature="use_parking_lot_fair_mutexes")]
+#[cfg(feature="use_parking_lot_fair_sync")]
 pub type PreferredMutexType<T> = parking_lot::FairMutex<T>;
 
 /*

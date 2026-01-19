@@ -33,9 +33,9 @@ scc = { version = "3.4.2", optional = true }
 
 [features]
 std = []
-use_std_mutexes = []
-use_parking_lot_mutexes = ["dep:parking_lot"]
-use_parking_lot_fair_mutexes = ["dep:parking_lot"]
+use_std_sync = []
+use_parking_lot_sync = ["dep:parking_lot"]
+use_parking_lot_fair_sync = ["dep:parking_lot"]
 #count_waiting_senders_and_receivers = []
 #crossbeam = ["dep:crossbeam"]
 #tokio = ["dep:tokio"]

@@ -4,7 +4,7 @@ use std::fmt::Display;
 
 use std::future::Future;
 
-#[cfg(feature="use_std_mutexes")]
+#[cfg(feature="use_std_sync")]
 use std::sync::{Mutex, MutexGuard};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -25,13 +25,13 @@ use crate::QueuedWaker;
 
 use std::fmt::Debug;
 
-#[cfg(feature="use_std_mutexes")]
+#[cfg(feature="use_std_sync")]
 use std::sync::TryLockError;
 
-#[cfg(feature="use_parking_lot_mutexes")]
+#[cfg(feature="use_parking_lot_sync")]
 use parking_lot::Mutex;
 
-#[cfg(feature="use_parking_lot_fair_mutexes")]
+#[cfg(feature="use_parking_lot_fair_sync")]
 use parking_lot::FairMutex;
 
 use super::PreferredMutexType;
@@ -209,7 +209,7 @@ impl WakerPermitQueue
 
     }
 
-    #[cfg(feature="use_std_mutexes")]
+    #[cfg(feature="use_std_sync")]
     fn get_mg(&self) -> MutexGuard<'_, Option<WakerPermitQueueInternals>>
     {
 
@@ -237,7 +237,7 @@ impl WakerPermitQueue
 
     }
 
-    #[cfg(feature="use_std_mutexes")]
+    #[cfg(feature="use_std_sync")]
     fn try_get_mg(&self) -> Option<MutexGuard<'_, Option<WakerPermitQueueInternals>>>
     {
 
@@ -284,10 +284,10 @@ impl WakerPermitQueue
     pub fn avalible_permits(&self) -> Option<usize>
     {
 
-        #[cfg(feature="use_std_mutexes")]
+        #[cfg(feature="use_std_sync")]
         let mut mg = self.get_mg();
 
-        #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
         let mut mg = self.internals.lock();
 
         if let Some(val) = &mut *mg
@@ -407,10 +407,10 @@ impl WakerPermitQueue
 
         {
 
-            #[cfg(feature="use_std_mutexes")]
+            #[cfg(feature="use_std_sync")]
             let mut mg = self.get_mg();
 
-            #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
             let mut mg = self.internals.lock();
 
             if let Some(val) = &mut *mg
@@ -486,10 +486,10 @@ impl WakerPermitQueue
 
         {
 
-            #[cfg(feature="use_std_mutexes")]
+            #[cfg(feature="use_std_sync")]
             let mut mg = self.get_mg();
 
-            #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
             let mut mg = self.internals.lock();
 
             if let Some(val) = &mut *mg
@@ -561,10 +561,10 @@ impl WakerPermitQueue
 
         }
 
-        #[cfg(feature="use_std_mutexes")]
+        #[cfg(feature="use_std_sync")]
         let mut mg = self.get_mg();
 
-        #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
         let mut mg = self.internals.lock();
 
         if let Some(val) = &mut *mg
@@ -597,10 +597,10 @@ impl WakerPermitQueue
     pub fn try_decrement_permits(&self) -> bool
     {
 
-        #[cfg(feature="use_std_mutexes")]
+        #[cfg(feature="use_std_sync")]
         let opt_mg = self.try_get_mg();
 
-        #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
         let opt_mg = self.internals.try_lock();
 
         if let Some(mut mg) = opt_mg
@@ -649,10 +649,10 @@ impl WakerPermitQueue
 
         {
 
-            #[cfg(feature="use_std_mutexes")]
+            #[cfg(feature="use_std_sync")]
             let mut mg = self.get_mg();
 
-            #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
             let mut mg = self.internals.lock();
 
             opt_internals = mg.take();
@@ -676,10 +676,10 @@ impl WakerPermitQueue
     pub fn is_closed(&self) -> bool
     {
 
-        #[cfg(feature="use_std_mutexes")]
+        #[cfg(feature="use_std_sync")]
         let mg = self.get_mg();
 
-        #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
         let mg = self.internals.lock();
 
         mg.is_none()
@@ -782,10 +782,10 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
             Some(id) =>
             {
 
-                #[cfg(feature="use_std_mutexes")]
+                #[cfg(feature="use_std_sync")]
                 let mut mg = self.waker_permit_queue_ref.get_mg();
 
-                #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
                 let mut mg = self.waker_permit_queue_ref.internals.lock();
 
                 match &mut *mg
@@ -895,10 +895,10 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                 //
 
-                #[cfg(feature="use_std_mutexes")]
+                #[cfg(feature="use_std_sync")]
                 let mut mg = self.waker_permit_queue_ref.get_mg();
 
-                #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
                 let mut mg = self.waker_permit_queue_ref.internals.lock();
 
                 match &mut *mg
@@ -996,10 +996,10 @@ impl Drop for WakerPermitQueueDecrementPermitsOrWait<'_>
         if let Some(id) = self.opt_waker_id
         {
 
-            #[cfg(feature="use_std_mutexes")]
+            #[cfg(feature="use_std_sync")]
             let mut mg = self.waker_permit_queue_ref.get_mg();
 
-            #[cfg(any(feature="use_parking_lot_mutexes", feature="use_parking_lot_fair_mutexes"))]
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
             let mut mg = self.waker_permit_queue_ref.internals.lock();
 
             if let Some(wqi) = &mut *mg
