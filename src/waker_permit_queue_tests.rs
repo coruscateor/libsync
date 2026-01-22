@@ -16,11 +16,11 @@ mod tests
 
         //Adding Permits
 
-        assert!(wpc.add_permit());
+        assert!(wpc.add_permit() == Some(true));
 
         assert_eq!(wpc.avalible_permits(), Some(1));
 
-        assert!(wpc.add_permit());
+        assert!(wpc.add_permit() == Some(true));
 
         assert_eq!(wpc.avalible_permits(), Some(2));
 
@@ -53,7 +53,7 @@ mod tokio_tests
     use std::{sync::Arc, time::Duration};
 
     use futures::join;
-
+    
     use tokio::time::timeout;
 
     use crate::WakerPermitQueue;
@@ -94,9 +94,10 @@ mod tokio_tests
 
         });
 
-        assert!(arc_wpc.add_permit());
 
-        assert!(arc_wpc.add_permit());
+        assert!(arc_wpc.add_permit() == Some(true));
+
+        assert!(arc_wpc.add_permit() == Some(true));
 
         let join_result = join!(t1, t2);
 

@@ -393,17 +393,10 @@ impl WakerPermitQueue
     }
     */
 
-    pub fn add_permits(&self, count: usize, buffer: &mut VecDeque<QueuedWaker>) -> bool
+    pub fn add_permits(&self, count: usize, buffer: &mut VecDeque<QueuedWaker>) -> Option<usize>
     {
 
-        if count == 0
-        {
-
-            return false;
-
-        }
-
-        let mut added_permits = false;
+        let permits_added;
 
         {
 
@@ -416,54 +409,81 @@ impl WakerPermitQueue
             if let Some(val) = &mut *mg
             {
 
-                let permits = val.permits;
-
-                if let Some(mut permits) = permits.checked_add(count)
+                if count == 0
                 {
 
-                    added_permits = true;
+                    return Some(0);
 
-                    val.permits = permits;
+                }
 
-                    while permits > 0
-                    {
+                let permits = val.permits;
 
-                        //Check for wakers and wake them if present.
+                if let Some(resultant_permits) = permits.checked_add(count)
+                {
 
-                        let opt_front_waker = val.no_permits_queue.pop_front();
+                    //added_permits = true;
 
-                        if let Some(front_waker) = opt_front_waker
-                        {
+                    val.permits = resultant_permits;
 
-                            if let Some(shouldve_awoken) = val.active_ids.get_mut(&front_waker.id())
-                            {
-
-                                *shouldve_awoken = true;
-
-                            }
-
-                            buffer.push_back(front_waker);
-
-                            //does the waker need to be marked as "should wake"?
-
-                            //front_waker.wake();
-
-                        }
-                        else
-                        {
-
-                            break;
-
-                        }
-
-                        permits.mm();
-                        
-                    }
+                    permits_added = count;
 
                     //return true;
 
                 }
+                else
+                {
 
+                    //We've hit the ceiling.
+
+                    permits_added = usize::MAX - val.permits;
+
+                    val.permits = usize::MAX;
+                    
+                }
+
+                let mut potential_wakers_to_wake = permits_added;
+
+                while potential_wakers_to_wake > 0
+                {
+
+                    //Check for wakers and wake them if present.
+
+                    let opt_front_waker = val.no_permits_queue.pop_front();
+
+                    if let Some(front_waker) = opt_front_waker
+                    {
+
+                        if let Some(shouldve_awoken) = val.active_ids.get_mut(&front_waker.id())
+                        {
+
+                            *shouldve_awoken = true;
+
+                        }
+
+                        buffer.push_back(front_waker);
+
+                        //does the waker need to be marked as "should wake"?
+
+                        //front_waker.wake();
+
+                    }
+                    else
+                    {
+
+                        break;
+
+                    }
+
+                    potential_wakers_to_wake.mm();
+                    
+                }
+
+            }
+            else
+            {
+
+                return None;
+                
             }
 
         }
@@ -475,14 +495,14 @@ impl WakerPermitQueue
 
         }
 
-        added_permits
+        Some(permits_added)
 
     }
 
-    pub fn add_permit(&self) -> bool
+    pub fn add_permit(&self) -> Option<bool>
     {
 
-        let mut opt_waker = None;
+        let opt_waker; // = None;
 
         {
 
@@ -528,10 +548,16 @@ impl WakerPermitQueue
                 else
                 {
 
-                    return false;
+                    return Some(false);
                     
                 }
 
+            }
+            else
+            {
+
+                return None;
+                
             }
 
         }
@@ -547,7 +573,7 @@ impl WakerPermitQueue
             
         }
 
-        true
+        Some(true)
 
     }
 
