@@ -26,11 +26,11 @@ mod tests
 
         //Removing Permits
 
-        assert!(wpc.remove_permit());
+        assert!(wpc.remove_permit() == Some(true));
 
         assert_eq!(wpc.avalible_permits(), Some(1));
 
-        assert!(wpc.remove_permit());
+        assert!(wpc.remove_permit() == Some(true));
 
         assert_eq!(wpc.avalible_permits(), Some(0));
 

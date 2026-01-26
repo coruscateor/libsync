@@ -408,7 +408,7 @@ impl WakerPermitQueue
 
             if let Some(val) = &mut *mg
             {
-
+                
                 if count == 0
                 {
 
@@ -517,10 +517,10 @@ impl WakerPermitQueue
 
                 let permits = val.permits;
 
-                if let Some(permits) = permits.checked_add(1)
+                if let Some(resultant_permits) = permits.checked_add(1)
                 {
 
-                    val.permits = permits;
+                    val.permits = resultant_permits;
 
                     //Check for wakers and wake them if present.
 
@@ -577,15 +577,52 @@ impl WakerPermitQueue
 
     }
 
-    pub fn remove_permits(&self, count: usize) -> bool
+    pub fn remove_permits(&self, count: usize) -> Option<usize>
     {
 
-        if count == 0
+        #[cfg(feature="use_std_sync")]
+        let mut mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.internals.lock();
+
+        if let Some(val) = &mut *mg
         {
 
-            return false;
+            if count == 0
+            {
+
+                return Some(0);
+
+            }
+
+            let permits = val.permits;
+
+            if let Some(resultant_permits) = permits.checked_sub(count)
+            {
+
+                val.permits = resultant_permits;
+
+                return Some(count);
+
+            }
+            else
+            {
+
+                val.permits = 0;
+
+                return Some(permits);
+                
+            }
 
         }
+    
+        None
+
+    }
+
+    pub fn remove_permit(&self) -> Option<bool>
+    {
 
         #[cfg(feature="use_std_sync")]
         let mut mg = self.get_mg();
@@ -598,25 +635,26 @@ impl WakerPermitQueue
 
             let permits = val.permits;
 
-            if let Some(permits) = permits.checked_sub(count)
+            if let Some(resultant_permits) = permits.checked_sub(1)
             {
 
-                val.permits = permits;
+                val.permits = resultant_permits;
 
-                return true;
+                return Some(true);
 
+            }
+            else
+            {
+
+                val.permits = 0;
+
+                return Some(false);
+                
             }
 
         }
-
-        false
-
-    }
-
-    pub fn remove_permit(&self) -> bool
-    {
-
-        self.remove_permits(1)
+    
+        None
 
     }
 

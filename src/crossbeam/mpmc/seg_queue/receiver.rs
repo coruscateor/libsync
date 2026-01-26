@@ -47,19 +47,19 @@ impl<T> Receiver<T>
 
         let res = self.shared_details.notifier_ref().remove_permit();
 
-        if res
+        if let Some(val) = res
         {
 
-            if let Some(message) = self.shared_details.message_queue_ref().pop()
+            if val
             {
 
-                return Ok(message);
+                if let Some(message) = self.shared_details.message_queue_ref().pop()
+                {
 
-            }
-            else
-            {
+                    return Ok(message);
 
-                if self.senders_count.strong_count() == 0
+                }
+                else if self.senders_count.strong_count() == 0
                 {
 
                     return Err(ReceiveError::NoSenders);
@@ -72,15 +72,10 @@ impl<T> Receiver<T>
         else
         {
 
-            if self.shared_details.notifier_ref().is_closed()
+            if let Some(message) = self.shared_details.message_queue_ref().pop()
             {
 
-                if let Some(message) = self.shared_details.message_queue_ref().pop()
-                {
-
-                    return Ok(message);
-
-                }
+                return Ok(message);
 
             }
 
