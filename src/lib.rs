@@ -42,9 +42,11 @@ mod waker_permit_queue_tests;
 //#[cfg(test)]
 //pub use waker_permit_queue_tests::*;
 
-mod waker_queue;
+//Disabled
 
-pub use waker_queue::*;
+//mod waker_queue;
+
+//pub use waker_queue::*;
 
 mod drop_waker;
 
@@ -60,6 +62,10 @@ pub use channel_shared_details::*;
 mod single_waker;
 
 pub use single_waker::*;
+
+mod queued_waker;
+
+pub use queued_waker::*;
 
 #[cfg(feature="use_std_sync")]
 pub type PreferredMutexType<T> = std::sync::Mutex<T>;

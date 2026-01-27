@@ -41,7 +41,7 @@ pub struct WakerPermitQueueInternals
 {
 
     pub no_permits_queue: VecDeque<QueuedWaker>,
-    pub id: usize,
+    pub latest_id: usize,
     pub active_ids: HashMap<usize, bool>, //Waker Handle, should've awoken
     pub permits: usize
 
@@ -57,7 +57,7 @@ impl WakerPermitQueueInternals
         {
 
             no_permits_queue: VecDeque::new(),
-            id: 0,
+            latest_id: 0,
             active_ids: HashMap::new(),
             permits: 0
 
@@ -72,7 +72,7 @@ impl WakerPermitQueueInternals
         {
 
             no_permits_queue: VecDeque::with_capacity(capacity),
-            id: 0,
+            latest_id: 0,
             active_ids: HashMap::with_capacity(capacity),
             permits: 0
 
@@ -87,7 +87,7 @@ impl WakerPermitQueueInternals
         {
 
             no_permits_queue: VecDeque::new(), //VecDeque::with_capacity(permits),
-            id: 0,
+            latest_id: 0,
             active_ids: HashMap::new(), //HashMap::with_capacity(permits),
             permits: permits
 
@@ -102,7 +102,7 @@ impl WakerPermitQueueInternals
         {
 
             no_permits_queue: VecDeque::with_capacity(capacity_and_permits),
-            id: 0,
+            latest_id: 0,
             active_ids: HashMap::with_capacity(capacity_and_permits),
             permits: capacity_and_permits
 
@@ -117,7 +117,7 @@ impl WakerPermitQueueInternals
         {
 
             no_permits_queue: VecDeque::with_capacity(capacity),
-            id: 0,
+            latest_id: 0,
             active_ids: HashMap::with_capacity(capacity),
             permits
 
@@ -998,7 +998,7 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                             //Find the next avalible id.
 
-                            id = val.id.wpp();
+                            id = val.latest_id.wpp();
 
                             inserted = val.active_ids.insert(id, false).is_none(); //.is_some();
                             
