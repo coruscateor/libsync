@@ -301,6 +301,19 @@ impl WakerPermitQueue
 
     }
 
+    pub fn is_closed(&self) -> bool
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mg = self.internals.lock();
+
+        mg.is_none()
+
+    }
+
     //Disabled
     
     /*
@@ -699,6 +712,7 @@ impl WakerPermitQueue
         false        
 
     }
+    
     pub fn decrement_permits_or_wait<'a>(&'a self) -> WakerPermitQueueDecrementPermitsOrWait<'a>
     {
 
@@ -734,19 +748,6 @@ impl WakerPermitQueue
             }
 
         }
-
-    }
-
-    pub fn is_closed(&self) -> bool
-    {
-
-        #[cfg(feature="use_std_sync")]
-        let mg = self.get_mg();
-
-        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mg = self.internals.lock();
-
-        mg.is_none()
 
     }
 

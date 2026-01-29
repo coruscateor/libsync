@@ -59,13 +59,19 @@ mod channel_shared_details;
 
 pub use channel_shared_details::*;
 
-mod single_waker;
+//Disabled
 
-pub use single_waker::*;
+//mod single_waker;
+
+//pub use single_waker::*;
 
 mod queued_waker;
 
 pub use queued_waker::*;
+
+mod single_waker_multi_permit;
+
+pub use single_waker_multi_permit::*;
 
 #[cfg(feature="use_std_sync")]
 pub type PreferredMutexType<T> = std::sync::Mutex<T>;

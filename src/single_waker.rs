@@ -3,13 +3,26 @@ use std::fmt::Display;
 
 use std::future::Future;
 
-use std::sync::{Mutex, MutexGuard};
+//use std::sync::{Mutex, MutexGuard};
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use std::task::{Poll, Waker};
 
 use std::error::Error;
+
+#[cfg(feature="use_std_sync")]
+use std::sync::{Mutex, MutexGuard};
+
+#[cfg(feature="use_std_sync")]
+use std::sync::TryLockError;
+
+#[cfg(feature="use_parking_lot_sync")]
+use parking_lot::Mutex;
+
+#[cfg(feature="use_parking_lot_fair_sync")]
+use parking_lot::FairMutex;
+
 
 #[derive(Debug)]
 pub struct SingleWakerError
@@ -45,11 +58,39 @@ impl Error for SingleWakerError
 {    
 }
 
+pub struct SingleWakerInternalState
+{
+
+    pub opt_waker: Option<Waker>,
+    pub shouldve_awoken: bool
+
+}
+
+impl SingleWakerInternalState
+{
+
+    pub fn new() -> Self
+    {
+
+        Self
+        {
+
+            opt_waker: None,
+            shouldve_awoken: false
+
+        }
+
+    }
+    
+}
+
 pub struct SingleWaker
 {
 
-    waker_mutex: Mutex<Option<Waker>>,
-    shouldve_awoken: AtomicBool
+    internal_state: Mutex<SingleWakerInternalState>
+
+    //waker_mutex: Mutex<Option<Waker>>,
+    //shouldve_awoken: AtomicBool
 
 }
 
@@ -62,17 +103,20 @@ impl SingleWaker
         Self
         {
 
-            waker_mutex: Mutex::new(None),
-            shouldve_awoken: AtomicBool::new(false)
+            internal_state: Mutex::new(SingleWakerInternalState::new())
+
+            //waker_mutex: Mutex::new(None),
+            //shouldve_awoken: AtomicBool::new(false)
 
         }
 
     }
 
-    fn get_mg(&self) -> MutexGuard<'_, Option<Waker>>
+    #[cfg(feature="use_std_sync")]
+    fn get_mg(&self) -> MutexGuard<'_, SingleWakerInternalState> //Option<Waker>>
     {
 
-        let lock_result = self.waker_mutex.lock();
+        let lock_result = self.internal_state.lock();
 
         match lock_result
         {
@@ -86,7 +130,7 @@ impl SingleWaker
             Err(err) =>
             {
 
-                self.waker_mutex.clear_poison();
+                self.internal_state.clear_poison();
 
                 err.into_inner()
 
@@ -99,7 +143,11 @@ impl SingleWaker
     pub fn wake(&self) -> bool
     {
 
+        #[cfg(feature="use_std_sync")]
         let mut mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.internals.lock();
 
         if let Some(waker) = mg.take()
         {
