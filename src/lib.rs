@@ -73,8 +73,11 @@ mod single_waker_multi_permit;
 
 pub use single_waker_multi_permit::*;
 
+#[cfg(test)]
+mod single_waker_multi_permit_tests;
+
 #[cfg(feature="use_std_sync")]
-pub type PreferredMutexType<T> = std::sync::Mutex<T>;
+pub type PreferredMutexType<T> = ::std::sync::Mutex<T>;
 
 #[cfg(feature="use_parking_lot_sync")]
 pub type PreferredMutexType<T> = parking_lot::Mutex<T>;

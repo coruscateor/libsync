@@ -1,48 +1,41 @@
-//use super::WakerPermitQueue;
 
-//#[cfg(test)]
-mod tests
+use crate::SingleWakerMultiPermit;
+
+#[test]
+fn test_basics()
 {
 
-    use crate::WakerPermitQueue;
+    let wpc = SingleWakerMultiPermit::new();
 
-    #[test]
-    fn test_basics()
-    {
+    assert_eq!(wpc.avalible_permits(), Some(0));
 
-        let wpc = WakerPermitQueue::new();
+    //Adding Permits
 
-        assert_eq!(wpc.avalible_permits(), Some(0));
+    assert!(wpc.add_permit() == Some(true));
 
-        //Adding Permits
+    assert_eq!(wpc.avalible_permits(), Some(1));
 
-        assert!(wpc.add_permit() == Some(true));
+    assert!(wpc.add_permit() == Some(true));
 
-        assert_eq!(wpc.avalible_permits(), Some(1));
+    assert_eq!(wpc.avalible_permits(), Some(2));
 
-        assert!(wpc.add_permit() == Some(true));
+    //Removing Permits
 
-        assert_eq!(wpc.avalible_permits(), Some(2));
+    assert!(wpc.remove_permit() == Some(true));
 
-        //Removing Permits
+    assert_eq!(wpc.avalible_permits(), Some(1));
 
-        assert!(wpc.remove_permit() == Some(true));
+    assert!(wpc.remove_permit() == Some(true));
 
-        assert_eq!(wpc.avalible_permits(), Some(1));
+    assert_eq!(wpc.avalible_permits(), Some(0));
 
-        assert!(wpc.remove_permit() == Some(true));
+    //Closing the SingleWakerMultiPermit
 
-        assert_eq!(wpc.avalible_permits(), Some(0));
+    wpc.close();
 
-        //Closing the WakerPermitQueue
+    assert!(wpc.is_closed());
 
-        wpc.close();
-
-        assert!(wpc.is_closed());
-
-        assert_eq!(wpc.avalible_permits(), None);
-
-    }
+    assert_eq!(wpc.avalible_permits(), None);
 
 }
 
@@ -56,13 +49,13 @@ mod tokio_tests
     
     use tokio::time::timeout;
 
-    use crate::WakerPermitQueue;
+    use crate::SingleWakerMultiPermit;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
     async fn test_1()
     {
 
-        let wpc = WakerPermitQueue::with_capacity(2);
+        let wpc = SingleWakerMultiPermit::new(); //::with_capacity(2);
 
         let arc_wpc = Arc::new(wpc);
 
@@ -106,8 +99,6 @@ mod tokio_tests
             assert!(false)
 
         }
-
-        //assert_eq!(join_result, (Ok(()), Ok(())))
 
     }
 

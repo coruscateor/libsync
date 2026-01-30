@@ -28,7 +28,18 @@ use parking_lot::FairMutex;
 
 use crate::PreferredMutexType;
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum SingleWakerMultiPermitError
+{
 
+    Closed,
+    Occupied
+
+}
+
+//Disabeld
+
+/*
 #[derive(Debug)]
 pub struct SingleWakerMultiPermitError
 {
@@ -46,14 +57,31 @@ impl SingleWakerMultiPermitError
     }
 
 }
+*/
 
 impl Display for SingleWakerMultiPermitError
 {
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
-        
-        write!(f, "Error: Pre-existing Waker in SingleWakerMultiPermitError")
+
+        match self
+        {
+
+            SingleWakerMultiPermitError::Closed =>
+            {
+
+                write!(f, "SingleWakerMultiPermit is closed")
+
+            }
+            SingleWakerMultiPermitError::Occupied =>
+            {
+
+                write!(f, "SingleWakerMultiPermit is occupied")
+
+            }
+
+        }    
 
     }
 
@@ -96,7 +124,7 @@ impl SingleWakerMultiPermitInternalState
 pub struct SingleWakerMultiPermit
 {
 
-    internal_state: PreferredMutexType<Option<SingleWakerMultiPermitInternalState>>
+    internal_mut_state: PreferredMutexType<Option<SingleWakerMultiPermitInternalState>>
 
 }
 
@@ -109,17 +137,17 @@ impl SingleWakerMultiPermit
         Self
         {
 
-            internal_state: PreferredMutexType::new(Some(SingleWakerMultiPermitInternalState::new()))
+            internal_mut_state: PreferredMutexType::new(Some(SingleWakerMultiPermitInternalState::new()))
 
         }
 
     }
 
     #[cfg(feature="use_std_sync")]
-    fn get_mg(&self) -> MutexGuard<'_, SingleWakerMultiPermitInternalState>
+    fn get_mg(&self) -> MutexGuard<'_, Option<SingleWakerMultiPermitInternalState>>
     {
 
-        let lock_result = self.internal_state.lock();
+        let lock_result = self.internal_mut_state.lock();
 
         match lock_result
         {
@@ -133,7 +161,7 @@ impl SingleWakerMultiPermit
             Err(err) =>
             {
 
-                self.internal_state.clear_poison();
+                self.internal_mut_state.clear_poison();
 
                 err.into_inner()
 
@@ -150,7 +178,7 @@ impl SingleWakerMultiPermit
         let mut mg = self.get_mg();
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.internal_state.lock();
+        let mut mg = self.internal_mut_state.lock();
 
         if let Some(val) = &mut *mg
         {
@@ -170,7 +198,7 @@ impl SingleWakerMultiPermit
         let mg = self.get_mg();
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mg = self.internal_state.lock();
+        let mg = self.internal_mut_state.lock();
 
         mg.is_none()
 
@@ -187,7 +215,7 @@ impl SingleWakerMultiPermit
             let mut mg = self.get_mg();
 
             #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.internal_state.lock();
+            let mut mg = self.internal_mut_state.lock();
 
             if let Some(val) = &mut *mg
             {
@@ -267,7 +295,7 @@ impl SingleWakerMultiPermit
         let mut mg = self.get_mg();
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.internal_state.lock();
+        let mut mg = self.internal_mut_state.lock();
 
         if let Some(val) = &mut *mg
         {
@@ -285,7 +313,7 @@ impl SingleWakerMultiPermit
             else
             {
 
-                val.permits = 0;
+                //val.permits = 0;
 
                 return Some(false);
                 
@@ -315,16 +343,16 @@ impl SingleWakerMultiPermit
             let mut mg = self.get_mg();
 
             #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.internal_state.lock();
+            let mut mg = self.internal_mut_state.lock();
 
-            if let Some(internals) = &mut *mg
+            if let Some(internal_mut_state) = &mut *mg
             {
 
-                opt_waker = internals.opt_waker.take();
+                opt_waker = internal_mut_state.opt_waker.take();
+
+                *mg = None;
 
             }
-
-            *mg = None;
 
         }
 
@@ -374,10 +402,10 @@ impl<'a> Future for SingleWakerMultiPermitDecrementPermitsOrWait<'a>
     {
 
         #[cfg(feature="use_std_sync")]
-        let mut mg = self.get_mg();
+        let mut mg = self.single_waker_multi_permit_ref.get_mg();
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.single_waker_multi_permit_ref.internal_state.lock();
+        let mut mg = self.single_waker_multi_permit_ref.internal_mut_state.lock();
 
         if let Some(val) = &mut *mg
         {
@@ -399,7 +427,7 @@ impl<'a> Future for SingleWakerMultiPermitDecrementPermitsOrWait<'a>
                 return Poll::Ready(Ok(()));
 
             }
-            else
+            else if val.opt_waker.is_none()
             {
 
                 let waker = cx.waker().clone();
@@ -415,10 +443,16 @@ impl<'a> Future for SingleWakerMultiPermitDecrementPermitsOrWait<'a>
                 return Poll::Pending;
 
             }
+            else
+            {
+
+                return Poll::Ready(Err(SingleWakerMultiPermitError::Occupied));
+                
+            }
 
         }
 
-        Poll::Ready(Err(SingleWakerMultiPermitError::new()))
+        Poll::Ready(Err(SingleWakerMultiPermitError::Closed)) //new()))
         
     }
 
@@ -434,17 +468,17 @@ impl<'a> Drop for SingleWakerMultiPermitDecrementPermitsOrWait<'a>
         {
 
             #[cfg(feature="use_std_sync")]
-            let mut mg = self.waker_permit_queue_ref.get_mg();
+            let mut mg = self.single_waker_multi_permit_ref.get_mg();
 
             #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.single_waker_multi_permit_ref.internal_state.lock();
+            let mut mg = self.single_waker_multi_permit_ref.internal_mut_state.lock();
 
             if let Some(val) = &mut *mg
             {
 
                 val.opt_waker = None;
 
-                val.shouldve_awoken = false;
+                //val.shouldve_awoken = false;
 
             }
 
