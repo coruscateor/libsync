@@ -14,16 +14,56 @@ use std::error::Error;
 #[cfg(feature="use_std_sync")]
 use std::sync::{Mutex, MutexGuard};
 
-#[cfg(feature="use_std_sync")]
-use std::sync::TryLockError;
-
 #[cfg(feature="use_parking_lot_sync")]
 use parking_lot::Mutex;
 
 #[cfg(feature="use_parking_lot_fair_sync")]
 use parking_lot::FairMutex;
 
+use crate::PreferredMutexType;
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum SingleWakerError
+{
+
+    Closed,
+    Occupied
+
+}
+
+impl Display for SingleWakerError
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+
+        match self
+        {
+
+            SingleWakerError::Closed =>
+            {
+
+                write!(f, "SingleWaker is closed")
+
+            }
+            SingleWakerError::Occupied =>
+            {
+
+                write!(f, "SingleWaker is occupied")
+
+            }
+
+        }    
+
+    }
+
+}
+
+impl Error for SingleWakerError
+{    
+}
+
+/*
 #[derive(Debug)]
 pub struct SingleWakerError
 {
@@ -48,7 +88,7 @@ impl Display for SingleWakerError
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
         
-        write!(f, "Error: Pre-existing Waker in SingleWakerError")
+        write!(f, "Pre-existing Waker in SingleWakerError")
 
     }
 
@@ -57,6 +97,7 @@ impl Display for SingleWakerError
 impl Error for SingleWakerError
 {    
 }
+*/
 
 pub struct SingleWakerInternalState
 {
@@ -87,7 +128,7 @@ impl SingleWakerInternalState
 pub struct SingleWaker
 {
 
-    internal_state: Mutex<SingleWakerInternalState>
+    internal_mut_state: PreferredMutexType<Option<SingleWakerInternalState>>
 
     //waker_mutex: Mutex<Option<Waker>>,
     //shouldve_awoken: AtomicBool
@@ -103,7 +144,7 @@ impl SingleWaker
         Self
         {
 
-            internal_state: Mutex::new(SingleWakerInternalState::new())
+            internal_mut_state: PreferredMutexType::new(Some(SingleWakerInternalState::new()))
 
             //waker_mutex: Mutex::new(None),
             //shouldve_awoken: AtomicBool::new(false)
@@ -113,10 +154,10 @@ impl SingleWaker
     }
 
     #[cfg(feature="use_std_sync")]
-    fn get_mg(&self) -> MutexGuard<'_, SingleWakerInternalState> //Option<Waker>>
+    fn get_mg(&self) -> MutexGuard<'_, Option<SingleWakerInternalState>> //Option<Waker>>
     {
 
-        let lock_result = self.internal_state.lock();
+        let lock_result = self.internal_mut_state.lock();
 
         match lock_result
         {
@@ -130,7 +171,7 @@ impl SingleWaker
             Err(err) =>
             {
 
-                self.internal_state.clear_poison();
+                self.internal_mut_state.clear_poison();
 
                 err.into_inner()
 
@@ -140,64 +181,108 @@ impl SingleWaker
 
     }
 
-    pub fn wake(&self) -> bool
+    pub fn shouldve_awoken(&self) -> Option<bool>
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mg = self.internal_mut_state.lock();
+
+        if let Some(val) = &*mg
+        {
+
+            Some(val.shouldve_awoken)
+
+        }
+        else
+        {
+
+            None
+            
+        }
+
+    }
+
+    pub fn is_closed(&self) -> bool
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mg = self.internal_mut_state.lock();
+
+        mg.is_none()
+
+    }
+
+    pub fn wake(&self) -> Option<bool>
     {
 
         #[cfg(feature="use_std_sync")]
         let mut mg = self.get_mg();
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.internals.lock();
+        let mut mg = self.internal_mut_state.lock();
 
-        if let Some(waker) = mg.take()
+        if let Some(val) = &mut *mg
         {
 
-            self.shouldve_awoken.store(true, Ordering::Relaxed);
+            if let Some(waker) = val.opt_waker.take()
+            {
 
-            waker.wake();
+                val.shouldve_awoken = true;
 
-            return true;
+                waker.wake();
+
+                return Some(true);
+
+            }
+
+            return Some(false);
 
         }
 
-        false
+        None
 
     }
 
-}
-
-impl Future for SingleWaker
-{
-
-    type Output = Result<(), SingleWakerError>;
-
-    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
+    pub fn wait<'a>(&'a self) -> SingleWakerWaiter<'a>
     {
 
-        let shouldve_awoken = self.shouldve_awoken.load(Ordering::Relaxed);
+        SingleWakerWaiter::new(self)
 
-        if shouldve_awoken
-        {
+    }
 
-            return Poll::Ready(Ok(()));
+    pub fn close(&self)
+    {
 
-        }
-
+        #[cfg(feature="use_std_sync")]
         let mut mg = self.get_mg();
-    
-        if mg.is_none()
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.internal_mut_states.lock();
+
+        if let Some(val) = &mut *mg
         {
 
-            let waker = cx.waker().clone();
+            let opt_waker = val.opt_waker.take();
 
-            *mg = Some(waker);
+            *mg = None;
 
-            return Poll::Pending;
+            if let Some(waker) = opt_waker
+            {
+
+                //val.shouldve_awoken = true;
+
+                waker.wake();
+
+            }
 
         }
 
-        Poll::Ready(Err(SingleWakerError::new()))
-        
     }
 
 }
@@ -208,7 +293,78 @@ impl Drop for SingleWaker
     fn drop(&mut self)
     {
         
-        self.wake();
+        self.close();
+
+    }
+
+}
+
+pub struct SingleWakerWaiter<'a>
+{
+
+    single_waiter_ref: &'a SingleWaker
+
+}
+
+impl<'a> SingleWakerWaiter<'a>
+{
+
+    pub fn new(single_waiter_ref: &'a SingleWaker) -> Self
+    {
+
+        Self
+        {
+
+            single_waiter_ref
+
+        }
+
+    }
+
+}
+
+impl<'a> Future for SingleWakerWaiter<'a>
+{
+
+    type Output = Result<(), SingleWakerError>;
+
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mut mg = self.single_waiter_ref.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.single_waiter_ref.internal_mut_states.lock();
+
+        if let Some(val) = &mut *mg
+        {
+
+            if val.opt_waker.is_some()
+            {
+
+                return Poll::Ready(Err(SingleWakerError::Occupied));
+
+            }
+
+            if val.shouldve_awoken
+            {
+
+                return Poll::Ready(Ok(()));
+
+            }
+
+            let waker = cx.waker().clone();
+
+            val.shouldve_awoken = false;
+
+            val.opt_waker = Some(waker);
+
+            return Poll::Pending;
+            
+        }
+
+        Poll::Ready(Err(SingleWakerError::Closed)) //::new()))
         
     }
 
