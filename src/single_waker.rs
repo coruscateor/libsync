@@ -263,7 +263,7 @@ impl SingleWaker
         let mut mg = self.get_mg();
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.internal_mut_states.lock();
+        let mut mg = self.internal_mut_state.lock();
 
         if let Some(val) = &mut *mg
         {
@@ -335,7 +335,7 @@ impl<'a> Future for SingleWakerWaiter<'a>
         let mut mg = self.single_waiter_ref.get_mg();
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.single_waiter_ref.internal_mut_states.lock();
+        let mut mg = self.single_waiter_ref.internal_mut_state.lock();
 
         if let Some(val) = &mut *mg
         {

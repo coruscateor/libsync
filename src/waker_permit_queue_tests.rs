@@ -1,48 +1,40 @@
-//use super::WakerPermitQueue;
+use crate::WakerPermitQueue;
 
-//#[cfg(test)]
-mod tests
+#[test]
+fn test_basics()
 {
 
-    use crate::WakerPermitQueue;
+    let wpc = WakerPermitQueue::new();
 
-    #[test]
-    fn test_basics()
-    {
+    assert_eq!(wpc.avalible_permits(), Some(0));
 
-        let wpc = WakerPermitQueue::new();
+    //Adding Permits
 
-        assert_eq!(wpc.avalible_permits(), Some(0));
+    assert!(wpc.add_permit() == Some(true));
 
-        //Adding Permits
+    assert_eq!(wpc.avalible_permits(), Some(1));
 
-        assert!(wpc.add_permit() == Some(true));
+    assert!(wpc.add_permit() == Some(true));
 
-        assert_eq!(wpc.avalible_permits(), Some(1));
+    assert_eq!(wpc.avalible_permits(), Some(2));
 
-        assert!(wpc.add_permit() == Some(true));
+    //Removing Permits
 
-        assert_eq!(wpc.avalible_permits(), Some(2));
+    assert!(wpc.remove_permit() == Some(true));
 
-        //Removing Permits
+    assert_eq!(wpc.avalible_permits(), Some(1));
 
-        assert!(wpc.remove_permit() == Some(true));
+    assert!(wpc.remove_permit() == Some(true));
 
-        assert_eq!(wpc.avalible_permits(), Some(1));
+    assert_eq!(wpc.avalible_permits(), Some(0));
 
-        assert!(wpc.remove_permit() == Some(true));
+    //Closing the WakerPermitQueue
 
-        assert_eq!(wpc.avalible_permits(), Some(0));
+    wpc.close();
 
-        //Closing the WakerPermitQueue
+    assert!(wpc.is_closed());
 
-        wpc.close();
-
-        assert!(wpc.is_closed());
-
-        assert_eq!(wpc.avalible_permits(), None);
-
-    }
+    assert_eq!(wpc.avalible_permits(), None);
 
 }
 
