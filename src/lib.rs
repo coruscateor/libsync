@@ -70,6 +70,13 @@ mod queued_waker;
 
 pub use queued_waker::*;
 
+mod limited_waker_permit_queue;
+
+pub use limited_waker_permit_queue::*;
+
+//#[cfg(test)]
+//mod limited_waker_permit_queue_tests;
+
 //Disabled
 
 /*
