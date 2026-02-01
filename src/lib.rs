@@ -63,6 +63,7 @@ mod single_waker;
 
 pub use single_waker::*;
 
+#[cfg(test)]
 mod single_waker_tests;
 
 mod queued_waker;

@@ -755,6 +755,20 @@ impl WakerPermitQueue
     
 }
 
+impl Drop for WakerPermitQueue
+{
+
+    fn drop(&mut self)
+    {
+
+        //Is this call necessary?
+        
+        self.close();
+
+    }
+
+}
+
 #[derive(Debug, PartialEq)]
 pub struct WakerPermitQueueClosedError
 {
