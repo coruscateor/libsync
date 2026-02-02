@@ -31,7 +31,7 @@ use super::PreferredMutexType;
 pub struct WakerPermitQueueInternals
 {
 
-    pub no_permits_queue: VecDeque<QueuedWaker>,
+    pub no_permits_queue: VecDeque<QueuedWaker>, //Wakers that were enqueued because the were no permits available.
     pub latest_id: usize,
     pub active_ids: HashMap<usize, bool>, //Waker Handle, should've awoken
     pub permits: usize
@@ -228,6 +228,9 @@ impl WakerPermitQueue
 
     }
 
+    //Disabled
+    
+    /*
     #[cfg(feature="use_std_sync")]
     fn try_get_mg(&self) -> Option<MutexGuard<'_, Option<WakerPermitQueueInternals>>>
     {
@@ -271,6 +274,7 @@ impl WakerPermitQueue
         }
 
     }
+    */
 
     pub fn avalible_permits(&self) -> Option<usize>
     {
@@ -662,6 +666,9 @@ impl WakerPermitQueue
 
     }
 
+    //Disabled
+    
+    /*
     pub fn try_decrement_permits(&self) -> bool
     {
 
@@ -703,6 +710,7 @@ impl WakerPermitQueue
         false        
 
     }
+    */
     
     pub fn decrement_permits_or_wait<'a>(&'a self) -> WakerPermitQueueDecrementPermitsOrWait<'a>
     {

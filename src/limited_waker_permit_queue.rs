@@ -12,6 +12,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use std::task::{Poll, Waker};
+use std::usize;
 
 //use core::result::Result;
 
@@ -31,11 +32,11 @@ use super::PreferredMutexType;
 pub struct LimitedWakerPermitQueueInternals
 {
 
-    pub no_permits_queue: VecDeque<QueuedWaker>,
+    pub no_permits_queue: VecDeque<QueuedWaker>, //Wakers that were enqueued because the were no permits available.
     pub latest_id: usize,
     pub active_ids: HashMap<usize, bool>, //Waker Handle, should've awoken
     pub permits: usize,
-    pub max_permits_queue: VecDeque<QueuedWaker>
+    pub max_permits_queue: VecDeque<QueuedWaker> //Wakers that were enqueued because the maximum number of permits had been reached.
 
 }
 
@@ -465,30 +466,56 @@ impl LimitedWakerPermitQueue
 
                 }
 
+                let original_permits = val.permits;
+
                 let permits = val.permits;
+
+                let new_permits;
 
                 if let Some(resultant_permits) = permits.checked_add(count)
                 {
 
-                    //added_permits = true;
-
-                    val.permits = resultant_permits;
-
-                    permits_added = count;
-
-                    //return true;
+                    new_permits = resultant_permits;
 
                 }
                 else
                 {
 
-                    //We've hit the ceiling.
+                    return Some(0);
 
-                    permits_added = usize::MAX - val.permits;
-
-                    val.permits = usize::MAX;
+                    //new_permits = usize::MAX;
                     
                 }
+
+                //let permits;
+
+                if new_permits > self.max_permits
+                {
+
+                    val.permits = self.max_permits;
+
+                    permits_added = self.max_permits - original_permits;
+
+                }
+                else
+                {
+
+                    val.permits = new_permits;
+                    
+                    permits_added = count;
+
+                }
+
+                /* 
+                if permits_added == 0
+                {
+
+                    return Some(0);
+
+                }
+                */
+
+                //val.permits = permits;
 
                 let mut potential_wakers_to_wake = permits_added;
 
@@ -551,7 +578,7 @@ impl LimitedWakerPermitQueue
     pub fn add_permit(&self) -> Option<bool>
     {
 
-        let opt_waker; // = None;
+        let opt_waker;
 
         {
 
@@ -580,57 +607,45 @@ impl LimitedWakerPermitQueue
                     None =>
                     {
 
-                        resultant_permits = usize::MAX;
+                        return Some(false);
+
+                        //resultant_permits = usize::MAX;
 
                     }
 
                 }
 
-                if resultant_permits < self.max_permits
+                if resultant_permits > self.max_permits
                 {
 
-                    val.permits = resultant_permits;
+                    //Too many permits, permit cannot be added.
 
-                    //Check for wakers and wake them if present.
-
-                    opt_waker = val.no_permits_queue.pop_front();
-
-                    if let Some(front_waker) = &opt_waker
-                    {
-
-                        if let Some(shouldve_awoken) = val.active_ids.get_mut(&front_waker.id())
-                        {
-
-                            *shouldve_awoken = true;
-
-                        }
-
-                        //opt_waker = Some(front_waker);
-
-                        //does the waker need to be marked as "should wake"?
-
-                        //front_waker.wake();
-                    
-                    }
+                    return Some(false);
 
                 }
-                else //if resultant_permits >= self.max_permits
+
+                val.permits = resultant_permits;
+
+                //Check for wakers and wake them if present.
+
+                opt_waker = val.no_permits_queue.pop_front();
+
+                if let Some(front_waker) = &opt_waker
                 {
 
-                    opt_waker = val.max_permits_queue.pop_front();
-
-                    if let Some(front_waker) = &opt_waker
+                    if let Some(shouldve_awoken) = val.active_ids.get_mut(&front_waker.id())
                     {
 
-                        if let Some(shouldve_awoken) = val.active_ids.get_mut(&front_waker.id())
-                        {
+                        *shouldve_awoken = true;
 
-                            *shouldve_awoken = true;
-
-                        }
-                        
                     }
 
+                    //opt_waker = Some(front_waker);
+
+                    //does the waker need to be marked as "should wake"?
+
+                    //front_waker.wake();
+                
                 }
 
             }
@@ -694,7 +709,7 @@ impl LimitedWakerPermitQueue
                 else
                 {
 
-                    permits_removed = 0;
+                    permits_removed = count - (count - val.permits);
 
                     val.permits = 0;
                     
@@ -758,6 +773,9 @@ impl LimitedWakerPermitQueue
 
     }
 
+    //Disabled
+    
+    /*
     pub fn remove_permit(&self) -> Option<bool>
     {
 
@@ -869,6 +887,7 @@ impl LimitedWakerPermitQueue
         false        
 
     }
+    */
     
     pub fn decrement_permits_or_wait<'a>(&'a self) -> LimitedWakerPermitQueueDecrementPermitsOrWait<'a>
     {
@@ -898,6 +917,13 @@ impl LimitedWakerPermitQueue
         {
 
             for item in internal_mut_state.no_permits_queue.drain(..)
+            {
+
+                item.wake();
+
+            }
+
+            for item in internal_mut_state.max_permits_queue.drain(..)
             {
 
                 item.wake();
