@@ -230,6 +230,9 @@ impl LimitedWakerPermitQueue
 
     }
 
+    //Disabked
+
+    /*
     #[cfg(feature="use_std_sync")]
     fn try_get_mg(&self) -> Option<MutexGuard<'_, Option<LimitedWakerPermitQueueInternals>>>
     {
@@ -273,6 +276,7 @@ impl LimitedWakerPermitQueue
         }
 
     }
+    */
 
     pub fn avalible_permits(&self) -> Option<usize>
     {
@@ -307,7 +311,7 @@ impl LimitedWakerPermitQueue
 
     }
 
-    pub fn is_at_max(&self) -> Option<bool>
+    pub fn has_max_permits(&self) -> Option<bool>
     {
 
         #[cfg(feature="use_std_sync")]
@@ -329,7 +333,7 @@ impl LimitedWakerPermitQueue
 
     }
 
-    pub fn remaining_permits(&self) -> Option<usize>
+    pub fn head_room(&self) -> Option<usize>
     {
 
         #[cfg(feature="use_std_sync")]
@@ -341,9 +345,9 @@ impl LimitedWakerPermitQueue
         if let Some(val) = &*mg
         {
 
-            let remaining_permits = self.max_permits - val.permits;
+            let head_room = self.max_permits - val.permits;
 
-            return Some(remaining_permits);
+            return Some(head_room);
 
         } 
 
@@ -773,9 +777,6 @@ impl LimitedWakerPermitQueue
 
     }
 
-    //Disabled
-    
-    /*
     pub fn remove_permit(&self) -> Option<bool>
     {
 
@@ -846,6 +847,10 @@ impl LimitedWakerPermitQueue
 
     }
 
+    //Disabled
+    
+    /*
+
     pub fn try_decrement_permits(&self) -> bool
     {
 
@@ -893,6 +898,13 @@ impl LimitedWakerPermitQueue
     {
 
         LimitedWakerPermitQueueDecrementPermitsOrWait::new(self)
+
+    }
+
+    pub fn increment_permits_or_wait<'a>(&'a self) -> LimitedWakerPermitQueueIncrementPermitsOrWait<'a>
+    {
+
+        LimitedWakerPermitQueueIncrementPermitsOrWait::new(self)
 
     }
 
@@ -1091,8 +1103,6 @@ impl Future for LimitedWakerPermitQueueDecrementPermitsOrWait<'_>
 
                                 val.active_ids.remove(&id);
 
-                                //Drop the mg here?
-
                                 //Make sure the waker id is dropped locally as well.
 
                                 let self_mut = self.get_mut();
@@ -1149,10 +1159,6 @@ impl Future for LimitedWakerPermitQueueDecrementPermitsOrWait<'_>
 
                 //The task is going to "sleep". Update the WQI so it can be woken up later.
 
-                let mut inserted = false;
-
-                let waker = cx.waker().clone();
-
                 let mut id = 0;
 
                 //
@@ -1190,6 +1196,10 @@ impl Future for LimitedWakerPermitQueueDecrementPermitsOrWait<'_>
                             }
 
                         }
+
+                        let mut inserted = false;
+
+                        let waker = cx.waker().clone();
 
                         while !inserted
                         {
@@ -1297,6 +1307,332 @@ impl Drop for LimitedWakerPermitQueueDecrementPermitsOrWait<'_>
                 {
 
                     wqi.no_permits_queue.remove(index);
+
+                }
+
+            }
+            
+        }
+
+    }
+
+}
+
+pub struct LimitedWakerPermitQueueIncrementPermitsOrWait<'a>
+{
+
+    waker_permit_queue_ref: &'a LimitedWakerPermitQueue,
+    opt_waker_id: Option<usize>
+
+}
+
+impl<'a> LimitedWakerPermitQueueIncrementPermitsOrWait<'a>
+{
+
+    pub fn new(waker_permit_queue_ref: &'a LimitedWakerPermitQueue) -> Self
+    {
+
+        Self
+        {
+
+            waker_permit_queue_ref,
+            opt_waker_id: None
+
+        }
+
+    }
+    
+}
+
+//Handles "sleeping", "waking" and permit incrementation.
+
+impl Future for LimitedWakerPermitQueueIncrementPermitsOrWait<'_>
+{
+
+    type Output = Result<(), LimitedWakerPermitQueueClosedError>;
+
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
+    {
+
+        match self.opt_waker_id
+        {
+
+            Some(id) =>
+            {
+
+                #[cfg(feature="use_std_sync")]
+                let mut mg = self.waker_permit_queue_ref.get_mg();
+
+                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+                let mut mg = self.waker_permit_queue_ref.internal_mut_state.lock();
+
+                match &mut *mg
+                {
+
+                    Some(val) =>
+                    {
+
+                        //Make sure this is a proper wakup.
+
+                        if let Some(shouldve_awoken) = val.active_ids.get(&id)
+                        {
+
+                            if *shouldve_awoken
+                            {
+
+                                //"Add" a permit.
+
+                                let permits = val.permits;
+
+                                if let Some(new_permits) = permits.checked_add(1)
+                                {
+
+                                    if new_permits <= self.waker_permit_queue_ref.max_permits
+                                    {
+
+                                        val.permits = new_permits;
+
+                                    }
+                                    else
+                                    {
+
+                                        //The value of the permits should've been greater than one so this tasks get to proceed if it wakes up spuriously next time.
+
+                                        let waker = cx.waker().clone();
+
+                                        let queued_waker = QueuedWaker::new(waker, id);
+
+                                        val.max_permits_queue.push_back(queued_waker);
+
+                                        return Poll::Pending;
+
+                                        //return Poll::Ready(Err(LimitedWakerPermitQueueError::));
+                                        
+                                    }
+
+                                }
+                                else
+                                {
+
+                                    let waker = cx.waker().clone();
+
+                                    let queued_waker = QueuedWaker::new(waker, id);
+
+                                    val.max_permits_queue.push_back(queued_waker);
+
+                                    return Poll::Pending;
+                                    
+                                }
+
+                                val.active_ids.remove(&id);
+
+                                //Make sure the waker id is dropped locally as well.
+
+                                let self_mut = self.get_mut();
+
+                                /*
+                                let self_mut = unsafe
+                                {
+                                    
+                                    self.get_unchecked_mut()
+
+                                };
+                                */
+
+                                self_mut.opt_waker_id = None;
+
+                                return Poll::Ready(Ok(()));
+
+                            }
+
+                        }
+                        else
+                        {
+
+                            //make sure this Task doen't get trapped if there's an error. 
+
+                            return Poll::Ready(Ok(()));
+
+                        }
+
+                        /*
+                        if !val.active_ids.contains_key(&id)
+                        {
+
+                            //The task has been successfully awoken.
+
+                            return Poll::Ready(Ok(()));
+
+                        }
+                        */
+
+                    }
+                    None =>
+                    {
+
+                        return Poll::Ready(LimitedWakerPermitQueueClosedError::err());
+
+                    }
+
+                }
+
+            }
+            None =>
+            {
+
+                //The task is going to "sleep". Update the WQI so it can be woken up later.
+
+                let mut id = 0;
+
+                //
+
+                #[cfg(feature="use_std_sync")]
+                let mut mg = self.waker_permit_queue_ref.get_mg();
+
+                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+                let mut mg = self.waker_permit_queue_ref.internal_mut_state.lock();
+
+                match &mut *mg
+                {
+
+                    Some(val) =>
+                    {
+
+                        //Is there a queue?
+
+                        if val.max_permits_queue.is_empty()
+                        {
+
+                            //"Take" a permit.
+
+                            let permits = val.permits;
+
+                            if let Some(new_permits) = permits.checked_add(1)
+                            {
+
+                                if new_permits <= self.waker_permit_queue_ref.max_permits
+                                {
+
+                                    val.permits = new_permits;
+
+                                    return Poll::Ready(Ok(()));
+
+                                }
+
+                            }
+
+                        }
+
+                        let mut inserted = false;
+
+                        let waker = cx.waker().clone();
+
+                        while !inserted
+                        {
+
+                            //Find the next avalible id.
+
+                            id = val.latest_id.wpp();
+
+                            inserted = val.active_ids.insert(id, false).is_none();
+                            
+                        }
+
+                        let queued_waker = QueuedWaker::new(waker, id);
+
+                        val.max_permits_queue.push_back(queued_waker);
+
+                    }
+                    None =>
+                    {
+
+                        return Poll::Ready(LimitedWakerPermitQueueClosedError::err());
+
+                    }
+
+                }
+
+                //
+
+                //Store the id in the future.
+
+                let self_mut = self.get_mut();
+
+                /*
+                let self_mut = unsafe
+                {
+                    
+                    self.get_unchecked_mut()
+
+                };
+                */
+
+                self_mut.opt_waker_id = Some(id);                     
+
+            }
+
+        }
+
+        Poll::Pending
+        
+    }
+
+}
+
+impl Drop for LimitedWakerPermitQueueIncrementPermitsOrWait<'_>
+{
+
+    fn drop(&mut self)
+    {
+
+        // This type does not have any address-senstive states, therefore it does not pin the self reference.
+
+        // https://doc.rust-lang.org/std/pin/index.html#implementing-drop-for-types-with-address-sensitive-states
+
+        // Make sure that the waker id gets removed.
+        
+        if let Some(id) = self.opt_waker_id
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.waker_permit_queue_ref.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.waker_permit_queue_ref.internal_mut_state.lock();
+
+            if let Some(wqi) = &mut *mg
+            {
+
+                //Remove the relevant entry from the active ids HashMap.
+
+                wqi.active_ids.remove(&id);
+
+                let mut index = 0;
+
+                let mut index_found = false;
+
+                //Remove the queued waker.
+
+                for item in wqi.max_permits_queue.iter()
+                {
+
+                    if id == item.id()
+                    {
+
+                        index_found = true;
+
+                        break;
+
+                    }  
+
+                    index.pp();
+                    
+                }
+
+                if index_found
+                {
+
+                    wqi.max_permits_queue.remove(index);
 
                 }
 

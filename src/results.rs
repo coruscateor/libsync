@@ -1,9 +1,68 @@
-use std::fmt::{Display, Formatter};
+use std::{error::Error, fmt::{Debug, Display, Formatter}};
 
 ///
 /// The result of a send attempt on a channel.
 /// 
 pub type SendResult<T> = Result<(), T>;
+
+pub struct SendError<T>
+{
+
+    value: T
+
+}
+
+impl<T> SendError<T>
+{
+
+    pub fn new(value: T) -> Self
+    {
+
+        Self
+        {
+
+            value
+
+        }
+
+    }
+
+    pub fn take(self) -> T
+    {
+
+        self.value
+
+    }
+
+}
+
+impl<T> Debug for SendError<T>
+    where T: Debug
+{
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SendError").field("value", &self.value).finish()
+    }
+
+}
+
+impl<T> Display for SendError<T>
+{
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
+    {
+      
+        f.write_str("A SendError has occured.")
+
+    }
+
+}
+
+impl<T> Error for SendError<T>
+   where T: Debug
+{
+    
+}
 
 ///
 /// Provides the reason for the error if a message cannot be sent on a bounded channel.

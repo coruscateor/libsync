@@ -907,8 +907,6 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                                 val.active_ids.remove(&id);
 
-                                //Drop the mg here?
-
                                 //Make sure the waker id is dropped locally as well.
 
                                 let self_mut = self.get_mut();
@@ -965,10 +963,6 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                 //The task is going to "sleep". Update the WQI so it can be woken up later.
 
-                let mut inserted = false;
-
-                let waker = cx.waker().clone();
-
                 let mut id = 0;
 
                 //
@@ -1006,6 +1000,10 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
                             }
 
                         }
+
+                        let mut inserted = false;
+
+                        let waker = cx.waker().clone();
 
                         while !inserted
                         {

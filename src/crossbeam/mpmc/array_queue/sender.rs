@@ -1,8 +1,8 @@
-use std::sync::{Arc, Weak};
+use std::{collections::btree_map::Values, default, sync::{Arc, Weak}};
 
-use crossbeam::queue::ArrayQueue;
+use crossbeam::{queue::ArrayQueue};
 
-use crate::{BoundedSendError, ChannelSharedDetails, SendResult, WakerPermitQueue};
+use crate::{BoundedSendError, ChannelSharedDetails, LimitedWakerPermitQueue, SendError, SendResult};
 
 use delegate::delegate;
 
@@ -11,7 +11,7 @@ use std::fmt::Debug;
 pub struct Sender<T>
 {
 
-    shared_details: Arc<ChannelSharedDetails<ArrayQueue<T>, WakerPermitQueue>>,
+    shared_details: Arc<ChannelSharedDetails<ArrayQueue<T>, LimitedWakerPermitQueue>>,
     senders_count: Arc<()>,
     receivers_count: Weak<()>
 
@@ -23,7 +23,7 @@ impl<T> Sender<T>
     ///
     /// Create a new channel Sender object.
     /// 
-    pub fn new(shared_details: &Arc<ChannelSharedDetails<ArrayQueue<T>, WakerPermitQueue>>, senders_count: Arc<()>, receivers_count: &Arc<()>) -> Self
+    pub fn new(shared_details: &Arc<ChannelSharedDetails<ArrayQueue<T>, LimitedWakerPermitQueue>>, senders_count: Arc<()>, receivers_count: &Arc<()>) -> Self
     {
 
         Self
@@ -42,23 +42,55 @@ impl<T> Sender<T>
     pub fn try_send(&self, value: T) -> Result<(), BoundedSendError<T>>
     {
 
-        if self.receivers_count.strong_count() > 0
+        match self.shared_details.notifier_ref().add_permit()
         {
 
-            if let Err(val) = self.shared_details.message_queue_ref().push(value)
+            Some(true) =>
             {
 
-                return Err(BoundedSendError::Full(val));
+                if let Err(mut val) = self.shared_details.message_queue_ref().push(value)
+                {
+
+                    //This shouldn't happen.
+
+                    loop
+                    {
+
+                        if let Err(val_again) = self.shared_details.message_queue_ref().push(val)
+                        {
+
+                            val = val_again;
+
+                        }
+                        else
+                        {
+
+                            break;
+                            
+                        }
+                
+                        
+                    }
+
+                }
+
+                Ok(())
 
             }
+            Some(false) =>
+            {
 
-            self.shared_details.notifier_ref().add_permit();
+                Err(BoundedSendError::Full(value))
 
-            return Ok(());
+            }
+            None =>
+            {
 
-        }
+                Err(BoundedSendError::NoReceivers(value))
 
-        Err(BoundedSendError::NoReceivers(value))
+            }
+            
+        } 
 
     }
 
@@ -67,47 +99,77 @@ impl<T> Sender<T>
     /// 
     /// Returns it in a Result::Err variant otherwise.
     /// 
-    pub async fn send(&self, value: T) -> Result<(), T>
+    pub async fn send(&self, value: T) -> Result<(), SendError<T>>
     {
 
-        if self.receivers_count.strong_count() > 0
-        {
+        //if self.receivers_count.strong_count() > 0
+        //{
 
+            let res = self.shared_details.notifier_ref().increment_permits_or_wait().await;
+
+            match res
+            {
+
+                Ok(_) =>
+                {
+
+                    if let Err(mut val) = self.shared_details.message_queue_ref().push(value)
+                    {
+
+                        // This should hopefully never happen
+
+                        loop
+                        {
+
+                            if let Err(val_again) = self.shared_details.message_queue_ref().push(val)
+                            {
+
+                                val = val_again;
+
+                            }
+                            else
+                            {
+
+                                break;
+                                
+                            }
+                            
+                        }
+
+                        //return Err(SendError::new(err));
+
+                    }
+
+                    Ok(())
+
+                }
+                Err(_err) =>
+                {
+
+                    Err(SendError::new(value))
+
+                }
+
+            }
+
+            /*
             if let Err(val) = self.shared_details.message_queue_ref().push(value)
             {
+
+                //Shouldn't ever happen
 
                 return Err(BoundedSendError::Full(val));
 
             }
 
-            self.shared_details.notifier_ref().add_permit();
+            //self.shared_details.notifier_ref().add_permit();
 
             return Ok(());
+            */
 
-        }
+        //}
 
-        Err(BoundedSendError::NoReceivers(value))
-
-    }
-
-    ///
-    /// Sends a value regardless of whether or not there are still any receiver objects that are instantiated.
-    /// 
-    /// Returns the value if the channel queue is full. 
-    /// 
-    pub fn send_regardless(&self, value: T) -> SendResult<T>
-    {
-
-        if let Err(val) = self.shared_details.message_queue_ref().push(value)
-        {
-
-            return SendResult::Err(val);
-
-        }
-
-        self.shared_details.notifier_ref().add_permit();
-
-        SendResult::Ok(())
+        //Err(BoundedSendError::NoReceivers(value))
 
     }
 

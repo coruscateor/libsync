@@ -74,6 +74,9 @@ mod limited_waker_permit_queue;
 
 pub use limited_waker_permit_queue::*;
 
+#[cfg(test)]
+mod limited_waker_permit_queue_tests;
+
 //#[cfg(test)]
 //mod limited_waker_permit_queue_tests;
 
