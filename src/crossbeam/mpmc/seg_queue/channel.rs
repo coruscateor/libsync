@@ -11,15 +11,17 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>)
 
     let shared_details = Arc::new(ChannelSharedDetails::new(SegQueue::<T>::new(), WakerPermitQueue::new()));
 
-    let sender_count = Arc::new(());
+    let senders_count = Arc::new(());
 
-    let weak_sender_count = Arc::downgrade(&sender_count);
+    let weak_senders_count = Arc::downgrade(&senders_count);
 
-    let receiver_count = Arc::new(());
+    let receivers_count = Arc::new(());
 
-    let sender = Sender::new(&shared_details, sender_count, &receiver_count);
+    let weak_receivers_count = Arc::downgrade(&receivers_count);
 
-    let receiver = Receiver::new(shared_details, weak_sender_count, receiver_count);
+    let sender = Sender::new(&shared_details, senders_count, weak_receivers_count);
+
+    let receiver = Receiver::new(shared_details, weak_senders_count, receivers_count);
 
     (sender, receiver)
 

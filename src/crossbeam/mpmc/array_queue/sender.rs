@@ -23,15 +23,15 @@ impl<T> Sender<T>
     ///
     /// Create a new channel Sender object.
     /// 
-    pub fn new(shared_details: &Arc<ChannelSharedDetails<ArrayQueue<T>, LimitedWakerPermitQueue>>, senders_count: Arc<()>, receivers_count: &Arc<()>) -> Self
+    pub fn new(shared_details: &Arc<ChannelSharedDetails<ArrayQueue<T>, LimitedWakerPermitQueue>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
     {
 
         Self
         {
 
             shared_details: shared_details.clone(),
-            senders_count: senders_count.clone(),
-            receivers_count: Arc::downgrade(receivers_count)
+            senders_count, //: senders_count.clone(),
+            receivers_count
 
         }
 
@@ -51,7 +51,7 @@ impl<T> Sender<T>
                 if let Err(mut val) = self.shared_details.message_queue_ref().push(value)
                 {
 
-                    //This shouldn't happen.
+                    //This shouldn't happen... that often.
 
                     loop
                     {
@@ -60,6 +60,13 @@ impl<T> Sender<T>
                         {
 
                             val = val_again;
+
+                            if self.shared_details.notifier_ref().is_closed()
+                            {
+
+                                return Err(BoundedSendError::NoReceivers(val));
+
+                            }
 
                         }
                         else
@@ -102,74 +109,57 @@ impl<T> Sender<T>
     pub async fn send(&self, value: T) -> Result<(), SendError<T>>
     {
 
-        //if self.receivers_count.strong_count() > 0
-        //{
+        let res = self.shared_details.notifier_ref().increment_permits_or_wait().await;
 
-            let res = self.shared_details.notifier_ref().increment_permits_or_wait().await;
+        match res
+        {
 
-            match res
+            Ok(_) =>
             {
 
-                Ok(_) =>
+                if let Err(mut val) = self.shared_details.message_queue_ref().push(value)
                 {
 
-                    if let Err(mut val) = self.shared_details.message_queue_ref().push(value)
+                    // This should hopefully never happen
+
+                    loop
                     {
 
-                        // This should hopefully never happen
-
-                        loop
+                        if let Err(val_again) = self.shared_details.message_queue_ref().push(val)
                         {
 
-                            if let Err(val_again) = self.shared_details.message_queue_ref().push(val)
+                            val = val_again;
+
+                            if self.shared_details.notifier_ref().is_closed()
                             {
 
-                                val = val_again;
+                                return Err(SendError::new(val));
 
                             }
-                            else
-                            {
 
-                                break;
-                                
-                            }
+                        }
+                        else
+                        {
+
+                            break;
                             
                         }
-
-                        //return Err(SendError::new(err));
-
+                        
                     }
 
-                    Ok(())
-
                 }
-                Err(_err) =>
-                {
 
-                    Err(SendError::new(value))
-
-                }
+                Ok(())
 
             }
-
-            /*
-            if let Err(val) = self.shared_details.message_queue_ref().push(value)
+            Err(_err) =>
             {
 
-                //Shouldn't ever happen
-
-                return Err(BoundedSendError::Full(val));
+                Err(SendError::new(value))
 
             }
 
-            //self.shared_details.notifier_ref().add_permit();
-
-            return Ok(());
-            */
-
-        //}
-
-        //Err(BoundedSendError::NoReceivers(value))
+        }
 
     }
 
@@ -188,6 +178,10 @@ impl<T> Sender<T>
             /// How many messages are in the channels queue?
             /// 
             pub fn len(&self) -> usize;
+
+            pub fn capacity(&self) -> usize;
+
+            pub fn is_full(&self) -> bool;
 
         }
 
@@ -235,6 +229,24 @@ impl<T> Sender<T>
 
     }
 
+    pub fn is_closed(&self) -> bool
+    {
+
+        self.receivers_strong_count() == 0
+
+    }
+
+    ///
+    /// How many free queue elements do we have?
+    /// 
+    pub fn head_room(&self) -> usize
+    {
+
+        let queue_ref = self.shared_details.message_queue_ref();
+
+        queue_ref.capacity() - queue_ref.len()
+
+    }
 
 }
 

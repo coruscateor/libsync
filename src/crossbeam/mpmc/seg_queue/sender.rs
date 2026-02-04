@@ -23,7 +23,7 @@ impl<T> Sender<T>
     ///
     /// Create a new channel Sender object.
     /// 
-    pub fn new(shared_details: &Arc<ChannelSharedDetails<SegQueue<T>, WakerPermitQueue>>, senders_count: Arc<()>, receivers_count: &Arc<()>) -> Self
+    pub fn new(shared_details: &Arc<ChannelSharedDetails<SegQueue<T>, WakerPermitQueue>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
     {
 
         Self
@@ -31,7 +31,7 @@ impl<T> Sender<T>
 
             shared_details: shared_details.clone(),
             senders_count: senders_count.clone(),
-            receivers_count: Arc::downgrade(receivers_count)
+            receivers_count
 
         }
 

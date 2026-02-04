@@ -13,6 +13,9 @@ categories = ["asynchronous"]
 
 [dependencies]
 crossbeam = { version = "0.8.4", optional = true }
+
+# Add https://crates.io/crates/crossbeam-queue
+
 tokio = { version = "1.48.0", features = ["sync", "time", "rt", "macros", "rt-multi-thread"], optional = true } #The rt, macros, rt-multi-thread and time features are needed for testing #"1.44.2"
 #delegate = "0.*"
 delegate = "0.13.3"
