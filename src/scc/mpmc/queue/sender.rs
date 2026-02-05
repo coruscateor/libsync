@@ -1,8 +1,8 @@
 use std::sync::{Arc, Weak};
 
-use crossbeam::queue::SegQueue;
+use scc::Queue;
 
-use crate::{ChannelSharedDetails, SendError, SendResult, WakerPermitQueue};
+use crate::{ChannelSharedDetails, SendResult, WakerPermitQueue};
 
 use delegate::delegate;
 
@@ -11,7 +11,7 @@ use std::fmt::Debug;
 pub struct Sender<T>
 {
 
-    shared_details: Arc<ChannelSharedDetails<SegQueue<T>, WakerPermitQueue>>,
+    shared_details: Arc<ChannelSharedDetails<Queue<T>, WakerPermitQueue>>,
     senders_count: Arc<()>,
     receivers_count: Weak<()>
 
@@ -23,7 +23,7 @@ impl<T> Sender<T>
     ///
     /// Create a new channel Sender object.
     /// 
-    pub fn new(shared_details: &Arc<ChannelSharedDetails<SegQueue<T>, WakerPermitQueue>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
+    pub fn new(shared_details: &Arc<ChannelSharedDetails<Queue<T>, WakerPermitQueue>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
     {
 
         Self
@@ -65,6 +65,7 @@ impl<T> Sender<T>
     /// Returns it in a Result::Err variant otherwise.
     /// 
     pub fn send(&self, value: T) -> SendResult<T>
+        where T: 'static
     {
 
         let res = self.shared_details.notifier_ref().add_permit();
@@ -88,33 +89,6 @@ impl<T> Sender<T>
             }
 
         }
-
-        /*
-        if self.receivers_count.strong_count() > 0
-        {
-
-            self.shared_details.message_queue_ref().push(value);
-
-            self.shared_details.notifier_ref().add_permit();
-
-            return Ok(());
-
-        }
-
-        Err(value)
-        */
-
-    }
-
-    ///
-    /// Sends a value regardless of whether or not there are still any receiver objects that are instantiated.
-    /// 
-    pub fn send_regardless(&self, value: T)
-    {
-
-        self.shared_details.message_queue_ref().push(value);
-
-        self.shared_details.notifier_ref().add_permit();
 
     }
 
