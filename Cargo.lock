@@ -200,6 +200,7 @@ version = "0.3.0-alpha"
 dependencies = [
  "accessorise",
  "crossbeam",
+ "crossbeam-queue",
  "delegate",
  "futures",
  "inc_dec",

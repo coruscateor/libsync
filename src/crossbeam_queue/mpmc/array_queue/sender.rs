@@ -1,6 +1,6 @@
 use std::{collections::btree_map::Values, default, sync::{Arc, Weak}};
 
-use crossbeam::{queue::ArrayQueue};
+use crossbeam_queue::ArrayQueue;
 
 use crate::{BoundedSendError, ChannelSharedDetails, LimitedWakerPermitQueue, SendError, SendResult};
 

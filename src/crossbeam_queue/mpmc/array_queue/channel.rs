@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crossbeam::queue::ArrayQueue;
+use crossbeam_queue::ArrayQueue;
 
 use crate::{ChannelSharedDetails, LimitedWakerPermitQueue};
 
