@@ -95,6 +95,10 @@ mod single_waker_multi_permit_tests;
 #[cfg(feature="crossbeam-queue")]
 pub mod crossbeam_queue;
 
+mod limited_single_waker_multi_permit;
+
+pub use limited_single_waker_multi_permit::*;
+
 #[cfg(feature="use_std_sync")]
 pub type PreferredMutexType<T> = ::std::sync::Mutex<T>;
 

@@ -45,7 +45,7 @@ impl<T> Receiver<T>
     pub async fn try_recv(&self) -> ReceiveResult<T>
     {
 
-        let res = self.shared_details.notifier_ref().add_permit();
+        let res = self.shared_details.notifier_ref().remove_permit();
 
         if let Some(val) = res
         {

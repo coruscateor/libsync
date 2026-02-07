@@ -12,7 +12,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use std::task::{Poll, Waker};
-use std::usize;
 
 //use core::result::Result;
 
@@ -310,6 +309,8 @@ impl LimitedWakerPermitQueue
         mg.is_none()
 
     }
+
+    impl_get_val!(max_permits, usize);
 
     pub fn has_max_permits(&self) -> Option<bool>
     {
