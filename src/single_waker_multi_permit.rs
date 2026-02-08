@@ -204,6 +204,30 @@ impl SingleWakerMultiPermit
 
     }
 
+    pub fn is_occupied(&self) -> Option<bool>
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mg = self.internal_mut_state.lock();
+
+        if let Some(val) = &*mg
+        {
+
+            Some(val.opt_waker.is_some())
+
+        }
+        else
+        {
+
+            None
+            
+        }
+
+    }
+
     pub fn add_permit(&self) -> Option<bool>
     {
 

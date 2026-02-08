@@ -1,7 +1,7 @@
 [package]
 name = "libsync"
 version = "0.3.0-alpha"
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "A library containing channels and other synchronisation object implementations."
 repository = "https://github.com/coruscateor/libsync"

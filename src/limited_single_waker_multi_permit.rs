@@ -256,6 +256,30 @@ impl LimitedSingleWakerMultiPermit
 
     }
 
+    pub fn is_occupied(&self) -> Option<bool>
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mg = self.internal_mut_state.lock();
+
+        if let Some(val) = &*mg
+        {
+
+            Some(val.opt_waker.is_some())
+
+        }
+        else
+        {
+
+            None
+            
+        }
+
+    }
+
     pub fn add_permit(&self) -> Option<bool>
     {
 
@@ -412,6 +436,13 @@ impl LimitedSingleWakerMultiPermit
 
     }
 
+    pub fn increment_permits_or_wait<'a>(&'a self) -> LimitedSingleWakerMultiPermitIncrementPermitsOrWait<'a>
+    {
+
+        LimitedSingleWakerMultiPermitIncrementPermitsOrWait::new(self)
+
+    }
+
     pub fn close(&self)
     {
 
@@ -481,63 +512,86 @@ impl<'a> Future for LimitedSingleWakerMultiPermitDecrementPermitsOrWait<'a>
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
     {
 
-        #[cfg(feature="use_std_sync")]
-        let mut mg = self.single_waker_multi_permit_ref.get_mg();
+        let opt_waker;
 
-        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.single_waker_multi_permit_ref.internal_mut_state.lock();
-
-        if let Some(val) = &mut *mg
         {
 
-            if self.is_active && !val.shouldve_awoken
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.single_waker_multi_permit_ref.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.single_waker_multi_permit_ref.internal_mut_state.lock();
+
+            if let Some(val) = &mut *mg
             {
 
-                return Poll::Pending;
+                if self.is_active && !val.shouldve_awoken
+                {
 
-            }
+                    return Poll::Pending;
 
-            let self_mut = self.get_mut();
+                }
 
-            self_mut.is_active = false;
+                let self_mut = self.get_mut();
 
-            let permits = val.permits;
+                self_mut.is_active = false;
 
-            if let Some(new_permits) = permits.checked_sub(1)
-            {
+                let permits = val.permits;
 
-                val.permits = new_permits;
+                if let Some(new_permits) = permits.checked_sub(1)
+                {
 
-                return Poll::Ready(Ok(()));
+                    val.permits = new_permits;
 
-            }
-            else if val.opt_waker.is_none()
-            {
+                    opt_waker = val.opt_waker.take();
 
-                let waker = cx.waker().clone();
+                    val.shouldve_awoken = opt_waker.is_some();
 
-                val.opt_waker = Some(waker);
+                }
+                else if val.opt_waker.is_none()
+                {
 
-                val.shouldve_awoken = false;
+                    let waker = cx.waker().clone();
 
-                //let self_mut = self.get_mut();
+                    val.opt_waker = Some(waker);
 
-                self_mut.is_active = true;
+                    val.shouldve_awoken = false;
 
-                return Poll::Pending;
+                    //let self_mut = self.get_mut();
+
+                    self_mut.is_active = true;
+
+                    return Poll::Pending;
+
+                }
+                else
+                {
+
+                    return Poll::Ready(Err(LimitedSingleWakerMultiPermitError::Occupied));
+                    
+                }
 
             }
             else
             {
 
-                return Poll::Ready(Err(LimitedSingleWakerMultiPermitError::Occupied));
+                return Poll::Ready(Err(LimitedSingleWakerMultiPermitError::Closed));
                 
             }
 
         }
 
-        Poll::Ready(Err(LimitedSingleWakerMultiPermitError::Closed)) //new()))
-        
+        if let Some(waker) = opt_waker
+        {
+
+            //Wake the waker outside the mg.
+
+            waker.wake();
+            
+        }
+
+        Poll::Ready(Ok(()))
+
     }
 
 }
@@ -606,77 +660,85 @@ impl<'a> Future for LimitedSingleWakerMultiPermitIncrementPermitsOrWait<'a>
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
     {
 
-        #[cfg(feature="use_std_sync")]
-        let mut mg = self.single_waker_multi_permit_ref.get_mg();
+        let opt_waker;
 
-        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.single_waker_multi_permit_ref.internal_mut_state.lock();
-
-        if let Some(val) = &mut *mg
         {
 
-            if self.is_active && !val.shouldve_awoken
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.single_waker_multi_permit_ref.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.single_waker_multi_permit_ref.internal_mut_state.lock();
+
+            if let Some(val) = &mut *mg
             {
 
-                return Poll::Pending;
+                if self.is_active && !val.shouldve_awoken
+                {
 
-            }
+                    return Poll::Pending;
 
-            let self_mut = self.get_mut();
+                }
 
-            self_mut.is_active = false;
+                let self_mut = self.get_mut();
 
-            let permits = val.permits;
+                self_mut.is_active = false;
 
-            if let Some(new_permits) = permits.checked_add(1)
-            {
+                let permits = val.permits;
 
-                if new_permits <= self_mut.single_waker_multi_permit_ref.max_permits
+                if let Some(new_permits) = permits.checked_add(1) && new_permits <= self_mut.single_waker_multi_permit_ref.max_permits
                 {
 
                     val.permits = new_permits;
 
-                    return Poll::Ready(Ok(()));
+                    opt_waker = val.opt_waker.take();
+
+                    val.shouldve_awoken = opt_waker.is_some();
 
                 }
+                else if val.opt_waker.is_none()
+                {
 
-                let waker = cx.waker().clone();
+                    let waker = cx.waker().clone();
 
-                val.opt_waker = Some(waker);
+                    val.opt_waker = Some(waker);
 
-                val.shouldve_awoken = false;
+                    val.shouldve_awoken = false;
 
-                self_mut.is_active = true;
+                    //let self_mut = self.get_mut();
 
-                return Poll::Pending;
+                    self_mut.is_active = true;
 
-            }
-            else if val.opt_waker.is_none()
-            {
+                    return Poll::Pending;
 
-                let waker = cx.waker().clone();
+                }
+                else
+                {
 
-                val.opt_waker = Some(waker);
-
-                val.shouldve_awoken = false;
-
-                //let self_mut = self.get_mut();
-
-                self_mut.is_active = true;
-
-                return Poll::Pending;
+                    return Poll::Ready(Err(LimitedSingleWakerMultiPermitError::Occupied));
+                    
+                }
 
             }
             else
             {
 
-                return Poll::Ready(Err(LimitedSingleWakerMultiPermitError::Occupied));
+                return Poll::Ready(Err(LimitedSingleWakerMultiPermitError::Closed));
                 
             }
 
         }
 
-        Poll::Ready(Err(LimitedSingleWakerMultiPermitError::Closed)) //new()))
+        if let Some(waker) = opt_waker
+        {
+
+            //Wake the waker outside the mg.
+
+            waker.wake();
+            
+        }
+
+        Poll::Ready(Ok(()))
         
     }
 
