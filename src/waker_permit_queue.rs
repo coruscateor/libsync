@@ -296,6 +296,26 @@ impl WakerPermitQueue
 
     }
 
+    pub fn active_ids_len(&self) -> Option<usize>
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mut mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.internal_mut_state.lock();
+
+        if let Some(val) = &mut *mg
+        {
+
+            return Some(val.active_ids.len());
+
+        } 
+
+        None
+
+    }
+
     pub fn is_closed(&self) -> bool
     {
 
@@ -818,6 +838,7 @@ impl Error for WakerPermitQueueClosedError
 {    
 }
 
+#[derive(Debug)]
 pub struct WakerPermitQueueDecrementPermitsOrWait<'a>
 {
 
