@@ -99,6 +99,15 @@ mod limited_single_waker_multi_permit;
 
 pub use limited_single_waker_multi_permit::*;
 
+#[cfg(test)]
+mod limited_single_waker_multi_permit_tests;
+
+//Disabled
+
+//mod futures_poller;
+
+//pub use futures_poller::*;
+
 #[cfg(feature="use_std_sync")]
 pub type PreferredMutexType<T> = ::std::sync::Mutex<T>;
 
