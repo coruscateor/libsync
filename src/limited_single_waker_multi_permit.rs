@@ -528,6 +528,19 @@ impl<'a> Future for LimitedSingleWakerMultiPermitDecrementPermitsOrWait<'a>
                 if self.is_active && !val.shouldve_awoken
                 {
 
+                    if val.opt_waker.is_some()
+                    {
+
+                        return Poll::Ready(Err(LimitedSingleWakerMultiPermitError::Occupied));
+
+                    }
+
+                    //Go beck to sleep.
+
+                    let waker = cx.waker().clone();
+
+                    val.opt_waker = Some(waker);
+
                     return Poll::Pending;
 
                 }
@@ -675,6 +688,19 @@ impl<'a> Future for LimitedSingleWakerMultiPermitIncrementPermitsOrWait<'a>
 
                 if self.is_active && !val.shouldve_awoken
                 {
+
+                    if val.opt_waker.is_some()
+                    {
+
+                        return Poll::Ready(Err(LimitedSingleWakerMultiPermitError::Occupied));
+
+                    }
+
+                    //Go beck to sleep.
+
+                    let waker = cx.waker().clone();
+
+                    val.opt_waker = Some(waker);
 
                     return Poll::Pending;
 

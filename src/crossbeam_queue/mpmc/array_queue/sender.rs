@@ -37,8 +37,6 @@ impl<T> Sender<T>
 
     }
 
-    //Disabled
-
     pub fn try_send(&self, value: T) -> Result<(), BoundedSendError<T>>
     {
 
@@ -64,7 +62,7 @@ impl<T> Sender<T>
                             if self.shared_details.notifier_ref().is_closed()
                             {
 
-                                return Err(BoundedSendError::NoReceivers(val));
+                                return Err(BoundedSendError::Closed(val));
 
                             }
 
@@ -93,7 +91,7 @@ impl<T> Sender<T>
             None =>
             {
 
-                Err(BoundedSendError::NoReceivers(value))
+                Err(BoundedSendError::Closed(value))
 
             }
             
@@ -106,7 +104,7 @@ impl<T> Sender<T>
     /// 
     /// Returns it in a Result::Err variant otherwise.
     /// 
-    pub async fn send(&self, value: T) -> Result<(), SendError<T>>
+    pub async fn send(&self, value: T) -> SendResult<T>
     {
 
         let res = self.shared_details.notifier_ref().increment_permits_or_wait().await;
@@ -128,15 +126,15 @@ impl<T> Sender<T>
                         if let Err(val_again) = self.shared_details.message_queue_ref().push(val)
                         {
 
-                            val = val_again;
-
-                            if self.shared_details.notifier_ref().is_closed()
+                            if self.is_closed()
                             {
 
-                                return Err(SendError::new(val));
+                                return Err(val_again);
 
                             }
 
+                            val = val_again;
+                            
                         }
                         else
                         {
@@ -155,7 +153,7 @@ impl<T> Sender<T>
             Err(_err) =>
             {
 
-                Err(SendError::new(value))
+                Err(value)
 
             }
 

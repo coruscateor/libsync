@@ -68,7 +68,7 @@ impl<T, N> Sender<T, N>
 
         }
 
-        Err(BoundedSendError::NoReceivers(value))
+        Err(BoundedSendError::Closed(value))
 
     }
 

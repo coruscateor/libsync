@@ -65,7 +65,7 @@ impl<T> Receiver<T>
                     else if self.senders_count.strong_count() == 0
                     {
 
-                        return Err(ReceiveError::NoSenders);
+                        return Err(ReceiveError::Closed);
 
                     }
 
@@ -82,6 +82,12 @@ impl<T> Receiver<T>
 
                 return Ok(message);
 
+            }
+            else
+            {
+
+                return Err(ReceiveError::Closed);
+                
             }
 
         }
@@ -121,7 +127,7 @@ impl<T> Receiver<T>
                         if self.senders_count.strong_count() == 0
                         {
 
-                            return Err(ReceiveError::NoSenders);
+                            return Err(ReceiveError::Closed);
 
                         }
 
@@ -135,7 +141,7 @@ impl<T> Receiver<T>
             Err(_) =>
             {
 
-                Err(ReceiveError::NoSenders)
+                Err(ReceiveError::Closed)
 
             }
 

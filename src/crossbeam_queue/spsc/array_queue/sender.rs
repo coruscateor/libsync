@@ -2,7 +2,7 @@ use std::sync::{Arc, Weak};
 
 use crossbeam_queue::ArrayQueue;
 
-use crate::{ChannelSharedDetails, SendResult, LimitedSingleWakerMultiPermit};
+use crate::{BoundedSendError, ChannelSharedDetails, LimitedSingleWakerMultiPermit, SendResult};
 
 use delegate::delegate;
 
@@ -39,63 +39,64 @@ impl<T> Sender<T>
 
     //Disabled
 
-    pub fn try_send(&self, value: T) -> SendResult<T>
+    pub fn try_send(&self, value: T) -> Result<(), BoundedSendError<T>>
     {
 
-        let res = self.shared_details.notifier_ref().add_permit();
-
-        match res
+        match self.shared_details.notifier_ref().add_permit()
         {
 
-            Some(val) =>
+            Some(true) =>
             {
 
-                if val
+                if let Err(mut val) = self.shared_details.message_queue_ref().push(value)
                 {
 
-                    if let Err(mut val) = self.shared_details.message_queue_ref().push(value)
+                    //This shouldn't happen... that often.
+
+                    loop
                     {
 
-                        loop
+                        if let Err(val_again) = self.shared_details.message_queue_ref().push(val)
                         {
 
-                            if let Err(val_again) = self.shared_details.message_queue_ref().push(val)
+                            val = val_again;
+
+                            if self.shared_details.notifier_ref().is_closed()
                             {
 
-                                val = val_again;
+                                return Err(BoundedSendError::Closed(val));
 
-                            }
-                            else
-                            {
-
-                                break;
-                                
                             }
 
                         }
+                        else
+                        {
 
+                            break;
+                            
+                        }
+                
+                        
                     }
 
-                    Ok(())
-
-                }
-                else
-                {
-
-                    Err(value)
-                    
                 }
 
+                Ok(())
 
+            }
+            Some(false) =>
+            {
+
+                Err(BoundedSendError::Full(value))
 
             }
             None =>
             {
 
-                Err(value)
+                Err(BoundedSendError::Closed(value))
 
             }
-
+            
         }
 
     }
@@ -125,6 +126,13 @@ impl<T> Sender<T>
 
                         if let Err(val_again) = self.shared_details.message_queue_ref().push(val)
                         {
+
+                            if self.is_closed()
+                            {
+
+                                return Err(val_again);
+
+                            }
 
                             val = val_again;
 
@@ -169,6 +177,10 @@ impl<T> Sender<T>
             /// How many messages are in the channels queue?
             /// 
             pub fn len(&self) -> usize;
+
+            pub fn capacity(&self) -> usize;
+
+            pub fn is_full(&self) -> bool;
 
         }
 
@@ -215,6 +227,26 @@ impl<T> Sender<T>
         }
 
     }
+
+    pub fn is_closed(&self) -> bool
+    {
+
+        self.receivers_strong_count() == 0
+
+    }
+
+    ///
+    /// How many free queue elements do we have?
+    /// 
+    pub fn head_room(&self) -> usize
+    {
+
+        let queue_ref = self.shared_details.message_queue_ref();
+
+        queue_ref.capacity() - queue_ref.len()
+
+    }
+
 
 
 }

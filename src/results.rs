@@ -61,18 +61,31 @@ impl<T> Display for SendError<T>
 impl<T> Error for SendError<T>
    where T: Debug
 {
-    
+}
+
+impl<T> PartialEq for SendError<T>
+   where T: PartialEq
+{
+
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
+
+}
+
+impl<T> Eq for SendError<T>
+   where T: Eq
+{
 }
 
 ///
 /// Provides the reason for the error if a message cannot be sent on a bounded channel.
 /// 
-#[derive(Debug)]
 pub enum BoundedSendError<T>
 {
 
     Full(T),
-    NoReceivers(T),
+    Closed(T),
     //ValueIrrecoverable
 
 }
@@ -101,7 +114,7 @@ impl<T> BoundedSendError<T>
     pub fn has_no_receivers(&self) -> bool
     {
 
-        if let BoundedSendError::NoReceivers(_) = self
+        if let BoundedSendError::Closed(_) = self
         {
 
             true
@@ -122,7 +135,7 @@ impl<T> BoundedSendError<T>
         match self
         {
             BoundedSendError::Full(val) => val,
-            BoundedSendError::NoReceivers(val) => val
+            BoundedSendError::Closed(val) => val
         }
 
     }
@@ -140,12 +153,44 @@ impl<T> Display for BoundedSendError<T>
         {
 
             BoundedSendError::Full(val) => write!(f, "Full({val})"),
-            BoundedSendError::NoReceivers(val) => write!(f, "NoSenders({val})")
+            BoundedSendError::Closed(val) => write!(f, "Closed({val})")
 
         }
         
     }
 
+}
+
+impl<T> Debug for BoundedSendError<T>
+    where T: Debug
+{
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Full(arg0) => f.debug_tuple("Full").field(arg0).finish(),
+            Self::Closed(arg0) => f.debug_tuple("Closed").field(arg0).finish(),
+        }
+    }
+
+}
+
+impl<T> PartialEq for BoundedSendError<T>
+    where T: PartialEq
+{
+
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Full(l0), Self::Full(r0)) => l0 == r0,
+            (Self::Closed(l0), Self::Closed(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
+
+}
+
+impl<T> Eq for BoundedSendError<T>
+    where T: Eq
+{
 }
 
 /*
@@ -158,7 +203,7 @@ impl<T> Into<T> for BoundedSendError<T>
         match self
         {
             BoundedSendError::Full(val) => val,
-            BoundedSendError::NoReceivers(val) => val
+            BoundedSendError::Closed(val) => val
         }
 
     }
@@ -176,7 +221,7 @@ pub enum BoundedSendErrorType
 {
 
     Full,
-    NoReceivers,
+    Closed,
     //ValueIrrecoverable
 
 }
@@ -191,7 +236,7 @@ impl Display for BoundedSendErrorType
         {
 
             BoundedSendErrorType::Full => write!(f, "Full"),
-            BoundedSendErrorType::NoReceivers => write!(f, "NoReceivers")
+            BoundedSendErrorType::Closed => write!(f, "Closed")
 
         }
         
@@ -202,12 +247,12 @@ impl Display for BoundedSendErrorType
 ///
 /// Provides the reasons for why a value cannot be received from a channel.
 /// 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ReceiveError
 {
 
     Empty,
-    NoSenders
+    Closed
 
 }
 
@@ -221,7 +266,7 @@ impl Display for ReceiveError
         {
 
             ReceiveError::Empty => write!(f, "Empty"),
-            ReceiveError::NoSenders => write!(f, "NoSenders")
+            ReceiveError::Closed => write!(f, "Closed")
 
         }
         

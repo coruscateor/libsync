@@ -152,7 +152,7 @@ impl<T> Sender<T>
                                     item = value
                                 
                                 }
-                                BoundedSendError::NoReceivers(_) => return Err(err)
+                                BoundedSendError::Closed(_) => return Err(err)
             
                             }
             

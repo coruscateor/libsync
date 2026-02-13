@@ -180,6 +180,13 @@ impl<T> Sender<T>
 
     }
 
+    pub fn is_closed(&self) -> bool
+    {
+
+        self.receivers_strong_count() == 0
+
+    }
+
 
 }
 

@@ -52,7 +52,7 @@ impl<T, N> Receiver<T, N>
         if self.sender_count.strong_count() == 0
         {
 
-            return Err(ReceiveError::NoSenders);
+            return Err(ReceiveError::Closed);
 
         }
 

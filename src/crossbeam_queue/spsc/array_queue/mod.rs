@@ -9,3 +9,7 @@ pub use receiver::*;
 mod channel;
 
 pub use channel::*;
+
+#[cfg(test)]
+mod channel_tests;
+

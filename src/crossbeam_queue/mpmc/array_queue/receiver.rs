@@ -42,7 +42,7 @@ impl<T> Receiver<T>
     /// 
     /// Returns an error if the channels queue is empty and there are no instantiated Senders detected.
     /// 
-    pub async fn try_recv(&self) -> ReceiveResult<T>
+    pub fn try_recv(&self) -> ReceiveResult<T>
     {
 
         let res = self.shared_details.notifier_ref().remove_permit();
@@ -68,7 +68,7 @@ impl<T> Receiver<T>
                         else if self.senders_count.strong_count() == 0
                         {
 
-                            return Err(ReceiveError::NoSenders);
+                            return Err(ReceiveError::Closed);
 
                         }
 
@@ -88,6 +88,13 @@ impl<T> Receiver<T>
                     return Ok(message);
 
                 }
+                else
+                {
+
+                    return Err(ReceiveError::Closed);
+                    
+                }
+
 
             }
 
@@ -102,7 +109,7 @@ impl<T> Receiver<T>
     /// 
     /// Returns an error if the channels queue is empty and there are no instantiated Senders detected.
     /// 
-    pub async fn recv(&self) -> ReceiveResult<T>
+    pub async fn recv(&self) -> Result<T, ()> //ReceiveResult<T>
     {
 
         let res = self.shared_details.notifier_ref().decrement_permits_or_wait().await;
@@ -122,10 +129,10 @@ impl<T> Receiver<T>
                         return Ok(message);
 
                     }
-                    else if self.senders_count.strong_count() == 0
+                    else if self.is_closed() //self.senders_count.strong_count() == 0
                     {
 
-                        return Err(ReceiveError::NoSenders);
+                        return Err(()); //Err(ReceiveError::NoSenders);
 
                     }
                     
@@ -146,7 +153,9 @@ impl<T> Receiver<T>
 
         }
 
-        Err(ReceiveError::Empty)
+        Err(())
+
+        //Err(ReceiveError::Empty)
 
     }
 

@@ -42,7 +42,7 @@ impl<T> Receiver<T>
     /// 
     /// Returns an error if the channels queue is empty and there are no instantiated Senders detected.
     /// 
-    pub async fn try_recv(&self) -> ReceiveResult<T>
+    pub fn try_recv(&self) -> ReceiveResult<T>
     {
 
         let res = self.shared_details.notifier_ref().remove_permit();
@@ -62,7 +62,7 @@ impl<T> Receiver<T>
                 else if self.senders_count.strong_count() == 0
                 {
 
-                    return Err(ReceiveError::NoSenders);
+                    return Err(ReceiveError::Closed);
 
                 }
 
@@ -78,6 +78,12 @@ impl<T> Receiver<T>
                 return Ok(message);
 
             }
+            else
+            {
+
+                return Err(ReceiveError::Closed);
+                
+            }
 
         }
 
@@ -90,30 +96,51 @@ impl<T> Receiver<T>
     /// 
     /// Returns an error if the channels queue is empty and there are no instantiated Senders detected.
     /// 
-    pub async fn recv(&self) -> ReceiveResult<T>
+    pub async fn recv(&self) -> Result<T, ()>
     {
 
-        let _ = self.shared_details.notifier_ref().decrement_permits_or_wait().await;
+        let res = self.shared_details.notifier_ref().decrement_permits_or_wait().await;
 
-        if let Some(message) = self.shared_details.message_queue_ref().pop() //.expect("Permits must match message count");
+        match res
         {
 
-            Ok(message)
-
-        }
-        else
-        {
-
-            if self.senders_count.strong_count() == 0
+            Ok(_) =>
             {
 
-                return Err(ReceiveError::NoSenders);
+                loop
+                {
+
+                    if let Some(message) = self.shared_details.message_queue_ref().pop()
+                    {
+
+                        return Ok(message);
+
+                    }
+                    else if self.senders_count.strong_count() == 0
+                    {
+
+                        return Err(()); //Err(ReceiveError::NoSenders);
+
+                    }
+                    
+                }
+
+            }
+            Err(_err) =>
+            {
+
+                if let Some(message) = self.shared_details.message_queue_ref().pop()
+                {
+
+                    return Ok(message);
+
+                }
 
             }
 
-            Err(ReceiveError::Empty)
-
         }
+
+        Err(())
 
     }
 
@@ -178,6 +205,14 @@ impl<T> Receiver<T>
         }
 
     }
+
+    pub fn is_closed(&self) -> bool
+    {
+
+        self.senders_strong_count() == 0
+
+    }
+
 
     //recv_or_timeout
 
