@@ -4,6 +4,9 @@ use paste::paste;
 
 use accessorise::impl_get_ref;
 
+///
+/// For containing the objects that are shared between the sender and the receiver parts of a channel.
+/// 
 pub struct ChannelSharedDetails<Q, N>
 {
 

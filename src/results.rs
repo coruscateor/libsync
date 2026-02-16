@@ -216,34 +216,6 @@ impl<T> Into<T> for BoundedSendError<T>
 /// 
 pub type BoundedSendResult<T> = Result<(), BoundedSendError<T>>;
 
-#[derive(Debug)]
-pub enum BoundedSendErrorType
-{
-
-    Full,
-    Closed,
-    //ValueIrrecoverable
-
-}
-
-impl Display for BoundedSendErrorType
-{
-
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
-    {
-
-        match self
-        {
-
-            BoundedSendErrorType::Full => write!(f, "Full"),
-            BoundedSendErrorType::Closed => write!(f, "Closed")
-
-        }
-        
-    }
-    
-}
-
 ///
 /// Provides the reasons for why a value cannot be received from a channel.
 /// 

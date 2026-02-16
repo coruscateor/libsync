@@ -48,10 +48,6 @@ mod waker_permit_queue_tests;
 
 //pub use waker_queue::*;
 
-mod drop_waker;
-
-pub use drop_waker::*;
-
 #[cfg(feature="scc")]
 pub mod scc;
 
@@ -85,6 +81,10 @@ mod limited_waker_permit_queue_tests;
 //#[cfg(test)]
 //mod limited_waker_permit_queue_tests;
 
+//Disabled
+
+/*
+
 mod single_waker_multi_permit;
 
 pub use single_waker_multi_permit::*;
@@ -92,8 +92,16 @@ pub use single_waker_multi_permit::*;
 #[cfg(test)]
 mod single_waker_multi_permit_tests;
 
+*/
+
+//Re-enabled in v0.4.0?
+
 #[cfg(feature="crossbeam-queue")]
 pub mod crossbeam_queue;
+
+//Disabled
+
+/*
 
 mod limited_single_waker_multi_permit;
 
@@ -102,18 +110,25 @@ pub use limited_single_waker_multi_permit::*;
 #[cfg(test)]
 mod limited_single_waker_multi_permit_tests;
 
-//Disabled
+*/
 
-//mod futures_poller;
+//Re-enabled in v0.4.0?
 
-//pub use futures_poller::*;
-
+///
+/// The preferred type of mutex to be used for synchronisation.
+/// 
 #[cfg(feature="use_std_sync")]
 pub type PreferredMutexType<T> = ::std::sync::Mutex<T>;
 
+///
+/// The preferred type of mutex to be used for synchronisation.
+/// 
 #[cfg(feature="use_parking_lot_sync")]
 pub type PreferredMutexType<T> = parking_lot::Mutex<T>;
 
+///
+/// The preferred type of mutex to be used for synchronisation.
+/// 
 #[cfg(feature="use_parking_lot_fair_sync")]
 pub type PreferredMutexType<T> = parking_lot::FairMutex<T>;
 

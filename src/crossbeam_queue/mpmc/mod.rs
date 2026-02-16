@@ -1,5 +1,5 @@
 //!
-//! Multi-producer multi-consumer channels based on [Crossbeam Queue queues](https://crates.io/crates/crossbeam-queue).
+//! Multi-producer multi-consumer channels which use [Crossbeam Queue queues](https://crates.io/crates/crossbeam-queue).
 //! 
 
 pub mod array_queue;

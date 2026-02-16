@@ -1,10 +1,14 @@
 //!
-//! https://crates.io/crates/scc
+//! Objects that use [Scalable Concurrent Containers](https://crates.io/crates/scc).
 //!
 
 pub mod mpmc;
 
-pub mod spsc;
+//Disabled
+
+//pub mod spsc;
+
+//Re-enabled in v0.4.0?
 
 //Disabled
 

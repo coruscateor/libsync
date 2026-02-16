@@ -1,3 +1,6 @@
+//!
+//! A channel implementation which uses a [SCC Queue](https://docs.rs/scc/latest/scc/struct.Queue.html) for message transferral.
+//! 
 
 mod sender;
 
