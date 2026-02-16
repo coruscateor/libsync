@@ -19,26 +19,39 @@
 
 </br>
 
-LibSync combines “lower level” library objects to produce channels and other synchronisation objects e.g. it combines Crossbeam ArrayQueue objects with Tokio Semaphore objects to produce a multi-producer-multi-consumer channel that can be waited on asynchronously on both sides.
+LibSync is a library which contains channel implementations and objects used in the creation of channel implementations.
 
-It also has objects that help you keep count of messages in a pipeline and "return stores" for "returning" values from one thread to another using a reusable location.
+Use the channels in the crossbeam_queue and scc sub-modules. 
 
-In addition to message counters, you may find IO channels useful when working with actors.
+</br>
+
+## Valid Features
+
+| Feature                   | Description |
+| -------                   | ----------- |
+| crossbeam                 | Enable the crossbeam sub-module. |
+| crossbeam-queue           | Enable the crossbeam-queue sub-module. |
+| tokio                     | Enable the tokio-helpers sub-module and relevant tests. |
+| std                       | Enable the std sub-module. |
+| use_std_sync              | Use std synchronisation objects. |
+| use_parking_lot_sync      | Use parking_lot synchronisation objects. |
+| use_parking_lot_fair_sync | Use fair parking_lot synchronisation objects where possible. |
 
 </br>
 
 ## Todo
 
 - Add more documentation
-- Add tests
+- Add more tests
 - Decide on what is staying in the library.
-- Get the channels to work with other async runtimes, preferably via generics.
+- Add async-runtime specific functionality to the crossbeam_queue and scc oriented channels (e.g. timeout methods). 
+- Add an std VecDeque oriented channel implementation.
 
 </br>
 
 ## Maybe
 
-- Add synchronous channel implementations.
+- Add more channel implementations using queue implementations of other crates that this crate doesn’t already conditionally depend on.
 
 </br>
 

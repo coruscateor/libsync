@@ -3,10 +3,10 @@ name = "libsync"
 version = "0.3.0-beta"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "A library containing channels and other synchronisation object implementations."
+description = "A channels library"
 repository = "https://github.com/coruscateor/libsync"
 homepage = "https://coruscateor.com/projects/libsync"
-keywords = ["synchronisation", "synchronization", "async", "channel", "channels"]
+keywords = ["crossbeam_queue", "scc", "tokio", "async", "channel"]
 categories = ["asynchronous"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -16,9 +16,9 @@ crossbeam = { version = "0.8.4", optional = true }
 
 crossbeam-queue = { version = "0.3.12", optional = true }
 
-tokio = { version = "1.48.0", features = ["sync", "time", "rt", "macros", "rt-multi-thread"], optional = true } #The rt, macros, rt-multi-thread and time features are needed for testing #"1.44.2"
+tokio = { version = "1.49.0", features = ["sync", "time", "rt", "macros", "rt-multi-thread"], optional = true } #The rt, macros, rt-multi-thread and time features are needed for testing #"1.44.2"
 #delegate = "0.*"
-delegate = "0.13.3"
+delegate = "0.13.5"
 futures = "0.3.31"
 #rand = { version = "0.8.*", features = ["std", "std_rng"] }
 
@@ -30,7 +30,7 @@ accessorise = "0.2.0"
 
 inc_dec = "0.1.0"
 
-scc = { version = "3.4.2", optional = true }
+scc = { version = "3.6.2", optional = true }
 
 #https://doc.rust-lang.org/cargo/reference/features.html#optional-dependencies
 
