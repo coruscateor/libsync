@@ -32,6 +32,7 @@ Use the channel implementations in the crossbeam_queue and scc modules as the cr
 | crossbeam                 | Enable the crossbeam sub-module. |
 | crossbeam-queue           | Enable the crossbeam-queue sub-module. |
 | tokio                     | Enable the tokio-helpers sub-module and relevant tests. |
+| scc                       | Enable the scc sub-module. |
 | std                       | Enable the std sub-module. |
 | use_std_sync              | Use std synchronisation objects. |
 | use_parking_lot_sync      | Use parking_lot synchronisation objects. |

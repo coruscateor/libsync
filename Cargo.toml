@@ -44,5 +44,5 @@ use_parking_lot_fair_sync = ["dep:parking_lot"]
 #tokio = ["dep:tokio"]
 
 [package.metadata.docs.rs]
-all-features = true
+features = ["crossbeam", "crossbeam-queue", "tokio", "scc", "std", "use_parking_lot_sync"]
 rustdoc-args = ["--cfg", "docsrs"]
