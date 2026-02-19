@@ -2,7 +2,7 @@ use std::sync::{Arc, Weak};
 
 use crossbeam::queue::SegQueue;
 
-use crate::{ChannelSharedDetails, SendError, SendResult, WakerPermitQueue};
+use crate::{ChannelSharedDetails, SendResult, WakerPermitQueue};
 
 use delegate::delegate;
 

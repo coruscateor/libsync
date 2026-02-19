@@ -1,4 +1,4 @@
-commit fc07bc5b482ca9f35b2048bda9a944da47be4ccd
+commit fc07bc5b482ca9f35b2048bda9a944da47be4ccd -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Mon Feb 16 18:20:01 2026 +1300
 
@@ -14,7 +14,7 @@ Date:   Mon Feb 16 18:20:01 2026 +1300
     
     - Updated the readme.
 
-commit d25c2e80e1b3fd5c2d157e5b776e009e28111106
+commit d25c2e80e1b3fd5c2d157e5b776e009e28111106 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Mon Feb 16 15:18:03 2026 +1300
 
@@ -34,7 +34,7 @@ Date:   Mon Feb 16 15:18:03 2026 +1300
     
     - Removed the JoinHandlesPoller struct form the tokio_helpers sub-module.
 
-commit d51af7daf9439cf55c7577a3123be30c192a140b
+commit d51af7daf9439cf55c7577a3123be30c192a140b -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Fri Feb 13 20:54:06 2026 +1300
 
@@ -60,13 +60,13 @@ Date:   Fri Feb 13 20:54:06 2026 +1300
     
     - The BoundedSendError enum now has Debug, PartialEq and Eq as conditional generic constraints.
 
-commit a981a659731cedaff2d97d778bdee6bcadfc0cce
+commit a981a659731cedaff2d97d778bdee6bcadfc0cce -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Thu Feb 12 19:49:06 2026 +1300
 
     Added a couple more LimitedSingleWakerMultiPermit tests.
 
-commit 53e76305e939fdef79ee8b6da427471813a67237
+commit 53e76305e939fdef79ee8b6da427471813a67237 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Thu Feb 12 10:00:44 2026 +1300
 
@@ -74,7 +74,7 @@ Date:   Thu Feb 12 10:00:44 2026 +1300
     
     - Continued work on the LimitedWakerPermitQueue tests.
 
-commit 07e733bdb6849c245e6366ccbc7da0641a087501
+commit 07e733bdb6849c245e6366ccbc7da0641a087501 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Tue Feb 10 21:04:47 2026 +1300
 
@@ -84,7 +84,7 @@ Date:   Tue Feb 10 21:04:47 2026 +1300
     
     - Continued work on the WakerPermitQueue struct.
 
-commit b01311c5f92d71010ce497292483bfd40dd835f0
+commit b01311c5f92d71010ce497292483bfd40dd835f0 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Mon Feb 9 12:25:07 2026 +1300
 
@@ -98,7 +98,7 @@ Date:   Mon Feb 9 12:25:07 2026 +1300
     
     - Continued work on LimitedSingleWakerMultiPermit, LimtedWakerPermitQueue, SingleWakerMultiPermit and related structs.
 
-commit a1f1a51b8ed2c71a946cfdf1aee78ce6a624306f
+commit a1f1a51b8ed2c71a946cfdf1aee78ce6a624306f -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Sat Feb 7 19:48:49 2026 +1300
 
@@ -108,7 +108,7 @@ Date:   Sat Feb 7 19:48:49 2026 +1300
     
     - Continued work on the LimitedWakerPermitQueue.
 
-commit 3475d8c518fe0934eacb4fbb7f4669241b485a0e
+commit 3475d8c518fe0934eacb4fbb7f4669241b485a0e -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Thu Feb 5 20:07:44 2026 +1300
 
@@ -122,7 +122,7 @@ Date:   Thu Feb 5 20:07:44 2026 +1300
     
     - Added the crossbeam::spsc::seg_queue sub-module with a channel function and Receiver and Sender structs.
 
-commit eabe02237a3381fbd5975e565b96b8b2eb18cab0
+commit eabe02237a3381fbd5975e565b96b8b2eb18cab0 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Thu Feb 5 13:34:33 2026 +1300
 
@@ -142,7 +142,7 @@ Date:   Thu Feb 5 13:34:33 2026 +1300
     
     - Added the scc::mpmc::queue::channel function as well as Receiver and Sender structs.
 
-commit 214194063af027da13472321a3c02f9dd1821063
+commit 214194063af027da13472321a3c02f9dd1821063 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Wed Feb 4 14:14:16 2026 +1300
 
@@ -158,7 +158,7 @@ Date:   Wed Feb 4 14:14:16 2026 +1300
     
     - Continued work on the crossbeam::mpmc::seg_queue::Sender struct.
 
-commit 8ef33bfe2f2eaa032a91d493ca891fed38d9c9ac
+commit 8ef33bfe2f2eaa032a91d493ca891fed38d9c9ac -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Tue Feb 3 18:25:48 2026 +1300
 
@@ -172,13 +172,13 @@ Date:   Tue Feb 3 18:25:48 2026 +1300
     
     - Continued work on the WakerPermitQueueDecrementPermitsOrWait struct.
 
-commit ced112623e27bff1e9905ef04db8c75924afb882
+commit ced112623e27bff1e9905ef04db8c75924afb882 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Mon Feb 2 20:17:27 2026 +1300
 
     Continued work on the LimitedWakerPermitQueue and WakerPermitQueue objects.
 
-commit 3bc28cd0f8e547397609db7cee2d4786495ac3d0
+commit 3bc28cd0f8e547397609db7cee2d4786495ac3d0 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Sun Feb 1 20:54:26 2026 +1300
 
@@ -192,7 +192,7 @@ Date:   Sun Feb 1 14:34:03 2026 +1300
     
     - Continued work on WakerPermitQueue tests.
 
-commit 653a27c05229514c9cca67e744931d06cd4a63a8
+commit 653a27c05229514c9cca67e744931d06cd4a63a8 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Sun Feb 1 14:00:34 2026 +1300
 
@@ -202,7 +202,7 @@ Date:   Sun Feb 1 14:00:34 2026 +1300
     
     - Continued work on the WakerPermitQueue.
 
-commit 885c0ff1df917aa7a17fca0146ddcdb8663e552d
+commit 885c0ff1df917aa7a17fca0146ddcdb8663e552d -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Sat Jan 31 20:20:49 2026 +1300
 
@@ -214,7 +214,7 @@ Date:   Sat Jan 31 20:20:49 2026 +1300
     
     - Added a test for SingleWaker.
 
-commit 0d49bf95c7da07f6ee014eef105e29cb76cf7f71
+commit 0d49bf95c7da07f6ee014eef105e29cb76cf7f71 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Fri Jan 30 17:50:15 2026 +1300
 
@@ -226,7 +226,7 @@ Date:   Fri Jan 30 17:50:15 2026 +1300
     
     - Continued work on the WakerPermitQueue.
 
-commit b5f2afcb77763db7206b2092fc4d3f8e6d0d2637
+commit b5f2afcb77763db7206b2092fc4d3f8e6d0d2637 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Thu Jan 29 21:12:20 2026 +1300
 
@@ -236,7 +236,7 @@ Date:   Thu Jan 29 21:12:20 2026 +1300
     
     - Continued work on the WakerPermitQueue.
 
-commit 87bcce1c8666fb1d9d0c2ed94a42fb2203cce8a3
+commit 87bcce1c8666fb1d9d0c2ed94a42fb2203cce8a3 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Wed Jan 28 11:33:27 2026 +1300
 
@@ -248,7 +248,7 @@ Date:   Wed Jan 28 11:33:27 2026 +1300
     
     - Continued work on the WakerPermitQueue.
 
-commit f95eaa8e85efa6a6f58eb42b6706b2e03cc2265a
+commit f95eaa8e85efa6a6f58eb42b6706b2e03cc2265a -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Tue Jan 27 12:02:55 2026 +1300
 
@@ -256,7 +256,7 @@ Date:   Tue Jan 27 12:02:55 2026 +1300
     
     - Continued work on the WakerPermitQueue and updated its tests.
 
-commit f0438781d6c523253a80e4e20a28952db370bbdd
+commit f0438781d6c523253a80e4e20a28952db370bbdd -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Thu Jan 22 20:36:11 2026 +1300
 
@@ -264,13 +264,13 @@ Date:   Thu Jan 22 20:36:11 2026 +1300
     
     - Continued work on the WakerPermitQueue and updated its tests.
 
-commit 6f7dc130b0fb1fa8fd1764f2a7f31f7f25a97c1e
+commit 6f7dc130b0fb1fa8fd1764f2a7f31f7f25a97c1e -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Mon Jan 19 20:15:40 2026 +1300
 
     Renamed the use_std_mutexes feature to use_std_sync, use_parking_lot_mutexes to use_parking_lot_sync and use_parking_lot_fair_mutexes to use_parking_lot_fair_sync.
 
-commit 5e92a4e83dc5de37b8ed063bcd1542c1c53c9df7
+commit 5e92a4e83dc5de37b8ed063bcd1542c1c53c9df7 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Mon Jan 19 12:51:52 2026 +1300
 
@@ -278,7 +278,7 @@ Date:   Mon Jan 19 12:51:52 2026 +1300
     
     - Continued work on the src::crossbeam::mpmc::seg_queue::Sender and Receiver objects.
 
-commit d4fb4a224ebdb4d6ac5b956c5290cfbaa62cfc86
+commit d4fb4a224ebdb4d6ac5b956c5290cfbaa62cfc86 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Sat Jan 17 19:02:28 2026 +1300
 
@@ -288,7 +288,7 @@ Date:   Sat Jan 17 19:02:28 2026 +1300
     
     - Continued work on the WakerPermitQueue, WakerPermitQueueInternals and QueuedWaker structs.
 
-commit 34597b3e1682149ae74411655e78325a116ee1f0
+commit 34597b3e1682149ae74411655e78325a116ee1f0 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Mon Dec 29 19:28:12 2025 +1300
 
@@ -304,7 +304,7 @@ Date:   Mon Dec 29 19:28:12 2025 +1300
     
     - Added the test_1 test to waker_permit_queue_tests::tokio_tests.
 
-commit a49851a5a86814ec9a930883945ec4110b8c2a48
+commit a49851a5a86814ec9a930883945ec4110b8c2a48 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Mon Dec 29 13:11:42 2025 +1300
 
@@ -312,13 +312,13 @@ Date:   Mon Dec 29 13:11:42 2025 +1300
     
     - Added WakerPermitQueue tests and tokio_tests sub-modules.
 
-commit 1e30149593ea4a9ac3944095122361f3a5cf8d24
+commit 1e30149593ea4a9ac3944095122361f3a5cf8d24 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Tue Dec 23 19:10:25 2025 +1300
 
     Continued work on the WakerPermitQueue, WakerQueue and other related structs.
 
-commit 3de221f9a304b6d8b81c692ff960c7aae1b1c446
+commit 3de221f9a304b6d8b81c692ff960c7aae1b1c446 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Tue Dec 23 15:36:06 2025 +1300
 

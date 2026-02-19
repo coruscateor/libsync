@@ -19,9 +19,9 @@
 
 </br>
 
-LibSync is a library which contains channel implementations and objects used in the creation of channel implementations.
+LibSync is a library which contains channel implementations and objects used to produce channel implementations.
 
-Use the channels in the crossbeam_queue and scc sub-modules. 
+Use the channel implementations in the crossbeam_queue and scc modules as the crossbeam module is probably going to be removed. 
 
 </br>
 

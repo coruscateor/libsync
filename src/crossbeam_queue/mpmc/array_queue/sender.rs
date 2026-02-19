@@ -2,7 +2,7 @@ use std::{collections::btree_map::Values, default, sync::{Arc, Weak}};
 
 use crossbeam_queue::ArrayQueue;
 
-use crate::{BoundedSendError, ChannelSharedDetails, LimitedWakerPermitQueue, SendError, SendResult};
+use crate::{BoundedSendError, ChannelSharedDetails, LimitedWakerPermitQueue, SendResult};
 
 use delegate::delegate;
 

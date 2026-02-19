@@ -43,7 +43,7 @@ impl<T, N> Sender<T, N>
     }
 
     ///
-    /// Try sending a value, returning a SendError<T> if this could not be completed.
+    /// Try sending a value, returning a BoundedSendError<T> if this could not be completed.
     /// 
     pub fn try_send(&self, value: T) -> BoundedSendResult<T>
     {
