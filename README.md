@@ -40,6 +40,18 @@ Use the channel implementations in the crossbeam_queue and scc modules as the cr
 
 </br>
 
+## Required Features
+
+Must be built with either **use_std_sync**, **use_parking_lot_sync** or **use_parking_lot_fair_sync** included in the features list.  
+
+</br>
+
+## Compiler:
+
+Build with the latest stable compiler.
+
+</br>
+
 ## Todo
 
 - Add more documentation

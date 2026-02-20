@@ -227,7 +227,11 @@ commit 2df961f5befdcdfcf19a794355a2058152bdef05
 
 -- Added the LimitedNotifier, LimitedNotifierClosedError and LimitedNotifierAquire structs. - Renamed see: 611223361fab754b8e5d0431afe81c7b22977246
 
+commit d94ec1a0ebfea894db715af284b1771257937a24
 
+-- Added a features field with the crossbeam, crossbeam-queue, tokio, scc, std and use_parking_lot_sync features assigned in an array, in the package.metadata.docs.rs section of the cargo file. - Which cargo file?
+
+- Added a features field with the crossbeam, crossbeam-queue, tokio, scc, std and use_parking_lot_sync features assigned in an array, in the package.metadata.docs.rs section of the Cargo.toml file.
 
 
 
@@ -257,7 +261,9 @@ commit d25c2e80e1b3fd5c2d157e5b776e009e28111106
 
 - Updated the package version string to "0.3.0-beta".
 
-- Updated old documentation.
+-- Updated old documentation. - Re-write
+
+- Updated some documentation.
 
 -- Disabled object definitions which relate to SPSC queues (to be re-enabled later?). - Add in this version
 
@@ -457,6 +463,10 @@ commit f932ff63de59b9cc1fda4533779641ccbbf04819
     
 WIP
 
+commit d94ec1a0ebfea894db715af284b1771257937a24
+
+-- Updated the readme - Redundant
+
 
 
 ### Deprecated
@@ -474,6 +484,12 @@ commit fc07bc5b482ca9f35b2048bda9a944da47be4ccd
 - Removed the BoundedSendErrorType struct.
 
 -- Removed the JoinHandlesPoller struct form the tokio_helpers sub-module. - Added in this version
+
+commit d94ec1a0ebfea894db715af284b1771257937a24
+
+-- Removed the all-features field in the package.metadata.docs.rs section of the cargo file. - Which cargo file?
+
+- Removed the all-features field in the package.metadata.docs.rs section of the Cargo.toml file.
 
 
 
@@ -601,14 +617,6 @@ commit fc07bc5b482ca9f35b2048bda9a944da47be4ccd
 
 - Updated the documentation
 
-- Updated the readme (Redundant)
-
-- Updated some documentation (Redundant)
-
-- Updated the readme (Redundant)
-
-- Updated some documentation (Redundant)
-
 
 
 ### Removed
@@ -620,6 +628,8 @@ commit fc07bc5b482ca9f35b2048bda9a944da47be4ccd
 ### Fixed
 
 - Fixed the feature attribute on the std module.
+
+
 
 </br>
 
