@@ -328,7 +328,7 @@ Date:   Tue Dec 23 15:36:06 2025 +1300
     
     - Continued work on the WakerPermitQueue.
 
-commit 3b0b40a4080860ccacac0e987e071a5b44aa4ed1
+commit 3b0b40a4080860ccacac0e987e071a5b44aa4ed1 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Fri Dec 5 19:58:18 2025 +1300
 
@@ -340,19 +340,19 @@ Date:   Fri Dec 5 19:58:18 2025 +1300
     
     - Continued work on the WakerPermitQueue.
 
-commit 76e8aa26c456002ed1eeb2c35ae74f77b018759f
+commit 76e8aa26c456002ed1eeb2c35ae74f77b018759f -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Thu Dec 4 15:50:28 2025 +1300
 
     Added the array_queue and the seg_queue sub-modules to crossbeam/mpmc. These modules each contain channel, io_channels, receiver and sender sub-modules.
 
-commit 4582aa5e38e93091d096d5a3bbf813a6a16e3357
+commit 4582aa5e38e93091d096d5a3bbf813a6a16e3357 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Wed Dec 3 16:53:22 2025 +1300
 
     Continued working on the WakerPermitQueue.
 
-commit 1c3a9f2b453f310dc4b8037b0099b959ede943d4
+commit 1c3a9f2b453f310dc4b8037b0099b959ede943d4 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Tue Dec 2 15:06:56 2025 +1300
 
@@ -364,7 +364,7 @@ Date:   Mon Dec 1 15:40:01 2025 +1300
 
     Continued working on the WakerPermitQueue.
 
-commit 3c4046b64161ae52f99502abf29d2b4a210bcc0e
+commit 3c4046b64161ae52f99502abf29d2b4a210bcc0e -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Fri Nov 21 20:07:21 2025 +1300
 
@@ -374,19 +374,19 @@ Date:   Fri Nov 21 20:07:21 2025 +1300
     
     - Added WakerPermitQueue to the scc module.
 
-commit f029c08f83683c3f965dd9ced5503adeb76afcc8
+commit f029c08f83683c3f965dd9ced5503adeb76afcc8 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Fri Nov 21 15:58:52 2025 +1300
 
     - Added DropWaker
 
-commit 611223361fab754b8e5d0431afe81c7b22977246
+commit 611223361fab754b8e5d0431afe81c7b22977246 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Thu Nov 20 12:36:46 2025 +1300
 
     Renamed LimitedNotifierInternals, LimitedNotifier and LimitedNotifierClosedError to WakerPermitQueueInternals, WakerPermitQueue and WakerPermitQueueClosedError respectively.
 
-commit 2f15c2b6694543f368c5c53012ad2a0eeae89a79
+commit 2f15c2b6694543f368c5c53012ad2a0eeae89a79 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Wed Nov 19 13:49:37 2025 +1300
 
@@ -406,7 +406,7 @@ Date:   Thu Nov 13 19:10:15 2025 +1300
     
     WIP
 
-commit 14dfa158acd50be7a1d835ebc867b89c32e56793
+commit 14dfa158acd50be7a1d835ebc867b89c32e56793 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Thu Nov 13 17:18:41 2025 +1300
 
@@ -416,7 +416,7 @@ Date:   Thu Nov 13 17:18:41 2025 +1300
     
     WIP
 
-commit 904dc70580e9f3cfdc58abc5ed41ae45bd7d4b3c
+commit 904dc70580e9f3cfdc58abc5ed41ae45bd7d4b3c -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Wed Nov 12 16:06:52 2025 +1300
 

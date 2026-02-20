@@ -81,7 +81,7 @@ commit 214194063af027da13472321a3c02f9dd1821063
 
 -- Added IOClient and IOServer structs and io_channels and io_channel_both to the crossbeam::mpmc::array_queue::io_channel module. - Re-write
 
-- Added IOClient and IOServer structs and io_channels and io_channel_both to the crossbeam_queue::mpmc::array_queue::io_channel module.
+- Added IOClient and IOServer structs as well as io_channels and io_channel_both functions to the crossbeam_queue::mpmc::array_queue::io_channel module.
 
 -- Added a crossbeam::mpmc::array_queue::Receiver. - Re-write
 
@@ -166,6 +166,68 @@ commit a49851a5a86814ec9a930883945ec4110b8c2a48
 commit 3de221f9a304b6d8b81c692ff960c7aae1b1c446
 
 - Added SingleWaker and SingleWakerError. - Disabled
+
+commit 3b0b40a4080860ccacac0e987e071a5b44aa4ed1
+
+- Added the ChannelSharedDetails struct.
+
+-- Added the seq_queue sub module under crossbeam/mpmc. - Re-write
+
+- Added the seq_queue sub-module under crossbeam_queue::mpmc.
+
+-- Added the Receiver and Sender structs to the crossbeam/mpmc/seg_queue module. - Re-write
+
+- Added Receiver and Sender structs to the crossbeam_queue::mpmc::seg_queue module.
+
+commit 76e8aa26c456002ed1eeb2c35ae74f77b018759f
+
+-- Added the array_queue and the seg_queue sub-modules to crossbeam/mpmc. These modules each contain channel, io_channels, receiver and sender sub-modules. - Re-Write
+
+- Added the array_queue and the seg_queue sub-modules to crossbeam::mpmc.
+
+commit 3c4046b64161ae52f99502abf29d2b4a210bcc0e
+
+- Added the scc optional dependency.
+
+- Added the scc module.
+
+-- Added WakerPermitQueue to the scc module. - Disabled
+
+commit f029c08f83683c3f965dd9ced5503adeb76afcc8
+
+-- Added DropWaker - Removed
+
+commit 611223361fab754b8e5d0431afe81c7b22977246
+
+-- Renamed LimitedNotifierInternals, LimitedNotifier and LimitedNotifierClosedError to WakerPermitQueueInternals, WakerPermitQueue and WakerPermitQueueClosedError respectively. - Re-written as an added message RE: 2df961f5befdcdfcf19a794355a2058152bdef05.
+
+- Added WakerPermitQueueInternals, WakerPermitQueue and WakerPermitQueueClosedError structs.
+
+commit 14dfa158acd50be7a1d835ebc867b89c32e56793
+
+- Added the inc_dec dependency.
+
+-- Added QueuedWaker, WakerQueueInternals and continued work on the WakerQueue. - Re-write
+
+--- WakerQueueInternals - disabled
+
+- Added the QueuedWaker struct.
+
+WIP
+
+commit 904dc70580e9f3cfdc58abc5ed41ae45bd7d4b3c
+
+-- Added WakerQueue, WakerQueueWakeMeClosedError and WakerQueueWakeMe. - Disabled and/or removed See: 87bcce1c8666fb1d9d0c2ed94a42fb2203cce8a3.
+
+commit 2df961f5befdcdfcf19a794355a2058152bdef05
+
+- Added the paste dependency.
+
+- Added the accessorise dependency.
+
+-- Added the LimitedNotifier, LimitedNotifierClosedError and LimitedNotifierAquire structs. - Renamed see: 611223361fab754b8e5d0431afe81c7b22977246
+
+
 
 
 
@@ -360,6 +422,40 @@ commit 1e30149593ea4a9ac3944095122361f3a5cf8d24
 commit 3de221f9a304b6d8b81c692ff960c7aae1b1c446
 
 -- Continued work on the WakerPermitQueue.
+
+commit 3b0b40a4080860ccacac0e987e071a5b44aa4ed1
+
+-- Continued work on the WakerPermitQueue.
+
+commit 4582aa5e38e93091d096d5a3bbf813a6a16e3357
+
+-- Continued working on the WakerPermitQueue.
+
+commit 1c3a9f2b453f310dc4b8037b0099b959ede943d4
+
+-- Continued working on the WakerPermitQueue.
+
+commit f0120635aa9b4e48eb909e5680e96a3fcc53742b
+
+-- Continued working on the WakerPermitQueue.
+
+commit 611223361fab754b8e5d0431afe81c7b22977246
+
+-- Renamed LimitedNotifierInternals, LimitedNotifier and LimitedNotifierClosedError to WakerPermitQueueInternals, WakerPermitQueue and WakerPermitQueueClosedError respectively.
+
+commit 2f15c2b6694543f368c5c53012ad2a0eeae89a79
+
+-- Worked on updating LimitedNotifier to be more like QueuedWaker.
+
+commit f20668b531c8d49d384eb406cdeded50479b609a
+
+-- Continued work on the WakerQueue.
+
+commit f932ff63de59b9cc1fda4533779641ccbbf04819
+
+-- Continued work on the WakerQueue.
+    
+WIP
 
 
 
