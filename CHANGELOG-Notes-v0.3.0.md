@@ -392,13 +392,13 @@ Date:   Wed Nov 19 13:49:37 2025 +1300
 
     Worked on updating LimitedNotifier to be more like QueuedWaker.
 
-commit f20668b531c8d49d384eb406cdeded50479b609a
+commit f20668b531c8d49d384eb406cdeded50479b609a -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Tue Nov 18 16:22:39 2025 +1300
 
     Continued work on the WakerQueue.
 
-commit f932ff63de59b9cc1fda4533779641ccbbf04819
+commit f932ff63de59b9cc1fda4533779641ccbbf04819 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Thu Nov 13 19:10:15 2025 +1300
 
@@ -422,7 +422,7 @@ Date:   Wed Nov 12 16:06:52 2025 +1300
 
     - Added WakerQueue, WakerQueueWakeMeClosedError and WakerQueueWakeMe.
 
-commit 2df961f5befdcdfcf19a794355a2058152bdef05
+commit 2df961f5befdcdfcf19a794355a2058152bdef05 -
 Author: Paul Saunders <coruscateor@users.noreply.github.com>
 Date:   Tue Nov 4 19:22:56 2025 +1300
 
