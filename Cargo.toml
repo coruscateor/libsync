@@ -1,6 +1,6 @@
 [package]
 name = "libsync"
-version = "0.3.0-beta"
+version = "0.3.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "A channels library"
