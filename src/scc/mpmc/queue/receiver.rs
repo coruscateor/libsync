@@ -1,12 +1,19 @@
 use std::sync::{Arc, Weak};
+#[cfg(feature="tokio")]
+use std::time::Duration;
 
 use scc::{Queue, Shared, LinkedEntry};
 
+#[cfg(feature="tokio")]
+use crate::TimeoutReceiveError;
 use crate::{ChannelSharedDetails, ReceiveError, ReceiveResult, SendResult, WakerPermitQueue};
 
 use delegate::delegate;
 
 use std::fmt::Debug;
+
+#[cfg(feature="tokio")]
+use tokio::time::{Instant, timeout, timeout_at};
 
 pub struct Receiver<T>
 {
@@ -149,6 +156,122 @@ impl<T> Receiver<T>
 
     }
 
+    #[cfg(feature="tokio")]
+    pub async fn recv_timeout_tokio(&self, duration: Duration) -> Result<Shared<LinkedEntry<T>>, TimeoutReceiveError>
+    {
+
+        let res = self.shared_details.notifier_ref().decrement_permits_or_wait();
+
+        let timeout_res = timeout(duration, res).await;
+
+        match timeout_res
+        {
+
+            Ok(_res) =>
+            {
+
+                match self.shared_details.message_queue_ref().pop()
+                {
+
+                    Some(val) =>
+                    {
+
+                        Ok(val)
+
+                    }
+                    None =>
+                    {
+
+                        if self.is_closed()
+                        {
+
+                            return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed));
+
+                        }
+
+                        Err(TimeoutReceiveError::TimedOut)
+
+                    }
+
+                }
+
+            }
+            Err(_) =>
+            {
+
+                if self.is_closed()
+                {
+
+                    return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed));
+
+                }
+
+                Err(TimeoutReceiveError::TimedOut)
+
+            }
+
+        }
+
+    }
+
+    #[cfg(feature="tokio")]
+    pub async fn recv_timeout_at_tokio(&self, deadline: Instant) -> Result<Shared<LinkedEntry<T>>, TimeoutReceiveError>
+    {
+
+        let res = self.shared_details.notifier_ref().decrement_permits_or_wait();
+
+        let timeout_res = timeout_at(deadline, res).await;
+
+        match timeout_res
+        {
+
+            Ok(_res) =>
+            {
+
+                match self.shared_details.message_queue_ref().pop()
+                {
+
+                    Some(val) =>
+                    {
+
+                        Ok(val)
+
+                    }
+                    None =>
+                    {
+
+                        if self.is_closed()
+                        {
+
+                            return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed));
+
+                        }
+
+                        Err(TimeoutReceiveError::TimedOut)
+
+                    }
+
+                }
+
+            }
+            Err(_) =>
+            {
+
+                if self.is_closed()
+                {
+
+                    return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed));
+
+                }
+
+                Err(TimeoutReceiveError::TimedOut)
+
+            }
+
+        }
+
+    }
+
     delegate!
     {
 
@@ -211,7 +334,12 @@ impl<T> Receiver<T>
 
     }
 
-    //recv_or_timeout
+    pub fn is_closed(&self) -> bool
+    {
+
+        self.senders_strong_count() == 0
+
+    }
 
 }
 

@@ -1,12 +1,15 @@
-use std::{collections::btree_map::Values, default, sync::{Arc, Weak}};
+use std::{collections::btree_map::Values, default, sync::{Arc, Weak}, time::Duration};
 
 use crossbeam_queue::ArrayQueue;
 
-use crate::{BoundedSendError, ChannelSharedDetails, LimitedWakerPermitQueue, SendResult};
+use crate::{BoundedSendError, ChannelSharedDetails, LimitedWakerPermitQueue, SendResult, TimeoutBoundedSendError};
 
 use delegate::delegate;
 
 use std::fmt::Debug;
+
+#[cfg(feature="tokio")]
+use tokio::time::{Instant, timeout, timeout_at};
 
 pub struct Sender<T>
 {
@@ -154,6 +157,122 @@ impl<T> Sender<T>
             {
 
                 Err(value)
+
+            }
+
+        }
+
+    }
+
+    #[cfg(feature="tokio")]
+    pub async fn send_timeout_tokio(&self, value: T, duration: Duration) -> Result<(), TimeoutBoundedSendError<T>>
+    {
+
+        let res = self.shared_details.notifier_ref().increment_permits_or_wait();
+
+        let timeout_res = timeout(duration, res).await;
+
+        match timeout_res
+        {
+
+            Ok(_res) =>
+            {
+
+                match self.shared_details.message_queue_ref().push(value)
+                {
+
+                    Ok(_) =>
+                    {
+
+                        Ok(())
+
+                    }
+                    Err(value) =>
+                    {
+
+                        if self.is_closed()
+                        {
+
+                            return Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Closed(value)));
+
+                        }
+
+                        Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Full(value)))
+
+                    }
+
+                }
+
+            }
+            Err(_) =>
+            {
+
+                if self.is_closed()
+                {
+
+                    return Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Closed(value)));
+
+                }
+
+                Err(TimeoutBoundedSendError::TimedOut(value))
+
+            }
+
+        }
+
+    }
+
+    #[cfg(feature="tokio")]
+    pub async fn send_timeout_at_tokio(&self, value: T, deadline: Instant) -> Result<(), TimeoutBoundedSendError<T>>
+    {
+
+        let res = self.shared_details.notifier_ref().increment_permits_or_wait();
+
+        let timeout_res = timeout_at(deadline, res).await;
+
+        match timeout_res
+        {
+
+            Ok(_res) =>
+            {
+
+                match self.shared_details.message_queue_ref().push(value)
+                {
+
+                    Ok(_) =>
+                    {
+
+                        Ok(())
+
+                    }
+                    Err(value) =>
+                    {
+
+                        if self.is_closed()
+                        {
+
+                            return Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Closed(value)));
+
+                        }
+
+                        Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Full(value)))
+
+                    }
+
+                }
+                
+            }
+            Err(_) =>
+            {
+
+                if self.is_closed()
+                {
+
+                    return Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Closed(value)));
+
+                }
+
+                Err(TimeoutBoundedSendError::TimedOut(value))
 
             }
 

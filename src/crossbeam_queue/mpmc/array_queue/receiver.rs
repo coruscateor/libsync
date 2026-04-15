@@ -1,8 +1,11 @@
-use std::sync::{Arc, Weak};
+use std::{sync::{Arc, Weak}, time::Duration};
 
 use crossbeam_queue::ArrayQueue;
 
-use crate::{ChannelSharedDetails, ReceiveError, ReceiveResult, SendResult, LimitedWakerPermitQueue};
+#[cfg(feature="tokio")]
+use tokio::time::{Instant, timeout, timeout_at};
+
+use crate::{ChannelSharedDetails, LimitedWakerPermitQueue, ReceiveError, ReceiveResult, SendResult, TimeoutReceiveError};
 
 use delegate::delegate;
 
@@ -156,6 +159,122 @@ impl<T> Receiver<T>
         Err(())
 
         //Err(ReceiveError::Empty)
+
+    }
+
+    #[cfg(feature="tokio")]
+    pub async fn recv_timeout_tokio(&self, duration: Duration) -> Result<T, TimeoutReceiveError>
+    {
+
+        let res = self.shared_details.notifier_ref().decrement_permits_or_wait();
+
+        let timeout_res = timeout(duration, res).await;
+
+        match timeout_res
+        {
+
+            Ok(_res) =>
+            {
+
+                match self.shared_details.message_queue_ref().pop()
+                {
+
+                    Some(val) =>
+                    {
+
+                        Ok(val)
+
+                    }
+                    None =>
+                    {
+
+                        if self.is_closed()
+                        {
+
+                            return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed));
+
+                        }
+
+                        Err(TimeoutReceiveError::TimedOut)
+
+                    }
+
+                }
+
+            }
+            Err(_) =>
+            {
+
+                if self.is_closed()
+                {
+
+                    return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed));
+
+                }
+
+                Err(TimeoutReceiveError::TimedOut)
+
+            }
+
+        }
+
+    }
+
+    #[cfg(feature="tokio")]
+    pub async fn recv_timeout_at_tokio(&self, deadline: Instant) -> Result<T, TimeoutReceiveError>
+    {
+
+        let res = self.shared_details.notifier_ref().decrement_permits_or_wait();
+
+        let timeout_res = timeout_at(deadline, res).await;
+
+        match timeout_res
+        {
+
+            Ok(_res) =>
+            {
+
+                match self.shared_details.message_queue_ref().pop()
+                {
+
+                    Some(val) =>
+                    {
+
+                        Ok(val)
+
+                    }
+                    None =>
+                    {
+
+                        if self.is_closed()
+                        {
+
+                            return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed));
+
+                        }
+
+                        Err(TimeoutReceiveError::TimedOut)
+
+                    }
+
+                }
+
+            }
+            Err(_) =>
+            {
+
+                if self.is_closed()
+                {
+
+                    return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed));
+
+                }
+
+                Err(TimeoutReceiveError::TimedOut)
+
+            }
+
+        }
 
     }
 
