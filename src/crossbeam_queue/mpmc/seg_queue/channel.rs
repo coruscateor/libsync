@@ -19,7 +19,7 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>)
 
     let weak_receivers_count = Arc::downgrade(&receivers_count);
 
-    let sender = Sender::new(&shared_details, senders_count, weak_receivers_count);
+    let sender = Sender::new(shared_details.clone(), senders_count, weak_receivers_count);
 
     let receiver = Receiver::new(shared_details, weak_senders_count, receivers_count);
 

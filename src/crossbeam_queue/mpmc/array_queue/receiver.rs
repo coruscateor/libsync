@@ -5,7 +5,7 @@ use crossbeam_queue::ArrayQueue;
 #[cfg(feature="tokio")]
 use tokio::time::{Instant, timeout, timeout_at};
 
-use crate::{ChannelSharedDetails, LimitedWakerPermitQueue, ReceiveError, ReceiveResult, SendResult, TimeoutReceiveError};
+use crate::{ChannelSharedDetails, LimitedWakerPermitQueue, ReceiveError, ReceiveResult, SendResult, TimeoutReceiveError, crossbeam_queue::mpmc::array_queue::WeakReceiver};
 
 use delegate::delegate;
 
@@ -363,7 +363,12 @@ impl<T> Receiver<T>
 
     }
 
-    //recv_or_timeout
+    pub fn downgrade(&self) -> WeakReceiver<T>
+    {
+
+        WeakReceiver::new(&self.shared_details, &self.senders_count, &self.receivers_count)
+
+    }
 
 }
 

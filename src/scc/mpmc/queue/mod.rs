@@ -16,3 +16,10 @@ pub use channel::*;
 
 pub mod io_channels;
 
+mod weak_sender;
+
+pub use weak_sender::*;
+
+mod weak_receiver;
+
+pub use weak_receiver::*;

@@ -11,6 +11,8 @@ use delegate::delegate;
 
 use std::fmt::Debug;
 
+use super::WeakReceiver;
+
 pub struct Receiver<T>
 {
 
@@ -332,8 +334,12 @@ impl<T> Receiver<T>
 
     }
 
+    pub fn downgrade(&self) -> WeakReceiver<T>
+    {
 
-    //recv_or_timeout
+        WeakReceiver::new(&self.shared_details, &self.senders_count, &self.receivers_count)
+
+    }
 
 }
 

@@ -2,7 +2,7 @@ use std::{collections::btree_map::Values, default, sync::{Arc, Weak}, time::Dura
 
 use crossbeam_queue::ArrayQueue;
 
-use crate::{BoundedSendError, ChannelSharedDetails, LimitedWakerPermitQueue, SendResult, TimeoutBoundedSendError};
+use crate::{BoundedSendError, ChannelSharedDetails, LimitedWakerPermitQueue, SendResult, TimeoutBoundedSendError, crossbeam_queue::mpmc::array_queue::WeakSender};
 
 use delegate::delegate;
 
@@ -26,13 +26,13 @@ impl<T> Sender<T>
     ///
     /// Create a new channel Sender object.
     /// 
-    pub fn new(shared_details: &Arc<ChannelSharedDetails<ArrayQueue<T>, LimitedWakerPermitQueue>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
+    pub fn new(shared_details: Arc<ChannelSharedDetails<ArrayQueue<T>, LimitedWakerPermitQueue>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
     {
 
         Self
         {
 
-            shared_details: shared_details.clone(),
+            shared_details, //: shared_details.clone(),
             senders_count, //: senders_count.clone(),
             receivers_count
 
@@ -362,6 +362,13 @@ impl<T> Sender<T>
         let queue_ref = self.shared_details.message_queue_ref();
 
         queue_ref.capacity() - queue_ref.len()
+
+    }
+
+    pub fn downgrade(&self) -> WeakSender<T>
+    {
+
+        WeakSender::new(&self.shared_details, &self.senders_count, &self.receivers_count)
 
     }
 

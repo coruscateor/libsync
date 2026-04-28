@@ -15,6 +15,8 @@ use std::fmt::Debug;
 #[cfg(feature="tokio")]
 use tokio::time::{Instant, timeout, timeout_at};
 
+use super::WeakReceiver;
+
 pub struct Receiver<T>
 {
 
@@ -338,6 +340,13 @@ impl<T> Receiver<T>
     {
 
         self.senders_strong_count() == 0
+
+    }
+
+    pub fn downgrade(&self) -> WeakReceiver<T>
+    {
+
+        WeakReceiver::new(&self.shared_details, &self.senders_count, &self.receivers_count)
 
     }
 

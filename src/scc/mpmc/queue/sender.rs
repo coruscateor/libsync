@@ -8,6 +8,8 @@ use delegate::delegate;
 
 use std::fmt::Debug;
 
+use super::WeakSender;
+
 pub struct Sender<T>
 {
 
@@ -23,7 +25,7 @@ impl<T> Sender<T>
     ///
     /// Create a new channel Sender object.
     /// 
-    pub fn new(shared_details: &Arc<ChannelSharedDetails<Queue<T>, WakerPermitQueue>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
+    pub fn new(shared_details: Arc<ChannelSharedDetails<Queue<T>, WakerPermitQueue>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
     {
 
         Self
@@ -154,6 +156,12 @@ impl<T> Sender<T>
 
     }
 
+    pub fn downgrade(&self) -> WeakSender<T>
+    {
+
+        WeakSender::new(&self.shared_details, &self.senders_count, &self.receivers_count)
+
+    }
 
 }
 
