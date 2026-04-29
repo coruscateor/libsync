@@ -132,19 +132,10 @@ pub type PreferredMutexType<T> = parking_lot::Mutex<T>;
 #[cfg(feature="use_parking_lot_fair_sync")]
 pub type PreferredMutexType<T> = parking_lot::FairMutex<T>;
 
-/*
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+#[cfg(feature="use_std_sync")]
+pub type PreferredRwLockType<T> = ::std::sync::RwLock<T>;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[cfg(feature="use_parking_lot_sync")]
+pub type PreferredRwLockType<T> = parking_lot::RwLock<T>;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
-*/
+pub mod shared_reading_and_writing;
