@@ -8,6 +8,8 @@ use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
 
 use crate::PreferredRwLockType;
 
+use super::Reader;
+
 pub struct SharedReader<T>
 {
 
@@ -18,19 +20,7 @@ pub struct SharedReader<T>
 impl<T> SharedReader<T>
 {
 
-    pub fn new(object: T) -> Self
-    {
-
-        Self
-        {
-
-            rw_lock: Arc::new(PreferredRwLockType::new(object))
-
-        }
-
-    }
-
-    pub fn from_rw_lock(rw_lock: Arc<PreferredRwLockType<T>>) -> Self
+    pub fn new(rw_lock: Arc<PreferredRwLockType<T>>) -> Self
     {
 
         Self
@@ -71,18 +61,26 @@ impl<T> SharedReader<T>
     }
 
     #[cfg(feature="use_std_sync")]
-    pub fn read(&self) -> RwLockReadGuard<'_, T>
+    pub fn read(&self) -> Reader<'_, T>
     {
         
-        self.read_get_rg()
+        Reader::new(self.read_get_rg())
 
     }
 
     #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-    pub fn read(&self) -> RwLockReadGuard<'_, T>
+    pub fn read(&self) -> Reader<'_, T>
     {
 
-        self.rw_lock.read()
+        Reader::new(self.rw_lock.read())
+
+    }
+
+    pub fn read_clone(&self) -> T
+        where T: Clone
+    {
+
+        (*self.read()).clone()
 
     }
 

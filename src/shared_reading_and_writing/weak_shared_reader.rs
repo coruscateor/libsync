@@ -35,7 +35,7 @@ impl<T> WeakSharedReader<T>
         if let Some(rw_lock) = self.weak_rw_lock.upgrade()
         {
 
-            Some(SharedReader::from_rw_lock(rw_lock))
+            Some(SharedReader::new(rw_lock))
 
         }
         else

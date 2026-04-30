@@ -8,7 +8,8 @@ use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
 
 use crate::PreferredRwLockType;
 
-use super::SharedReader;
+use super::{SharedReader, Reader, Writer};
+
 
 pub struct SharedWriter<T>
 {
@@ -73,18 +74,18 @@ impl<T> SharedWriter<T>
     }
 
     #[cfg(feature="use_std_sync")]
-    pub fn read(&self) -> RwLockReadGuard<'_, T>
+    pub fn read(&self) -> Reader<'_, T>
     {
         
-        self.read_get_rg()
+        Reader::new(self.read_get_rg())
 
     }
 
     #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-    pub fn read(&self) -> RwLockReadGuard<'_, T>
+    pub fn read(&self) -> Reader<'_, T>
     {
 
-        self.rw_lock.read()
+        Reader::new(self.rw_lock.read())
 
     }
 
@@ -125,18 +126,33 @@ impl<T> SharedWriter<T>
     }
     
     #[cfg(feature="use_std_sync")]
-    pub fn write(&self) -> RwLockWriteGuard<'_, T>
+    pub fn write(&self) -> Writer<'_, T>
     {
 
-        self.write_get_wg()
+        Writer::new(self.write_get_wg())
 
     }
 
     #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-    pub fn write(&self) -> RwLockWriteGuard<'_, T>
+    pub fn write(&self) -> Writer<'_, T>
     {
 
-        self.rw_lock.write()
+        Writer::new(self.rw_lock.write())
+
+    }
+
+    pub fn write_clone(&self, item: &T)
+        where T: Clone
+    {
+
+        (*self.write()) = (*item).clone();
+
+    }
+
+    pub fn write_move(&self, item: T)
+    {
+
+        (*self.write()) = item;
 
     }
 
@@ -186,18 +202,40 @@ impl<T> SharedWriter<T>
     }
 
     #[cfg(feature="use_std_sync")]
-    pub fn try_read(&self) -> Option<RwLockReadGuard<'_, T>>
+    pub fn try_read(&self) -> Option<Reader<'_, T>>
     {
 
-        self.try_read_get_rg()
+        if let Some(read_guard) = self.try_read_get_rg()
+        {
+
+            Some(Reader::new(read_guard))
+
+        }
+        else
+        {
+
+            None
+            
+        }
 
     }
 
     #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-    pub fn try_read(&self) -> Option<RwLockReadGuard<'_, T>>
+    pub fn try_read(&self) -> Option<Reader<'_, T>>
     {
 
-        self.rw_lock.try_read()
+        if let Some(read_guard) = self.rw_lock.try_read()
+        {
+
+            Some(Reader::new(read_guard))
+
+        }
+        else
+        {
+
+            None
+            
+        }
 
     }
 
@@ -247,18 +285,40 @@ impl<T> SharedWriter<T>
     }
 
     #[cfg(feature="use_std_sync")]
-    pub fn try_write(&self) -> Option<RwLockWriteGuard<'_, T>>
+    pub fn try_write(&self) -> Option<Writer<'_, T>>
     {
 
-        self.try_write_get_wg()
+        if let Some(write_guard) = self.try_write_get_wg()
+        {
+
+            Some(Writer::new(write_guard))
+
+        }
+        else
+        {
+            
+            None
+
+        }
 
     }
 
     #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-    pub fn try_write(&self) -> Option<RwLockWriteGuard<'_, T>>
+    pub fn try_write(&self) -> Option<Writer<'_, T>>
     {
 
-        self.rw_lock.try_write()
+        if let Some(write_guard) = self.rw_lock.try_write()
+        {
+
+            Some(Writer::new(write_guard))
+
+        }
+        else
+        {
+            
+            None
+
+        }
 
     }
 
@@ -317,7 +377,7 @@ impl<T> SharedWriter<T>
     pub fn get_shared_reader(&self) -> SharedReader<T>
     {
 
-        SharedReader::from_rw_lock(self.rw_lock.clone())
+        SharedReader::new(self.rw_lock.clone())
 
     }
 

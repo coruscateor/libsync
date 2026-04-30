@@ -14,3 +14,11 @@ pub use weak_shared_reader::*;
 mod weak_shared_writer;
 
 pub use weak_shared_writer::*;
+
+mod reader;
+
+pub use reader::*;
+
+mod writer;
+
+pub use writer::*;
