@@ -42,11 +42,9 @@ mod waker_permit_queue_tests;
 //#[cfg(test)]
 //pub use waker_permit_queue_tests::*;
 
-//Disabled
+mod waker_queue;
 
-//mod waker_queue;
-
-//pub use waker_queue::*;
+pub use waker_queue::*;
 
 #[cfg(feature="scc")]
 pub mod scc;

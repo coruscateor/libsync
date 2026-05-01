@@ -4,6 +4,7 @@ use std::fmt::Display;
 
 use std::future::Future;
 
+#[cfg(feature="use_std_sync")]
 use std::sync::{Mutex, MutexGuard};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -18,13 +19,14 @@ use accessorise::impl_get_val;
 
 use inc_dec::IntIncDecSelf;
 
+use crate::QueuedWaker;
+
 pub struct WakerQueueInternals
 {
 
     pub queue: VecDeque<QueuedWaker>,
-    pub id: usize,
-    //pub id_states: HashMap<usize, bool>
-    pub active_ids: HashSet<usize>
+    pub latest_id: usize,
+    pub active_ids: HashMap<usize, bool>
 
 }
 
@@ -38,9 +40,8 @@ impl WakerQueueInternals
         {
 
             queue: VecDeque::new(),
-            id: 0,
-            //id_states: HashMap::new()
-            active_ids: HashSet::new()
+            latest_id: 0,
+            active_ids: HashMap::new()
 
         }
 
@@ -53,9 +54,8 @@ impl WakerQueueInternals
         {
 
             queue: VecDeque::with_capacity(capacity),
-            id: 0,
-            //id_states: HashMap::with_capacity(capacity)
-            active_ids: HashSet::with_capacity(capacity)
+            latest_id: 0,
+            active_ids: HashMap::with_capacity(capacity)
 
         }
 
@@ -97,7 +97,8 @@ impl WakerQueue
 
     }
 
-    fn clear_poison_get_mg(&self) -> MutexGuard<'_, Option<WakerQueueInternals>>
+    #[cfg(feature="use_std_sync")]
+    fn get_mg(&self) -> MutexGuard<'_, Option<WakerQueueInternals>>
     {
 
         let lock_result = self.waker_queue_internals.lock();
@@ -124,96 +125,78 @@ impl WakerQueue
 
     }
 
-    pub fn when_open_ref<T, F>(&self, func: F) -> Option<T>
-        where F: Fn(&WakerQueueInternals) -> T
+    pub fn active_ids_len(&self) -> Option<usize>
     {
 
-        let mg = self.clear_poison_get_mg();
+        #[cfg(feature="use_std_sync")]
+        let mut mg = self.get_mg();
 
-        match &*mg
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.internal_mut_state.lock();
+
+        if let Some(val) = &mut *mg
         {
 
-            Some(val) =>
-            {
+            return Some(val.active_ids.len());
 
-                Some(func(val))
+        } 
 
-            }
-            None => None
-            
-        }
+        None
 
     }
 
-    pub fn when_open_mut<T, F>(&self, func: F) -> Option<T>
-        where F: Fn(&mut WakerQueueInternals) -> T
+    pub fn active_ids_capacity(&self) -> Option<usize>
     {
 
-        let mut mg = self.clear_poison_get_mg();
+        #[cfg(feature="use_std_sync")]
+        let mut mg = self.get_mg();
 
-        match &mut *mg
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.internal_mut_state.lock();
+
+        if let Some(val) = &mut *mg
         {
 
-            Some(val) =>
-            {
+            return Some(val.active_ids.capacity());
 
-                Some(func(val))
+        } 
 
-            }
-            None => None
-            
-        }
+        None
 
     }
 
-    pub fn len(&self) -> Option<usize>
+    pub fn is_closed(&self) -> bool
     {
 
-        self.when_open_ref(|internals|
-        {
+        #[cfg(feature="use_std_sync")]
+        let mg = self.get_mg();
 
-            internals.queue.len()
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mg = self.internal_mut_state.lock();
 
-        })
-
-        /*
-            let mg = self.clear_poison_get_mg();
-
-            match &*mg
-            {
-
-                Some(val) =>
-                {
-
-                    Some(val.len())
-
-                }
-                None => None
-
-            }
-        */
+        mg.is_none()
 
     }
 
-    pub fn capacity(&self) -> Option<usize>
+    pub fn wake_me<'a>(&'a self) -> WakerQueueWakeMe<'a>
     {
 
-        self.when_open_ref(|internals| {
-
-            internals.queue.capacity()
-
-        })
+        WakerQueueWakeMe::new(self)
 
     }
 
-    pub fn wake_one(&self) -> bool
+    pub fn notify_one(&self) -> Option<bool>
     {
 
         let waker;
 
         {
 
-            let mut mg = self.clear_poison_get_mg();
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.internal_mut_state.lock();
 
             match &mut *mg
             {
@@ -224,7 +207,12 @@ impl WakerQueue
                     if let Some(front_waker) = val.queue.pop_front()
                     {
 
-                        val.active_ids.remove(&front_waker.id);
+                        if let Some(shouldve_awoken) = val.active_ids.get_mut(&front_waker.id())
+                        {
+
+                            *shouldve_awoken = true;
+
+                        }
 
                         waker = front_waker;
 
@@ -232,49 +220,15 @@ impl WakerQueue
                     else
                     {
 
-                        return false;
+                        return Some(false);
                         
                     }
-
-                    /*
-                    if val.active_ids.remove(&waker.id)
-                    {
-
-                        waker.wake();
-
-                        return true;
-
-                    }
-                    else
-                    {
-
-                        //Could panic here in debug maybe.
-
-                        let mut inserted = false;
-
-                        while !inserted
-                        {
-
-                            let new_id = val.id.wpp();
-
-                            waker.id = new_id;
-
-                            inserted = val.active_ids.insert(new_id);
-                            
-                        }
-
-                        val.queue.push_back(waker);
-
-                    }
-                    */
-
-                    //val.id_states.entry(key)
 
                 }
                 None =>
                 {
                     
-                    return false;
+                   return None;
 
                 }
 
@@ -284,33 +238,202 @@ impl WakerQueue
 
         waker.wake();
 
-        true
+        Some(true)
 
     }
 
-    pub fn wake_me<'a>(&'a self) -> WakerQueueWakeMe<'a>
+    pub fn notify_last(&self) -> Option<bool>
     {
 
-        WakerQueueWakeMe::new(self)
+        let waker;
 
-        /*
-        let mg = self.clear_poison_get_mg();
+        {
 
-        match &*mg
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.internal_mut_state.lock();
+
+            match &mut *mg
+            {
+
+                Some(val) =>
+                {
+
+                    if let Some(back_waker) = val.queue.pop_back()
+                    {
+
+                        if let Some(shouldve_awoken) = val.active_ids.get_mut(&back_waker.id())
+                        {
+
+                            *shouldve_awoken = true;
+
+                        }
+
+                        waker = back_waker;
+
+                    }
+                    else
+                    {
+
+                        return Some(false);
+                        
+                    }
+
+                }
+                None =>
+                {
+                    
+                    return None;
+
+                }
+
+            }
+
+        }
+
+        waker.wake();
+
+        Some(true)
+
+    }
+    
+    pub fn notify_waiters(&self) -> Option<usize>
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mut mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.internal_mut_state.lock();
+
+        match &mut *mg
         {
 
             Some(val) =>
             {
 
-                let new_id = val.id.wpp();
+                let res = Some(val.queue.len());
 
-                
+                while let Some(front_waker) = val.queue.pop_front()
+                {
+
+                    if let Some(shouldve_awoken) = val.active_ids.get_mut(&front_waker.id())
+                    {
+
+                        *shouldve_awoken = true;
+
+                    }
+
+                    front_waker.wake();
+
+                }
+
+                res
 
             }
-            None => None
-            
+            None =>
+            {
+                
+                None
+
+            }
+
         }
-        */
+
+    }
+
+    pub fn notify_waiters_buffered(&self, buffer: &mut VecDeque<QueuedWaker>) -> Option<usize>
+    {
+
+        buffer.clear();
+
+        let res;
+
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.internal_mut_state.lock();
+
+            match &mut *mg
+            {
+
+                Some(val) =>
+                {
+
+                    buffer.reserve(val.queue.len());
+
+                    res = Some(val.queue.len());
+
+                    while let Some(front_waker) = val.queue.pop_front()
+                    {
+
+                        if let Some(shouldve_awoken) = val.active_ids.get_mut(&front_waker.id())
+                        {
+
+                            *shouldve_awoken = true;
+
+                        }
+
+                        buffer.push_back(front_waker);
+
+                    }
+
+                }
+                None =>
+                {
+                    
+                    return None;
+
+                }
+
+            }
+
+            while let Some(front_waker) = buffer.pop_front()
+            {
+
+                front_waker.wake();
+
+            }
+
+            res
+
+        }
+
+    }
+
+    pub fn close(&self)
+    {
+
+        let opt_internals;
+
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.internal_mut_state.lock();
+
+            opt_internals = mg.take();
+
+        }
+
+        if let Some(mut internal_mut_state) = opt_internals
+        {
+
+            for item in internal_mut_state.queue.drain(..)
+            {
+
+                item.wake();
+
+            }
+
+        }
 
     }
 
@@ -368,14 +491,14 @@ pub struct WakerQueueWakeMe<'a>
 impl<'a> WakerQueueWakeMe<'a>
 {
 
-    pub fn new(waker_queue_ref: &'a WakerQueue) -> Self //, waker_id: usize) -> Self
+    pub fn new(waker_queue_ref: &'a WakerQueue) -> Self
     {
 
         Self
         {
 
             waker_queue_ref,
-            opt_waker_id: None //Some(waker_id)
+            opt_waker_id: None
 
         }
 
@@ -397,7 +520,11 @@ impl Future for WakerQueueWakeMe<'_>
             Some(id) =>
             {
 
-                let mut mg = self.waker_queue_ref.clear_poison_get_mg();
+                #[cfg(feature="use_std_sync")]
+                let mut mg = self.waker_queue_ref.get_mg();
+
+                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+                let mut mg = self.internal_mut_state.lock();
 
                 match &mut *mg
                 {
@@ -405,12 +532,29 @@ impl Future for WakerQueueWakeMe<'_>
                     Some(val) =>
                     {
 
-                        if !val.active_ids.contains(&id)
+                        if let Some(shouldve_awoken) = val.active_ids.get(&id)
                         {
 
-                            //The task has been successfully awoken.
+                            if *shouldve_awoken
+                            {
 
-                            return Poll::Ready(Ok(()));
+                                val.active_ids.remove(&id);
+
+                                return Poll::Ready(Ok(()));
+
+                            }
+                            else
+                            {
+
+                                //push my waker back into the queue.
+
+                                let queued_waker = QueuedWaker::new(cx.waker().clone(), id);
+
+                                val.queue.push_back(queued_waker);
+
+                                return Poll::Pending;
+                                
+                            }
 
                         }
 
@@ -436,9 +580,11 @@ impl Future for WakerQueueWakeMe<'_>
 
                 let mut id = 0;
 
-                //
+                #[cfg(feature="use_std_sync")]
+                let mut mg = self.waker_queue_ref.get_mg();
 
-                let mut mg = self.waker_queue_ref.clear_poison_get_mg();
+                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+                let mut mg = self.internal_mut_state.lock();
 
                 match &mut *mg
                 {
@@ -451,15 +597,21 @@ impl Future for WakerQueueWakeMe<'_>
 
                             //Find the next avalible id.
 
-                            id = val.id.wpp();
+                            id = val.latest_id.wpp();
 
-                            inserted = val.active_ids.insert(id);
+                            inserted = val.active_ids.insert(id, false).is_none();
                             
                         }
 
                         let queued_waker = QueuedWaker::new(waker, id);
 
                         val.queue.push_back(queued_waker);
+
+                        let self_mut = self.get_mut();
+
+                        //Make sure this is set.
+
+                        self_mut.opt_waker_id = Some(id);
 
                     }
                     None =>
@@ -469,20 +621,7 @@ impl Future for WakerQueueWakeMe<'_>
 
                     }
 
-                }
-
-                //
-
-                //Store the id in the future.
-
-                let self_mut = unsafe
-                {
-                    
-                    self.get_unchecked_mut()
-
-                };
-
-                self_mut.opt_waker_id = Some(id);                     
+                }                 
 
             }
 
@@ -505,7 +644,11 @@ impl Drop for WakerQueueWakeMe<'_>
         if let Some(id) = self.opt_waker_id
         {
 
-            let mut mg = self.waker_queue_ref.clear_poison_get_mg();
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.waker_queue_ref.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.internal_mut_state.lock();
 
             if let Some(wqi) = &mut *mg
             {
