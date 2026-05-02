@@ -137,3 +137,15 @@ pub type PreferredRwLockType<T> = ::std::sync::RwLock<T>;
 pub type PreferredRwLockType<T> = parking_lot::RwLock<T>;
 
 pub mod shared_reading_and_writing;
+
+mod waker_queue_with_updated_item;
+
+pub use waker_queue_with_updated_item::*;
+
+mod item_updater;
+
+pub use  item_updater::*;
+
+mod item_updaters;
+
+pub use  item_updaters::*;

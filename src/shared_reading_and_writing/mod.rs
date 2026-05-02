@@ -22,3 +22,15 @@ pub use reader::*;
 mod writer;
 
 pub use writer::*;
+
+mod notifying_shared_internals;
+
+pub use notifying_shared_internals::*;
+
+mod notifying_shared_reader;
+
+pub use notifying_shared_reader::*;
+
+mod notifying_shared_writer;
+
+pub use notifying_shared_writer::*;
