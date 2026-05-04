@@ -14,7 +14,9 @@ impl ItemUpdater<u32> for U32Updater
 
     fn init() -> u32
     {
+
         u32::default()
+        
     }
 
     fn update(item: &mut u32)

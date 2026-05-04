@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{mem::take, sync::Arc};
 
 #[cfg(feature="use_std_sync")]
 use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
@@ -153,6 +153,38 @@ impl<T> SharedWriter<T>
     {
 
         (*self.write()) = item;
+
+    }
+
+    pub fn write_take(&self, item: &mut T)
+        where T: Default
+    {
+
+        (*self.write()) = take(item);
+
+    }
+
+    pub fn write_fn<F>(&self, item: &T, write_fn: &F)
+        where F: Fn(&mut T, &T)
+    {
+
+        write_fn(&mut *self.write(), item);
+
+    }
+
+    pub fn write_fn_mut<F>(&self, item: &mut T, write_fn_mut: &mut F)
+        where F: FnMut(&mut T, &mut T)
+    {
+
+        write_fn_mut(&mut *self.write(), item);
+
+    }
+
+    pub fn write_fn_once<F>(&self, item: &mut T, write_fn_once: F)
+        where F: FnOnce(&mut T, &mut T)
+    {
+
+        write_fn_once(&mut *self.write(), item);
 
     }
 

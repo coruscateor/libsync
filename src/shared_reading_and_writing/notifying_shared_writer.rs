@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{mem::take, sync::Arc};
 
 #[cfg(feature="use_std_sync")]
 use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
@@ -6,14 +6,14 @@ use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
 #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
 use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
 
-use crate::{ItemUpdater, PreferredRwLockType, shared_reading_and_writing::NotifyingSharedInternals};
+use crate::{ItemUpdater, PreferredRwLockType, shared_reading_and_writing::{NotifyingSharedInternals, NotifyingSharedReader}};
 
 use super::{SharedReader, Reader, Writer};
 
 
 pub struct NotifyingSharedWriter<T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone
+          I: Clone + PartialEq + Unpin
 {
 
     internals: Arc<NotifyingSharedInternals<T, I, U>>
@@ -22,7 +22,7 @@ pub struct NotifyingSharedWriter<T, I, U>
 
 impl<T, I, U> NotifyingSharedWriter<T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone
+          I: Clone + PartialEq + Unpin
 {
 
     pub fn new(object: T) -> Self
@@ -78,7 +78,35 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     }
 
     #[cfg(feature="use_std_sync")]
-    pub fn read(&self) -> Reader<'_, T>
+    pub async fn read(&self) -> Reader<'_, T>
+    {
+
+        let _ = self.internals.notifier.wake_me_ignore_item().await;
+        
+        Reader::new(self.read_get_rg())
+
+    }
+
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    pub async fn read(&self) -> Reader<'_, T>
+    {
+
+        let _ = self.internals.notifier.wake_me_ignore_item().await;
+
+        Reader::new(self.rw_lock.read())
+
+    }
+
+    pub async fn read_clone(&self) -> T
+        where T: Clone
+    {
+
+        (*self.read().await).clone()
+
+    }
+
+    #[cfg(feature="use_std_sync")]
+    pub fn read_dont_wait(&self) -> Reader<'_, T>
     {
         
         Reader::new(self.read_get_rg())
@@ -86,18 +114,18 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     }
 
     #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-    pub fn read(&self) -> Reader<'_, T>
+    pub fn read_dont_wait(&self) -> Reader<'_, T>
     {
 
         Reader::new(self.rw_lock.read())
 
     }
 
-    pub fn read_clone(&self) -> T
+    pub fn read_clone_dont_wait(&self) -> T
         where T: Clone
     {
 
-        (*self.read()).clone()
+        (*self.read_dont_wait()).clone()
 
     }
 
@@ -157,6 +185,38 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     {
 
         (*self.write()) = item;
+
+    }
+
+    pub fn write_take(&self, item: &mut T)
+        where T: Default
+    {
+
+        (*self.write()) = take(item);
+
+    }
+
+    pub fn write_fn<F>(&self, item: &T, write_fn: &F)
+        where F: Fn(&mut T, &T)
+    {
+
+        write_fn(&mut *self.write(), item);
+
+    }
+
+    pub fn write_fn_mut<F>(&self, item: &mut T, write_fn_mut: &mut F)
+        where F: FnMut(&mut T, &mut T)
+    {
+
+        write_fn_mut(&mut *self.write(), item);
+
+    }
+
+    pub fn write_fn_once<F>(&self, item: &mut T, write_fn_once: F)
+        where F: FnOnce(&mut T, &mut T)
+    {
+
+        write_fn_once(&mut *self.write(), item);
 
     }
 
@@ -329,37 +389,17 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     pub fn into_inner(self) -> Option<T>
     {
 
-        if let Some(rw_lock) = Arc::into_inner(self.internals.rw_lock)
+        if let Some(val) = Arc::into_inner(self.internals)
         {
 
-            #[cfg(feature="use_std_sync")]
-            match rw_lock.into_inner()
-            {
-
-                Ok(val) =>
-                {
-
-                    return Some(val);
-
-                }
-                Err(err) =>
-                {
-
-                    Some(err.into_inner())
-
-                }
-
-            }
-
-            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            Some(rw_lock.into_inner())
+            val.into_inner()
 
         }
         else
         {
-            
-            None
 
+            None
+            
         }
 
     }
@@ -367,27 +407,29 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     pub fn strong_count(&self) -> usize
     {
 
-        Arc::strong_count(&self.rw_lock)
+        Arc::strong_count(&self.internals)
 
     }
 
     pub fn weak_count(&self) -> usize
     {
 
-        Arc::weak_count(&self.rw_lock)
+        Arc::weak_count(&self.internals)
         
     }
 
-    pub fn get_shared_reader(&self) -> SharedReader<T>
+    pub fn get_notifying_shared_reader(&self) -> NotifyingSharedReader<T, I, U>
     {
 
-        SharedReader::new(self.rw_lock.clone())
+        NotifyingSharedReader::new(self.internals.clone()) //, self.internals.)
 
     }
 
 }
 
-impl<T> Clone for NotifyingSharedWriter<T>
+impl<T, I, U> Clone for NotifyingSharedWriter<T, I, U>
+    where U: ItemUpdater<I>, 
+          I: Clone + PartialEq + Unpin
 {
 
     fn clone(&self) -> Self
@@ -396,7 +438,7 @@ impl<T> Clone for NotifyingSharedWriter<T>
         Self
         {
             
-            rw_lock: self.rw_lock.clone()
+            internals: self.internals.clone()
         
         }
 

@@ -25,7 +25,7 @@ use crate::{ItemUpdater, QueuedWaker};
 
 pub struct WakerQueueWithUpdatedItemInternals<T, U>
     where U: ItemUpdater<T>, 
-          T: Clone
+          T: Clone + PartialEq + Unpin
 {
 
     pub queue: VecDeque<QueuedWaker>,
@@ -38,7 +38,7 @@ pub struct WakerQueueWithUpdatedItemInternals<T, U>
 
 impl<T, U> WakerQueueWithUpdatedItemInternals<T, U>
     where U: ItemUpdater<T>, 
-          T: Clone
+          T: Clone + PartialEq + Unpin
 {
 
     pub fn new() -> Self
@@ -79,7 +79,7 @@ impl<T, U> WakerQueueWithUpdatedItemInternals<T, U>
 
 pub struct WakerQueueWithUpdatedItem<T, U>
     where U: ItemUpdater<T>, 
-          T: Clone
+          T: Clone + PartialEq + Unpin
 {
 
     waker_queue_internals: Mutex<Option<WakerQueueWithUpdatedItemInternals<T, U>>>
@@ -88,7 +88,7 @@ pub struct WakerQueueWithUpdatedItem<T, U>
 
 impl<T, U> WakerQueueWithUpdatedItem<T, U>
     where U: ItemUpdater<T>, 
-          T: Clone
+          T: Clone + PartialEq + Unpin
 {
 
     pub fn new() -> Self
@@ -217,10 +217,17 @@ impl<T, U> WakerQueueWithUpdatedItem<T, U>
 
     }
 
-    pub fn wake_me_with_item<'a>(&'a self) -> WakerQueueWakeMeWithItem<'a, T, U>
+    pub fn wake_me_with_item<'a>(&'a self, current_item: T) -> WakerQueueWakeMeWithItem<'a, T, U>
     {
 
-        WakerQueueWakeMeWithItem::new(self)
+        WakerQueueWakeMeWithItem::new(self, current_item)
+
+    }
+
+    pub fn wake_me_ignore_item<'a>(&'a self) -> WakerQueueWakeMeIgnoreItem<'a, T, U>
+    {
+
+        WakerQueueWakeMeIgnoreItem::new(self)
 
     }
 
@@ -782,27 +789,29 @@ impl Error for WakerQueueWakeMeWithItemClosedError
 
 pub struct WakerQueueWakeMeWithItem<'a, T, U>
     where U: ItemUpdater<T>, 
-          T: Clone
+          T: Clone + PartialEq + Unpin
 {
 
     waker_queue_ref: &'a WakerQueueWithUpdatedItem<T, U>,
-    opt_waker_id: Option<usize>
+    opt_waker_id: Option<usize>,
+    current_item: T
 
 }
 
 impl<'a, T, U> WakerQueueWakeMeWithItem<'a, T, U>
     where U: ItemUpdater<T>, 
-          T: Clone
+          T: Clone + PartialEq + Unpin
 {
 
-    pub fn new(waker_queue_ref: &'a WakerQueueWithUpdatedItem<T, U>) -> Self
+    pub fn new(waker_queue_ref: &'a WakerQueueWithUpdatedItem<T, U>, current_item: T) -> Self
     {
 
         Self
         {
 
             waker_queue_ref,
-            opt_waker_id: None
+            opt_waker_id: None,
+            current_item
 
         }
 
@@ -812,7 +821,7 @@ impl<'a, T, U> WakerQueueWakeMeWithItem<'a, T, U>
 
 impl<T, U> Future for WakerQueueWakeMeWithItem<'_, T, U>
     where U: ItemUpdater<T>, 
-          T: Clone
+          T: Clone + PartialEq + Unpin
 {
 
     type Output = Result<T, WakerQueueWakeMeWithItemClosedError>;
@@ -898,6 +907,17 @@ impl<T, U> Future for WakerQueueWakeMeWithItem<'_, T, U>
                     Some(val) =>
                     {
 
+                        //let self_mut = self.get_mut();
+
+                        if val.item == self.current_item
+                        {
+
+                            //The items are the same so we skip waiting.
+
+                            return Poll::Ready(Ok(val.item.clone()));
+
+                        }
+
                         while !inserted
                         {
 
@@ -941,7 +961,245 @@ impl<T, U> Future for WakerQueueWakeMeWithItem<'_, T, U>
 
 impl<T, U>  Drop for WakerQueueWakeMeWithItem<'_, T, U>
     where U: ItemUpdater<T>, 
-          T: Clone
+          T: Clone + PartialEq + Unpin
+{
+
+    fn drop(&mut self)
+    {
+
+        // Make sure that the waker id gets removed.
+        
+        if let Some(id) = self.opt_waker_id
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.waker_queue_ref.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.internal_mut_state.lock();
+
+            if let Some(wqi) = &mut *mg
+            {
+
+                wqi.active_ids.remove(&id);
+
+            }
+            
+        }
+
+    }
+
+}
+
+// Ignore the item
+
+#[derive(Debug)]
+pub struct WakerQueueWakeMeIgnoreItemClosedError
+{
+}
+
+impl WakerQueueWakeMeIgnoreItemClosedError
+{
+
+    pub fn new() -> Self
+    {
+
+        Self
+        {}
+
+    }
+
+    pub fn err<T>() -> Result<T, Self>
+    {
+
+        Err(Self::new())
+
+    }
+
+}
+
+impl Display for WakerQueueWakeMeIgnoreItemClosedError
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        
+        write!(f, "WakerQueueWithUpdatedItem Closed")
+
+    }
+
+}
+
+impl Error for WakerQueueWakeMeIgnoreItemClosedError
+{    
+}
+
+pub struct WakerQueueWakeMeIgnoreItem<'a, T, U>
+    where U: ItemUpdater<T>, 
+          T: Clone + PartialEq + Unpin
+{
+
+    waker_queue_ref: &'a WakerQueueWithUpdatedItem<T, U>,
+    opt_waker_id: Option<usize>
+
+}
+
+impl<'a, T, U> WakerQueueWakeMeIgnoreItem<'a, T, U>
+    where U: ItemUpdater<T>, 
+          T: Clone + PartialEq + Unpin
+{
+
+    //Ignore current_item
+
+    pub fn new(waker_queue_ref: &'a WakerQueueWithUpdatedItem<T, U>) -> Self
+    {
+
+        Self
+        {
+
+            waker_queue_ref,
+            opt_waker_id: None
+
+        }
+
+    }
+
+}
+
+impl<T, U> Future for WakerQueueWakeMeIgnoreItem<'_, T, U>
+    where U: ItemUpdater<T>, 
+          T: Clone + PartialEq + Unpin
+{
+
+    type Output = Result<(), WakerQueueWakeMeIgnoreItemClosedError>;
+
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
+    {
+
+        match self.opt_waker_id
+        {
+
+            Some(id) =>
+            {
+
+                #[cfg(feature="use_std_sync")]
+                let mut mg = self.waker_queue_ref.get_mg();
+
+                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+                let mut mg = self.internal_mut_state.lock();
+
+                match &mut *mg
+                {
+
+                    Some(val) =>
+                    {
+
+                        if let Some(shouldve_awoken) = val.active_ids.get(&id)
+                        {
+
+                            if *shouldve_awoken
+                            {
+
+                                val.active_ids.remove(&id);
+
+                                return Poll::Ready(Ok(()));
+
+                            }
+                            else
+                            {
+
+                                //push my waker back into the queue.
+
+                                let queued_waker = QueuedWaker::new(cx.waker().clone(), id);
+
+                                val.queue.push_back(queued_waker);
+
+                                return Poll::Pending;
+                                
+                            }
+
+                        }
+
+                    }
+                    None =>
+                    {
+
+                        return Poll::Ready(WakerQueueWakeMeIgnoreItemClosedError::err());
+
+                    }
+
+                }
+
+            }
+            None =>
+            {
+
+                //The task is going to "sleep". Update the WQI so it can be woken up later.
+
+                let mut inserted = false;
+
+                let waker = cx.waker().clone();
+
+                let mut id = 0;
+
+                #[cfg(feature="use_std_sync")]
+                let mut mg = self.waker_queue_ref.get_mg();
+
+                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+                let mut mg = self.internal_mut_state.lock();
+
+                match &mut *mg
+                {
+
+                    Some(val) =>
+                    {
+
+                        //Ignore self.current_item
+
+                        while !inserted
+                        {
+
+                            //Find the next avalible id.
+
+                            id = val.latest_id.wpp();
+
+                            inserted = val.active_ids.insert(id, false).is_none();
+                            
+                        }
+
+                        let queued_waker = QueuedWaker::new(waker, id);
+
+                        val.queue.push_back(queued_waker);
+
+                        let self_mut = self.get_mut();
+
+                        //Make sure this is set.
+
+                        self_mut.opt_waker_id = Some(id);
+
+                    }
+                    None =>
+                    {
+
+                        return Poll::Ready(WakerQueueWakeMeIgnoreItemClosedError::err());
+
+                    }
+
+                }                 
+
+            }
+
+        }
+
+        Poll::Pending
+
+    }
+
+}
+
+impl<T, U>  Drop for WakerQueueWakeMeIgnoreItem<'_, T, U>
+    where U: ItemUpdater<T>, 
+          T: Clone + PartialEq + Unpin
 {
 
     fn drop(&mut self)
