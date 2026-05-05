@@ -1,6 +1,6 @@
 use std::task::Waker;
 
-use paste::paste;
+use pastey::paste;
 
 use accessorise::impl_get_val;
 

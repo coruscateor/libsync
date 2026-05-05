@@ -3,10 +3,15 @@ use std::sync::Arc;
 #[cfg(feature="use_std_sync")]
 use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
 
+use accessorise::impl_get_ref;
 #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
 use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
 
 use crate::{ItemUpdater, PreferredRwLockType, shared_reading_and_writing::NotifyingSharedInternals};
+
+use pastey::paste;
+
+use delegate::delegate;
 
 use super::Reader;
 
@@ -37,6 +42,10 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
         }
 
     }
+
+    //impl_get_val_clone!(current_item, I);
+
+    impl_get_ref!(current_item, I);
 
     #[cfg(feature="use_std_sync")]
     fn read_get_rg(&self) -> RwLockReadGuard<'_, T>
@@ -134,6 +143,18 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
     {
 
         (*self.read_dont_wait()).clone()
+
+    }
+
+    delegate!
+    {
+
+        to self.internals
+        {
+
+            pub fn is_closed(&self);
+
+        }
 
     }
 

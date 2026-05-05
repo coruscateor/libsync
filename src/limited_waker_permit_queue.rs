@@ -17,7 +17,7 @@ use std::task::{Poll, Waker};
 
 use inc_dec::{IncDecSelf, IntIncDecSelf};
 
-use paste::paste;
+use pastey::paste;
 
 use accessorise::impl_get_val;
 

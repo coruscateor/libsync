@@ -13,7 +13,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use std::task::{Poll, Waker};
 
-use paste::paste;
+use pastey::paste;
 
 use accessorise::impl_get_val;
 

@@ -1,4 +1,4 @@
-use std::{mem::take, sync::Arc};
+use std::{mem::{replace, swap, take}, sync::Arc};
 
 #[cfg(feature="use_std_sync")]
 use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
@@ -153,6 +153,22 @@ impl<T> SharedWriter<T>
     {
 
         (*self.write()) = item;
+
+    }
+
+    pub fn write_replace(&self, item: T) -> T
+        where T: Default
+    {
+
+        replace(&mut *self.write(), item)
+
+    }
+
+    pub fn write_swap(&self, item: &mut T)
+        where T: Default
+    {
+
+        swap(&mut *self.write(), item);
 
     }
 

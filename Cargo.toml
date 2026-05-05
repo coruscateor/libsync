@@ -1,6 +1,6 @@
 [package]
 name = "libsync"
-version = "0.3.0"
+version = "0.4.0-alpha"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "A channels library"
@@ -24,7 +24,7 @@ futures = "0.3.31"
 
 parking_lot = { version = "0.12.5", optional = true }
 
-paste = "1.0.15"
+pastey = "0.2.2"
 
 accessorise = "0.2.0"
 

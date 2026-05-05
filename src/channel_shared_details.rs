@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use paste::paste;
+use pastey::paste;
 
 use accessorise::impl_get_ref;
 

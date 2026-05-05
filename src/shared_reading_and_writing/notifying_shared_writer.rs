@@ -1,4 +1,4 @@
-use std::{mem::take, sync::Arc};
+use std::{mem::{replace, swap, take}, sync::Arc};
 
 #[cfg(feature="use_std_sync")]
 use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
@@ -6,9 +6,11 @@ use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
 #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
 use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
 
+use delegate::delegate;
+
 use crate::{ItemUpdater, PreferredRwLockType, shared_reading_and_writing::{NotifyingSharedInternals, NotifyingSharedReader}};
 
-use super::{SharedReader, Reader, Writer};
+use super::{SharedReader, Reader, Writer, NotifyingWriter};
 
 
 pub struct NotifyingSharedWriter<T, I, U>
@@ -46,6 +48,13 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
             internals
 
         }
+
+    }
+
+    pub fn current_item(&self) -> Option<I>
+    {
+
+        self.internals.notifier.get_item()
 
     }
 
@@ -105,6 +114,8 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
     }
 
+    //dont_wait
+
     #[cfg(feature="use_std_sync")]
     pub fn read_dont_wait(&self) -> Reader<'_, T>
     {
@@ -128,6 +139,8 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
         (*self.read_dont_wait()).clone()
 
     }
+
+    //Writing
 
     #[cfg(feature="use_std_sync")]
     fn write_get_wg(&self) -> RwLockWriteGuard<'_, T>
@@ -158,18 +171,18 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     }
     
     #[cfg(feature="use_std_sync")]
-    pub fn write(&self) -> Writer<'_, T>
+    pub fn write(&self) -> NotifyingWriter<'_, T, I, U>
     {
 
-        Writer::new(self.write_get_wg())
+        NotifyingWriter::new(self.write_get_wg(), &self.internals.notifier)
 
     }
 
     #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-    pub fn write(&self) -> Writer<'_, T>
+    pub fn write(&self) -> NotifyingWriter<'_, T, I, U>
     {
 
-        Writer::new(self.rw_lock.write())
+        NotifyingWriter::new(self.rw_lock.write())
 
     }
 
@@ -179,12 +192,38 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
         (*self.write()) = (*item).clone();
 
+        self.internals.notifier.notify_waiters();
+
     }
 
     pub fn write_move(&self, item: T)
     {
 
         (*self.write()) = item;
+
+        self.internals.notifier.notify_waiters();
+
+    }
+
+    pub fn write_replace(&self, item: T) -> T
+        where T: Default
+    {
+
+        let res = replace(&mut *self.write(), item);
+
+        self.internals.notifier.notify_waiters();
+
+        res
+
+    }
+
+    pub fn write_swap(&self, item: &mut T)
+        where T: Default
+    {
+
+        swap(&mut *self.write(), item);
+
+        self.internals.notifier.notify_waiters();
 
     }
 
@@ -194,6 +233,8 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
         (*self.write()) = take(item);
 
+        self.internals.notifier.notify_waiters();
+
     }
 
     pub fn write_fn<F>(&self, item: &T, write_fn: &F)
@@ -201,6 +242,8 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     {
 
         write_fn(&mut *self.write(), item);
+
+        self.internals.notifier.notify_waiters();
 
     }
 
@@ -210,6 +253,8 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
         write_fn_mut(&mut *self.write(), item);
 
+        self.internals.notifier.notify_waiters();
+
     }
 
     pub fn write_fn_once<F>(&self, item: &mut T, write_fn_once: F)
@@ -218,7 +263,99 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
         write_fn_once(&mut *self.write(), item);
 
+        self.internals.notifier.notify_waiters();
+
     }
+
+    pub fn notify_waiters(&self)
+    {
+
+        self.internals.notifier.notify_waiters();
+
+    }
+
+    //Write don't notify
+
+    #[cfg(feature="use_std_sync")]
+    pub fn write_dont_notify(&self) -> Writer<'_, T>
+    {
+
+        Writer::new(self.write_get_wg())
+
+    }
+
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    pub fn write_dont_notify(&self) -> Writer<'_, T>
+    {
+
+        Writer::new(self.rw_lock.write())
+
+    }
+
+    pub fn write_clone_dont_notify(&self, item: &T)
+        where T: Clone
+    {
+
+        (*self.write()) = (*item).clone();
+
+    }
+
+    pub fn write_move_dont_notify(&self, item: T)
+    {
+
+        (*self.write()) = item;
+
+    }
+
+    pub fn write_replace_dont_notify(&self, item: T) -> T
+        where T: Default
+    {
+
+        replace(&mut *self.write(), item)
+
+    }
+
+    pub fn write_swap_dont_notify(&self, item: &mut T)
+        where T: Default
+    {
+
+        swap(&mut *self.write(), item);
+
+    }
+
+    pub fn write_take_dont_notify(&self, item: &mut T)
+        where T: Default
+    {
+
+        (*self.write()) = take(item);
+
+    }
+
+    pub fn write_fn_dont_notify<F>(&self, item: &T, write_fn: &F)
+        where F: Fn(&mut T, &T)
+    {
+
+        write_fn(&mut *self.write(), item);
+
+    }
+
+    pub fn write_fn_mut_dont_notify<F>(&self, item: &mut T, write_fn_mut: &mut F)
+        where F: FnMut(&mut T, &mut T)
+    {
+
+        write_fn_mut(&mut *self.write(), item);
+
+    }
+
+    pub fn write_fn_once_dont_notify<F>(&self, item: &mut T, write_fn_once: F)
+        where F: FnOnce(&mut T, &mut T)
+    {
+
+        write_fn_once(&mut *self.write(), item);
+
+    }
+
+    //
 
     #[cfg(feature="use_std_sync")]
     fn try_read_get_rg(&self) -> Option<RwLockReadGuard<'_, T>>
@@ -422,6 +559,18 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     {
 
         NotifyingSharedReader::new(self.internals.clone()) //, self.internals.)
+
+    }
+
+    delegate!
+    {
+
+        to self.internals
+        {
+
+            pub fn is_closed(&self);
+
+        }
 
     }
 

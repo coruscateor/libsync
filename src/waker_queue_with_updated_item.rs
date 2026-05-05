@@ -1,4 +1,3 @@
-use std::default;
 use std::error::Error;
 
 use std::fmt::Display;
@@ -15,11 +14,13 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use std::task::{Poll, Waker};
 
-use paste::paste;
+use pastey::paste;
 
 use accessorise::impl_get_val;
 
 use inc_dec::IntIncDecSelf;
+
+use std::fmt::Debug;
 
 use crate::{ItemUpdater, QueuedWaker};
 
@@ -75,6 +76,17 @@ impl<T, U> WakerQueueWithUpdatedItemInternals<T, U>
 
     }
 
+}
+
+impl<T, U> Debug for WakerQueueWithUpdatedItem<T, U>
+    where U: ItemUpdater<T> + Debug, 
+          T: Clone + PartialEq + Unpin + Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WakerQueueWithUpdatedItem").field("waker_queue_internals", &self.waker_queue_internals).finish()
+    }
+    
 }
 
 pub struct WakerQueueWithUpdatedItem<T, U>
@@ -746,6 +758,17 @@ impl<T, U> WakerQueueWithUpdatedItem<T, U>
 
 }
 
+impl<T, U> Debug for WakerQueueWithUpdatedItemInternals<T, U>
+    where U: ItemUpdater<T> + Debug, 
+          T: Clone + PartialEq + Unpin + Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WakerQueueWithUpdatedItemInternals").field("queue", &self.queue).field("latest_id", &self.latest_id).field("active_ids", &self.active_ids).field("item", &self.item).field("phantom_data", &self.phantom_data).finish()
+    }
+
+}
+
 #[derive(Debug)]
 pub struct WakerQueueWakeMeWithItemClosedError
 {
@@ -955,6 +978,17 @@ impl<T, U> Future for WakerQueueWakeMeWithItem<'_, T, U>
 
         Poll::Pending
 
+    }
+
+}
+
+impl<T, U> Debug for WakerQueueWakeMeWithItem<'_, T, U>
+    where U: ItemUpdater<T> + Debug, 
+          T: Clone + PartialEq + Unpin + Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WakerQueueWakeMeWithItem").field("waker_queue_ref", &self.waker_queue_ref).field("opt_waker_id", &self.opt_waker_id).field("current_item", &self.current_item).finish()
     }
 
 }

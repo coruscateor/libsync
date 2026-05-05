@@ -189,7 +189,7 @@ checksum = "6800badb6cb2082ffd7b6a67e6125bb39f18782f793520caee8cb8846be06112"
 
 [[package]]
 name = "libsync"
-version = "0.3.0"
+version = "0.4.0-alpha"
 dependencies = [
  "accessorise",
  "crossbeam",
@@ -198,7 +198,7 @@ dependencies = [
  "futures",
  "inc_dec",
  "parking_lot",
- "paste",
+ "pastey",
  "scc",
  "tokio",
 ]
@@ -242,10 +242,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "paste"
-version = "1.0.15"
+name = "pastey"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+checksum = "c5a797f0e07bdf071d15742978fc3128ec6c22891c31a3a931513263904c982a"
 
 [[package]]
 name = "pin-project-lite"

@@ -34,3 +34,7 @@ pub use notifying_shared_reader::*;
 mod notifying_shared_writer;
 
 pub use notifying_shared_writer::*;
+
+mod notifying_writer;
+
+pub use notifying_writer::*;

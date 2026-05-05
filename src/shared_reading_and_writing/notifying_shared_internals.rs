@@ -1,5 +1,6 @@
 use crate::{ItemUpdater, PreferredRwLockType, WakerQueueWithUpdatedItem};
 
+use delegate::delegate;
 
 pub struct NotifyingSharedInternals<T, I, U>
     where U: ItemUpdater<I>, 
@@ -54,6 +55,18 @@ impl<T, I, U> NotifyingSharedInternals<T, I, U>
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
         Some(self.rw_lock.into_inner())
 
+
+    }
+
+    delegate!
+    {
+
+        to self.notifier
+        {
+
+            pub fn is_closed(&self);
+
+        }
 
     }
 
