@@ -8,7 +8,7 @@ use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
 
 use crate::PreferredRwLockType;
 
-use super::{SharedReader, Reader, Writer};
+use super::{SharedReader, Reader, Writer, WeakSharedWriter};
 
 
 pub struct SharedWriter<T>
@@ -426,6 +426,13 @@ impl<T> SharedWriter<T>
     {
 
         SharedReader::new(self.rw_lock.clone())
+
+    }
+
+    pub fn downgrade(&self) -> WeakSharedWriter<T>
+    {
+
+        WeakSharedWriter::new(&self.rw_lock)
 
     }
 

@@ -6,7 +6,7 @@ use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
 #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
 use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
 
-use crate::PreferredRwLockType;
+use crate::{PreferredRwLockType, shared_reading_and_writing::WeakSharedReader};
 
 use super::Reader;
 
@@ -84,5 +84,25 @@ impl<T> SharedReader<T>
 
     }
 
+    pub fn strong_count(&self) -> usize
+    {
+
+        Arc::strong_count(&self.rw_lock)
+
+    }
+
+    pub fn weak_count(&self) -> usize
+    {
+
+        Arc::weak_count(&self.rw_lock)
+        
+    }
+
+    pub fn downgrade(&self) -> WeakSharedReader<T>
+    {
+
+        WeakSharedReader::new(&self.rw_lock)
+
+    }
 
 }

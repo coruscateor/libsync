@@ -38,3 +38,11 @@ pub use notifying_shared_writer::*;
 mod notifying_writer;
 
 pub use notifying_writer::*;
+
+mod weak_notifying_shared_reader;
+
+pub use weak_notifying_shared_reader::*;
+
+mod weak_notifying_shared_writer;
+
+pub use weak_notifying_shared_writer::*;

@@ -19,7 +19,7 @@ use accessorise::impl_get_val;
 
 use inc_dec::IntIncDecSelf;
 
-use crate::QueuedWaker;
+use crate::{PreferredMutexType, QueuedWaker};
 
 pub struct WakerQueueInternals
 {
@@ -66,7 +66,7 @@ impl WakerQueueInternals
 pub struct WakerQueue
 {
 
-    waker_queue_internals: Mutex<Option<WakerQueueInternals>>
+    waker_queue_internals: PreferredMutexType<Option<WakerQueueInternals>>
 
 }
 
@@ -79,7 +79,7 @@ impl WakerQueue
         Self
         {
 
-            waker_queue_internals: Mutex::new(Some(WakerQueueInternals::new()))
+            waker_queue_internals: PreferredMutexType::new(Some(WakerQueueInternals::new()))
 
         }
 
@@ -91,7 +91,7 @@ impl WakerQueue
         Self
         {
 
-            waker_queue_internals: Mutex::new(Some(WakerQueueInternals::with_capacity(size)))
+            waker_queue_internals: PreferredMutexType::new(Some(WakerQueueInternals::with_capacity(size)))
 
         }
 
@@ -132,7 +132,7 @@ impl WakerQueue
         let mut mg = self.get_mg();
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.internal_mut_state.lock();
+        let mut mg = self.waker_queue_internals.lock();
 
         if let Some(val) = &mut *mg
         {
@@ -152,7 +152,7 @@ impl WakerQueue
         let mut mg = self.get_mg();
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.internal_mut_state.lock();
+        let mut mg = self.waker_queue_internals.lock();
 
         if let Some(val) = &mut *mg
         {
@@ -172,7 +172,7 @@ impl WakerQueue
         let mg = self.get_mg();
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mg = self.internal_mut_state.lock();
+        let mg = self.waker_queue_internals.lock();
 
         mg.is_none()
 
@@ -196,7 +196,7 @@ impl WakerQueue
             let mut mg = self.get_mg();
 
             #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.internal_mut_state.lock();
+            let mut mg = self.waker_queue_internals.lock();
 
             match &mut *mg
             {
@@ -253,7 +253,7 @@ impl WakerQueue
             let mut mg = self.get_mg();
 
             #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.internal_mut_state.lock();
+            let mut mg = self.waker_queue_internals.lock();
 
             match &mut *mg
             {
@@ -306,7 +306,7 @@ impl WakerQueue
         let mut mg = self.get_mg();
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.internal_mut_state.lock();
+        let mut mg = self.waker_queue_internals.lock();
 
         match &mut *mg
         {
@@ -357,7 +357,7 @@ impl WakerQueue
             let mut mg = self.get_mg();
 
             #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.internal_mut_state.lock();
+            let mut mg = self.waker_queue_internals.lock();
 
             match &mut *mg
             {
@@ -417,16 +417,16 @@ impl WakerQueue
             let mut mg = self.get_mg();
 
             #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.internal_mut_state.lock();
+            let mut mg = self.waker_queue_internals.lock();
 
             opt_internals = mg.take();
 
         }
 
-        if let Some(mut internal_mut_state) = opt_internals
+        if let Some(mut waker_queue_internals) = opt_internals
         {
 
-            for item in internal_mut_state.queue.drain(..)
+            for item in waker_queue_internals.queue.drain(..)
             {
 
                 item.wake();
@@ -524,7 +524,7 @@ impl Future for WakerQueueWakeMe<'_>
                 let mut mg = self.waker_queue_ref.get_mg();
 
                 #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-                let mut mg = self.internal_mut_state.lock();
+                let mut mg = self.waker_queue_ref.waker_queue_internals.lock();
 
                 match &mut *mg
                 {
@@ -584,7 +584,7 @@ impl Future for WakerQueueWakeMe<'_>
                 let mut mg = self.waker_queue_ref.get_mg();
 
                 #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-                let mut mg = self.internal_mut_state.lock();
+                let mut mg = self.waker_queue_ref.waker_queue_internals.lock();
 
                 match &mut *mg
                 {
@@ -648,7 +648,7 @@ impl Drop for WakerQueueWakeMe<'_>
             let mut mg = self.waker_queue_ref.get_mg();
 
             #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.internal_mut_state.lock();
+            let mut mg = self.waker_queue_ref.waker_queue_internals.lock();
 
             if let Some(wqi) = &mut *mg
             {

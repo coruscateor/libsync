@@ -10,8 +10,7 @@ use delegate::delegate;
 
 use crate::{ItemUpdater, PreferredRwLockType, shared_reading_and_writing::{NotifyingSharedInternals, NotifyingSharedReader}};
 
-use super::{SharedReader, Reader, Writer, NotifyingWriter};
-
+use super::{SharedReader, Reader, Writer, NotifyingWriter, WeakNotifyingSharedWriter};
 
 pub struct NotifyingSharedWriter<T, I, U>
     where U: ItemUpdater<I>, 
@@ -102,7 +101,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
         let _ = self.internals.notifier.wake_me_ignore_item().await;
 
-        Reader::new(self.rw_lock.read())
+        Reader::new(self.internals.rw_lock.read())
 
     }
 
@@ -128,7 +127,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     pub fn read_dont_wait(&self) -> Reader<'_, T>
     {
 
-        Reader::new(self.rw_lock.read())
+        Reader::new(self.internals.rw_lock.read())
 
     }
 
@@ -182,7 +181,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     pub fn write(&self) -> NotifyingWriter<'_, T, I, U>
     {
 
-        NotifyingWriter::new(self.rw_lock.write())
+        NotifyingWriter::new(self.internals.rw_lock.write(), &self.internals.notifier)
 
     }
 
@@ -288,7 +287,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     pub fn write_dont_notify(&self) -> Writer<'_, T>
     {
 
-        Writer::new(self.rw_lock.write())
+        Writer::new(self.internals.rw_lock.write())
 
     }
 
@@ -425,7 +424,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     pub fn try_read(&self) -> Option<Reader<'_, T>>
     {
 
-        if let Some(read_guard) = self.rw_lock.try_read()
+        if let Some(read_guard) = self.internals.rw_lock.try_read()
         {
 
             Some(Reader::new(read_guard))
@@ -508,7 +507,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     pub fn try_write(&self) -> Option<Writer<'_, T>>
     {
 
-        if let Some(write_guard) = self.rw_lock.try_write()
+        if let Some(write_guard) = self.internals.rw_lock.try_write()
         {
 
             Some(Writer::new(write_guard))
@@ -559,6 +558,13 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
     {
 
         NotifyingSharedReader::new(self.internals.clone()) //, self.internals.)
+
+    }
+
+    pub fn downgrade(&self) -> WeakNotifyingSharedWriter<T, I, U>
+    {
+
+        WeakNotifyingSharedWriter::new(&self.internals)
 
     }
 

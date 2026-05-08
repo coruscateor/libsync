@@ -13,7 +13,7 @@ use pastey::paste;
 
 use delegate::delegate;
 
-use super::Reader;
+use super::{Reader, WeakNotifyingSharedReader};
 
 pub struct NotifyingSharedReader<T, I, U>
     where U: ItemUpdater<I>, 
@@ -38,6 +38,35 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
 
             internals,
             current_item: U::init()
+
+        }
+
+    }
+
+
+    pub fn new_current_item_from_notifier(internals: Arc<NotifyingSharedInternals<T, I, U>>) -> Self //, current_item: I) -> Self
+    {
+
+        let current_item;
+
+        if let Some(val) = internals.notifier.get_item()
+        {
+
+            current_item = val;
+
+        }
+        else
+        {
+
+            current_item = U::init();
+            
+        }
+
+        Self
+        {
+
+            internals,
+            current_item
 
         }
 
@@ -103,12 +132,12 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
     }
 
     #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-    pub async fn read(&self) -> Reader<'_, T>
+    pub async fn read(&mut self) -> Reader<'_, T>
     {
 
         self.wake_me_with_item().await;
 
-        Reader::new(self.rw_lock.read())
+        Reader::new(self.internals.rw_lock.read())
 
     }
 
@@ -131,10 +160,10 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
     }
 
     #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-    pub async fn read_dont_wait(&self) -> Reader<'_, T>
+    pub fn read_dont_wait(&self) -> Reader<'_, T>
     {
 
-        Reader::new(self.rw_lock.read())
+        Reader::new(self.internals.rw_lock.read())
 
     }
 
@@ -143,6 +172,27 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
     {
 
         (*self.read_dont_wait()).clone()
+
+    }
+
+    pub fn strong_count(&self) -> usize
+    {
+
+        Arc::strong_count(&self.internals)
+
+    }
+
+    pub fn weak_count(&self) -> usize
+    {
+
+        Arc::weak_count(&self.internals)
+        
+    }
+
+    pub fn downgrade(&self) -> WeakNotifyingSharedReader<T, I, U>
+    {
+
+        WeakNotifyingSharedReader::new(&self.internals)
 
     }
 
