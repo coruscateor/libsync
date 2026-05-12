@@ -1,10 +1,17 @@
+#[cfg(feature="tokio")]
+use std::time::Duration;
 use std::{mem::{replace, swap, take}, sync::Arc};
 
 #[cfg(feature="use_std_sync")]
 use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
 
+use futures::executor::block_on;
+
 #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
 use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
+
+#[cfg(feature="tokio")]
+use tokio::time::{error::Elapsed, timeout, timeout_at};
 
 use delegate::delegate;
 
@@ -104,12 +111,61 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
         Reader::new(self.internals.rw_lock.read())
 
     }
+    
+    pub fn blocking_read(&mut self) -> Reader<'_, T>
+    {
+
+        block_on(self.read())
+
+    }
+
+    #[cfg(feature="tokio")]
+    pub async fn read_timeout_tokio(&mut self, duration: Duration) -> Result<Reader<'_, T>, Elapsed>
+    {
+
+        timeout(duration, self.read()).await
+
+    }
+
+    #[cfg(feature="tokio")]
+    pub async fn read_timeout_at_tokio(&mut self, deadline: tokio::time::Instant) -> Result<Reader<'_, T>, Elapsed>
+    {
+
+        timeout_at(deadline, self.read()).await
+
+    }
 
     pub async fn read_clone(&self) -> T
         where T: Clone
     {
 
         (*self.read().await).clone()
+
+    }
+
+    pub fn blocking_read_clone(&mut self) -> T
+        where T: Clone
+    {
+
+        block_on(self.read_clone())
+
+    }
+
+    #[cfg(feature="tokio")]
+    pub async fn read_clone_timeout_tokio(&mut self, duration: Duration) -> Result<T, Elapsed>
+        where T: Clone
+    {
+
+        timeout(duration, self.read_clone()).await
+
+    }
+
+    #[cfg(feature="tokio")]
+    pub async fn read_clone_timeout_at_tokio(&mut self, deadline: tokio::time::Instant) -> Result<T, Elapsed>
+        where T: Clone
+    {
+
+        timeout_at(deadline, self.read_clone()).await
 
     }
 

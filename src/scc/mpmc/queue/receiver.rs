@@ -1,12 +1,16 @@
 use std::sync::{Arc, Weak};
+
 #[cfg(feature="tokio")]
 use std::time::Duration;
+
+use futures::executor::block_on;
 
 use scc::{Queue, Shared, LinkedEntry};
 
 #[cfg(feature="tokio")]
 use crate::TimeoutReceiveError;
-use crate::{ChannelSharedDetails, ReceiveError, ReceiveResult, SendResult, WakerPermitQueue};
+
+use crate::{ChannelSharedDetails, ReceiveError, ReceiveResult, WakerPermitQueue};
 
 use delegate::delegate;
 
@@ -155,6 +159,13 @@ impl<T> Receiver<T>
             }
 
         }
+
+    }
+
+    pub fn blocking_recv(&self) -> ReceiveResult<Shared<LinkedEntry<T>>>
+    {
+
+        block_on(self.recv())
 
     }
 

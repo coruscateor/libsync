@@ -1,6 +1,7 @@
 use std::{collections::btree_map::Values, default, sync::{Arc, Weak}, time::Duration};
 
 use crossbeam_queue::ArrayQueue;
+use futures::executor::block_on;
 
 use crate::{BoundedSendError, ChannelSharedDetails, LimitedWakerPermitQueue, SendResult, TimeoutBoundedSendError, crossbeam_queue::mpmc::array_queue::WeakSender};
 
@@ -161,6 +162,13 @@ impl<T> Sender<T>
             }
 
         }
+
+    }
+
+    pub fn blocking_send(&self, value: T) -> SendResult<T>
+    {
+
+        block_on(self.send(value))
 
     }
 

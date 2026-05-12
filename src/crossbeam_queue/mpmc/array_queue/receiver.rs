@@ -2,6 +2,7 @@ use std::{sync::{Arc, Weak}, time::Duration};
 
 use crossbeam_queue::ArrayQueue;
 
+use futures::executor::block_on;
 #[cfg(feature="tokio")]
 use tokio::time::{Instant, timeout, timeout_at};
 
@@ -159,6 +160,13 @@ impl<T> Receiver<T>
         Err(())
 
         //Err(ReceiveError::Empty)
+
+    }
+
+    pub fn blocking_recv(&self) -> Result<T, ()>
+    {
+
+        block_on(self.recv())
 
     }
 
