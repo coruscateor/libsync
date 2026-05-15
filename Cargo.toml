@@ -1,9 +1,9 @@
 [package]
 name = "libsync"
-version = "0.4.0-alpha"
+version = "0.4.0-beta"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "A channels library"
+description = "Synchronise stuff"
 repository = "https://github.com/coruscateor/libsync"
 homepage = "https://coruscateor.com/projects/libsync"
 keywords = ["crossbeam_queue", "scc", "tokio", "async", "channel"]

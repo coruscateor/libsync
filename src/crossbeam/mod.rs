@@ -1,6 +1,8 @@
 //!
 //! Crossbeam and Tokio based objects.
 //! 
+//! This module is soft-deprecated.
+//! 
 
 //NotfiyingArrayQueues and NotfiyingSegQueues: alternatives to channels.
 

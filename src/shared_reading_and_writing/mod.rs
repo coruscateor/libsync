@@ -1,4 +1,7 @@
-
+//!
+//! Share state across multiple threads.
+//!
+ 
 mod shared_reader;
 
 pub use shared_reader::*;

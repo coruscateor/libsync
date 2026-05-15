@@ -1,8 +1,5 @@
 use std::collections::{HashMap, TryReserveError};
 
-#[cfg(feature="tokio")]
-use std::time::Duration;
-
 use delegate::delegate;
 
 use inc_dec::IncDecSelf;
@@ -96,9 +93,9 @@ impl<T> Broadcaster<T>
     }
 
     ///
-    /// Sends a value to one or more channels, waiting indefinitely until there is enough space. Returns the number of channels that were removed due to errors.
+    /// Sends a value to one or more channels and returns the number of channels that were removed due to errors.
     /// 
-    pub async fn send(&mut self, value: T) -> usize
+    pub fn send(&mut self, value: T) -> usize
     {
 
         let len = self.senders.len();
@@ -113,7 +110,7 @@ impl<T> Broadcaster<T>
             for (addr, sender) in self.senders.iter()
             {
 
-                if let Err(_) = sender.send(value).await
+                if let Err(_) = sender.send(value)
                 {
 
                     key_to_remove = *addr;
@@ -153,7 +150,7 @@ impl<T> Broadcaster<T>
 
                     let cloned_value = value.clone();
 
-                    if let Err(_) = sender.send(cloned_value).await
+                    if let Err(_) = sender.send(cloned_value)
                     {
 
                         keys_to_remove.push(*addr);
@@ -166,113 +163,7 @@ impl<T> Broadcaster<T>
                 else
                 {
 
-                    if let Err(_) = sender.send(value).await
-                    {
-
-                        keys_to_remove.push(*addr);
-
-                    }
-
-                    break;
-                    
-                }
-
-            }
-
-            for key_to_remove in keys_to_remove.iter()
-            {
-
-                let _ = self.senders.remove(key_to_remove);
-
-            }
-
-            keys_to_remove.len()
-
-        }
-        else
-        {
-
-            //No senders or keys to remove.
-            
-            0
-
-        }
-
-    }
-
-    ///
-    /// Sends a value to one or more channels, waiting for the provided duration until there is enough space. Returns the number of channels that were removed due to errors like time-outs and channel closures.
-    /// 
-    #[cfg(feature="tokio")]
-    pub async fn send_timeout_tokio(&mut self, value: T, duration: Duration) -> usize
-    {
-
-        let len = self.senders.len();
-
-        if len == 1
-        {
-
-            let mut key_to_remove = 0;
-
-            let mut return_val = 0;
-
-            for (addr, sender) in self.senders.iter()
-            {
-
-                if let Err(_) = sender.send_timeout_tokio(value, duration).await
-                {
-
-                    key_to_remove = *addr;
-
-                    return_val = 1;
-
-                }
-
-                break;
-
-            }
-
-            if return_val == 1
-            {
-
-                let _ = self.senders.remove(&key_to_remove);
-
-            }
-
-            return_val
-
-        }
-        else if len > 1
-        {
-
-            let mut keys_to_remove = Vec::new();
-
-            let last_len = len - 1;
-
-            let mut index = 0;
-
-            for (addr, sender) in self.senders.iter()
-            {
-
-                if index < last_len
-                {
-
-                    let cloned_value = value.clone();
-
-                    if let Err(_) = sender.send_timeout_tokio(cloned_value, duration).await
-                    {
-
-                        keys_to_remove.push(*addr);
-
-                    }
-
-                    index.pp();
-
-                }
-                else
-                {
-
-                    if let Err(_) = sender.send_timeout_tokio(value, duration).await
+                    if let Err(_) = sender.send(value)
                     {
 
                         keys_to_remove.push(*addr);
