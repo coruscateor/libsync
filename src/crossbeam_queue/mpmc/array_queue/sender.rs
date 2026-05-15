@@ -379,6 +379,27 @@ impl<T> Sender<T>
         WeakSender::new(&self.shared_details, &self.senders_count, &self.receivers_count)
 
     }
+    
+    pub fn same_channel(&self, other: &Self) -> bool
+    {
+
+        Arc::ptr_eq(&self.shared_details, &other.shared_details) 
+
+    }
+
+    pub fn shared_details_ptr_addr(&self) -> usize
+    {
+
+        Arc::as_ptr(&self.shared_details).addr()
+
+    }
+
+    pub fn same_channel_receiver(&self, other: &super::Receiver<T>) -> bool
+    {
+
+        self.shared_details_ptr_addr() == other.shared_details_ptr_addr()
+
+    }
 
 }
 
