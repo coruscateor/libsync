@@ -9,9 +9,160 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+commit cce9a7d74e64510c988688a4fc4392e138de4fab
+
+- Added a crossbeam_queue::mpmc::seg_queue::Broadcaster struct.
+
+- Added a scc::mpmc::queue::Broadcaster struct.
+
+commit a2e36351219078497daafa0ab0299339c64f0be8
+
+- Added a crossbeam_queue::mpmc::array_queue::Broadcaster struct.
+
+- Added same_channel, shared_details_ptr_addr and same_channel_sender methods to the crossbeam_queue::mpmc::array_queue::Receiver struct.
+
+- Added same_channel, shared_details_ptr_addr and same_channel_receiver methods to the crossbeam_queue::mpmc::array_queue::Sender struct.
+
+- Added same_channel, shared_details_ptr_addr and same_channel_sender methods to the crossbeam_queue::mpmc::seg_queue::Receiver struct.
+
+- Added same_channel, shared_details_ptr_addr and same_channel_receiver methods to the crossbeam_queue::mpmc::seg_queue::Sender struct.
+
+- Added same_channel, shared_details_ptr_addr and same_channel_sender methods to the scc::mpmc::queue::Receiver struct.
+
+- Added same_channel, shared_details_ptr_addr and same_channel_receiver methods to the scc::mpmc::queue::Sender struct.
+
+commit 038c0b988f5f510fc025fadab10986e01c90ac4b
+
+- Added a blocking_recv method to the crossbeam_queue::mpmc::array_queue::Receiver struct.
+
+- Added a blocking_send method to the crossbeam_queue::mpmc::array_queue::Sender struct.
+
+- Added a blocking_recv method to the crossbeam_queue::mpmc::seg_queue::Receiver struct.
+
+- Added a blocking_recv method to the scc::mpmc::queue::Receiver struct.
+
+commit 5a5a88cb766b65c2172ba880389584a589caff59
+
+-- Added and disabled the Dropbox related structs.
+
+- Added the WeakNotifyingSharedReader and WeakNotifyingSharedWriter structs to the shared_reading_and_writing module.
+
+commit 4e2bcccbf6ac7eafb23cf459d819b6d300d47512
+
+- Added the pastey dependency.
+
+-- Added the DropBox and NotifyingWriter structs.
+
+- Added a shared_reading_and_writing::NotifyingWriter struct.
+
+commit 6d8912ad206c80df32ba0932edadae1363c1850b
+
+- Added the ItemUpdater trait.
+
+- Added the U32Updater struct.
+
+- Added the InstantUpdater struct.
+
+- Added the NotifyingSharedInternals struct to the shared_reading_and_writing module.
+
+- Added the NotifyingSharedReader struct to the shared_reading_and_writing module.
+
+-- Added the NotifyingSharedReader struct to the shared_reading_and_writing module.
+
+- Added the NotifyingSharedWriter struct to the shared_reading_and_writing module.
+
+- Added the WakerQueueWithUpdatedItemInternals struct.
+
+- Added the WakerQueueWithUpdatedItem struct.
+
+- Added the WakerQueueWakeMeWithItemClosedError struct.
+
+- Added the WakerQueueWakeMeWithItem struct.
+
+commit a67cc629a0878a48ea21e35fdac2a69f6fbde232
+
+- Added the WakerQueueInternals, WakerQueue, WakerQueueWakeMeClosedError and  WakerQueueWakeMe structs.
+
+commit 2ff9fff5ba9193401c4e24cd91c52a1561cc14d8
+
+- Added the Reader struct to the shared_reading_and_writing module.
+
+- Added the Writer struct to the shared_reading_and_writing module.
+
+commit cfb240893d2033d4eb3c52e14788394d781b8a59
+
+- Added PreferredRwLockType declarations.
+
+- Added the shared_reading_and_writing public module.
+
+- Added SharedReader struct to the shared_reading_and_writing module.
+
+- Added SharedWriter struct to the shared_reading_and_writing module.
+
+- Added WeakSharedReader struct to the shared_reading_and_writing module.
+
+- Added weakSharedWriter struct to the shared_reading_and_writing module.
+
+commit 265f85f28da01d1de5cf43a58c5f67a8c411da77
+
+- Added WeakReceiver and WeakSender structs to the crossbeam_queue::mpmc::array_queue, crossbeam_queue::mpmc::seg_queue and scc::mpmc::queue modules.
+
+- Downgrade methods have been added to the Sender and Receiver struct implementations in the crossbeam_queue::mpmc::array_queue, crossbeam_queue::mpmc::seg_queue and scc::mpmc::queue modules.
+
+commit 2154d7f9fb657362467fd67a5aab2151afc752bb
+
+- Added recv_timeout_tokio and recv_timeout_at_tokio methods to the crossbeam_queue::mpmc::array_queue::Receiver, crossbeam_queue::mpmc::seg_queue::Receiver and scc::mpmc::queue::Receiver struct implementations.
+    
+- Added send_timeout_tokio and send_timeout_at_tokio methods to the crossbeam_queue::mpmc::array_queue::Sender struct implementation.
+
+
 
 
 ### Changed
+
+commit cce9a7d74e64510c988688a4fc4392e138de4fab
+
+-- Updated the package version to 0.4.0-beta.
+
+- Updated the package description.
+
+- Updated some documentation.
+
+commit 038c0b988f5f510fc025fadab10986e01c90ac4b
+
+- Updated the tokio dependency to version 1.52.3.
+
+commit 038c0b988f5f510fc025fadab10986e01c90ac4b
+
+-- Continued work on the NotifyingSharedReader and NotifyingSharedWriter structs.
+
+commit 5a5a88cb766b65c2172ba880389584a589caff59
+
+-- Continued work on the new objects.
+
+commit 4e2bcccbf6ac7eafb23cf459d819b6d300d47512
+
+-- Continued work on a bunch of objects.
+
+-- Updated the package version to 0.4.0-alpha.
+
+commit f860cc4dbaaf60c0bdceb9bea548298d1c6ba71d
+
+-- Continued work on various objects.
+
+commit 2ff9fff5ba9193401c4e24cd91c52a1561cc14d8
+
+-- Continued work on SharedReader, SharedWriter and WeakSharedReader.
+
+commit 265f85f28da01d1de5cf43a58c5f67a8c411da77
+
+-- Updated the tokio dependency to version 1.52.1.
+
+commit 265f85f28da01d1de5cf43a58c5f67a8c411da77
+
+- The shared_details parameters of the “new” methods of the Sender structs in the crossbeam_queue::mpmc::array_queue, crossbeam_queue::mpmc::seg_queue and scc::mpmc::queue modules now take values. The channel functions in each aforementioned module have been updated to reflect this.
+
+- Added an is_closed method to the scc::mpmc::queue::Receiver struct implementation.
 
 
 
@@ -21,9 +172,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+commit 4e2bcccbf6ac7eafb23cf459d819b6d300d47512
+
+- Removed the paste dependency.
+
+commit 21e3ad5ac3e4ff0c16af8b54aff91c0092ec3f27
+
+- Removed the return_store sub-module and its contents from the std sub-module.
+
+-- Removed the CountedPipelineMessage, CountedPipelineMessageContainer, CountedPipelineMessageContainerFactory, CountedPipelineMessageContainerMut, CountedPipelineMessageMut, IncrementedPipelineMessageCounter, PlainPipelineMessageContainer, PlainPipelineMessageContainerFactory and PlainPipelineMessageContainerMut structs as well as the PipelineMessageContainer, PipelineMessageContainerFactory and PipelineMessageContainerMut traits from the std sub-module.
+
+- Removed the PipelineMessageContainer, PipelineMessageContainerMut,PipelineMessageContainerFactory traits from the std sub-module.
+
+- Removed the PlainPipelineMessageContainer, PlainPipelineMessageContainerMut, PlainPipelineMessageContainerFactory, CountedPipelineMessageContainer, CountedPipelineMessageContainerMut and CountedPipelineMessageContainerFactory structs from the std sub-module.
+
+- Removed the PipelineMessageCounter, IncrementedPipelineMessageCounter, CountedPipelineMessage and CountedPipelineMessageMut structs from the std sub-module.
+
 
 
 ### Fixed
+
+commit 2154d7f9fb657362467fd67a5aab2151afc752bb
+
+- Fixed an error where the wrong type of SeqQueue was being imported at various places in the crossbeam_queue::mpmc::seg_queue module.
 
 
 
