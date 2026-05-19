@@ -45,3 +45,11 @@ use_parking_lot_fair_sync = ["dep:parking_lot"]
 [package.metadata.docs.rs]
 features = ["crossbeam", "crossbeam-queue", "tokio", "scc", "std", "use_parking_lot_sync"]
 rustdoc-args = ["--cfg", "docsrs"]
+
+
+
+#Publishing:
+
+#cargo publish --dry-run --features "std tokio crossbeam crossbeam-queue scc use_parking_lot_sync"
+
+#cargo publish --features "std tokio crossbeam crossbeam-queue scc use_parking_lot_sync"

@@ -63,7 +63,7 @@ Build with the latest stable compiler.
 
 ## Maybe
 
-- Add more channel implementations using queue implementations of other crates that this crate doesn’t already conditionally depend on.
+- Add more channel implementations using queues from other crates that this crate doesn’t already conditionally depend on.
 
 </br>
 

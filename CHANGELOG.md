@@ -115,6 +115,13 @@ commit 2154d7f9fb657362467fd67a5aab2151afc752bb
     
 - Added send_timeout_tokio and send_timeout_at_tokio methods to the crossbeam_queue::mpmc::array_queue::Sender struct implementation.
 
+commit 265f85f28da01d1de5cf43a58c5f67a8c411da77
+
+- Added an is_closed method to the scc::mpmc::queue::Receiver struct implementation.
+
+commit 586dfdad12ade656930e9866211364ebefa03a8f
+
+- Added "concurrency" to the package categories.
 
 
 
@@ -162,7 +169,21 @@ commit 265f85f28da01d1de5cf43a58c5f67a8c411da77
 
 - The shared_details parameters of the “new” methods of the Sender structs in the crossbeam_queue::mpmc::array_queue, crossbeam_queue::mpmc::seg_queue and scc::mpmc::queue modules now take values. The channel functions in each aforementioned module have been updated to reflect this.
 
-- Added an is_closed method to the scc::mpmc::queue::Receiver struct implementation.
+commit 586dfdad12ade656930e9866211364ebefa03a8f
+
+- Updated various crates via the “cargo update” command.
+
+- Cleaned up the Cargo.toml file a bit.
+    
+- Updated the scc dependency to version 3.7.1.
+    
+- Updated the readme.
+
+commit 8c7bcebb3a342044fd9cde1d8534cca1a707a984
+
+-- Worked on the changelog.
+
+- Changed “doc_auto_cfg” to “doc_cfg” in the docsrs package level cfg_attr decoration.
 
 
 
@@ -326,7 +347,6 @@ commit 2154d7f9fb657362467fd67a5aab2151afc752bb
 
 
 
-</br>
 
 ## Version 0.2.0 (23/04/2025)
 
@@ -456,7 +476,6 @@ commit 2154d7f9fb657362467fd67a5aab2151afc752bb
 
 
 
-</br>
 
 ## Version 0.1.0 (08/05/2024)
 
