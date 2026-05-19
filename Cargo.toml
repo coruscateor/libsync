@@ -7,20 +7,21 @@ description = "Synchronise stuff"
 repository = "https://github.com/coruscateor/libsync"
 homepage = "https://coruscateor.com/projects/libsync"
 keywords = ["crossbeam_queue", "scc", "tokio", "async", "channel"]
-categories = ["asynchronous"]
+categories = ["asynchronous", "concurrency"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
 crossbeam = { version = "0.8.4", optional = true }
 
 crossbeam-queue = { version = "0.3.12", optional = true }
 
-tokio = { version = "1.52.3", features = ["sync", "time", "rt", "macros", "rt-multi-thread"], optional = true } #The rt, macros, rt-multi-thread and time features are needed for testing #"1.44.2"
-#delegate = "0.*"
+tokio = { version = "1.52.3", features = ["sync", "time", "rt", "macros", "rt-multi-thread"], optional = true } #The rt, macros, rt-multi-thread and time features are needed for testing.
+
 delegate = "0.13.5"
+
 futures = "0.3.31"
-#rand = { version = "0.8.*", features = ["std", "std_rng"] }
 
 parking_lot = { version = "0.12.5", optional = true }
 
@@ -30,9 +31,7 @@ accessorise = "0.2.0"
 
 inc_dec = "0.1.0"
 
-scc = { version = "3.6.2", optional = true }
-
-#https://doc.rust-lang.org/cargo/reference/features.html#optional-dependencies
+scc = { version = "3.7.1", optional = true }
 
 [features]
 std = []

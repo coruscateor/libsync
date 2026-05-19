@@ -57,7 +57,6 @@ Build with the latest stable compiler.
 - Add more documentation
 - Add more tests
 - Decide on what is staying in the library.
-- Add async-runtime specific functionality to the crossbeam_queue and scc oriented channels (e.g. timeout methods). 
 - Add an std VecDeque oriented channel implementation.
 
 </br>
