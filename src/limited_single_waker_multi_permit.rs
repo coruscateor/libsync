@@ -28,7 +28,7 @@ use parking_lot::FairMutex;
 
 use paste::paste;
 
-use accessorise::impl_get_val;
+use accessorise::impl_val_getter;
 
 use crate::PreferredMutexType;
 
@@ -210,7 +210,7 @@ impl LimitedSingleWakerMultiPermit
 
     }
 
-    impl_get_val!(max_permits, usize);
+    impl_val_getter!(max_permits, usize);
 
     pub fn has_max_permits(&self) -> Option<bool>
     {

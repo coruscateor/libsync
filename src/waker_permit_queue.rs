@@ -19,7 +19,7 @@ use inc_dec::{IncDecSelf, IntIncDecSelf};
 
 use pastey::paste;
 
-use accessorise::impl_get_val;
+use accessorise::impl_val_getter;
 
 use crate::QueuedWaker;
 

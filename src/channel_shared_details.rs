@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use pastey::paste;
 
-use accessorise::impl_get_ref;
+use accessorise::impl_ref_getter;
 
 ///
 /// For containing the objects that are shared between the sender and the receiver parts of a channel.
@@ -31,9 +31,9 @@ impl<Q, N> ChannelSharedDetails<Q, N>
 
     }
 
-    impl_get_ref!(message_queue, Q);
+    impl_ref_getter!(message_queue, Q);
 
-    impl_get_ref!(notifier, N);
+    impl_ref_getter!(notifier, N);
 
 }
 

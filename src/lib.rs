@@ -154,7 +154,7 @@ pub use  item_updater::*;
 
 mod item_updaters;
 
-pub use  item_updaters::*;
+pub use item_updaters::*;
 
 //Disabled
 
@@ -167,3 +167,11 @@ pub use  item_updaters::*;
 //mod single_item_drop_box;
 
 //pub use single_item_drop_box::*;
+
+pub mod multi_shot;
+
+#[cfg(feature="use_std_sync")]
+mod std_sync_mutex_guard;
+
+#[cfg(feature="use_std_sync")]
+pub use std_sync_mutex_guard::*;

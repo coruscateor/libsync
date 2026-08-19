@@ -4,9 +4,9 @@ version = 4
 
 [[package]]
 name = "accessorise"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e86cf82339b10210c4212aee2e4f034fb6b9d181d98d07b98eb98f90b2aca91c"
+checksum = "f3d7b2511ae2952bb29afefb5ed394444b731f54da75861d967b4ad67e70b3e0"
 
 [[package]]
 name = "bitflags"
@@ -189,7 +189,7 @@ checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
 
 [[package]]
 name = "libsync"
-version = "0.4.0"
+version = "0.5.0-alpha"
 dependencies = [
  "accessorise",
  "crossbeam",

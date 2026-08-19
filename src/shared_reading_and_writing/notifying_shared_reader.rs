@@ -9,7 +9,7 @@ use std::time::Duration;
 #[cfg(feature="tokio")]
 use tokio::time::{error::Elapsed, timeout, timeout_at};
 
-use accessorise::impl_get_ref;
+use accessorise::impl_ref_getter;
 
 use futures::executor::block_on;
 
@@ -83,7 +83,7 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
 
     //impl_get_val_clone!(current_item, I);
 
-    impl_get_ref!(current_item, I);
+    impl_ref_getter!(current_item, I);
 
     #[cfg(feature="use_std_sync")]
     fn read_get_rg(&self) -> RwLockReadGuard<'_, T>

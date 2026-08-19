@@ -2,7 +2,7 @@ use std::task::Waker;
 
 use pastey::paste;
 
-use accessorise::impl_get_val;
+use accessorise::impl_val_getter;
 
 #[derive(Debug)]
 pub struct QueuedWaker
@@ -29,7 +29,7 @@ impl QueuedWaker
 
     }
 
-    impl_get_val!(id, usize);
+    impl_val_getter!(id, usize);
 
     pub fn wake(self)
     {
