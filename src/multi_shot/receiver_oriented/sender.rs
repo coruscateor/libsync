@@ -11,21 +11,23 @@ pub struct Sender<T>
 {
 
     shared_details: Arc<PreferredMutexType<MultiShotSharedDetails<T>>>,
-    used: bool
+    used: bool,
+    session_number: u32
 
 }
 
 impl<T> Sender<T>
 {
 
-    pub fn new(shared_details: Arc<PreferredMutexType<MultiShotSharedDetails<T>>>) -> Self
+    pub fn new(shared_details: Arc<PreferredMutexType<MultiShotSharedDetails<T>>>, session_number: u32) -> Self
     {
 
         Self
         {
 
             shared_details,
-            used: false
+            used: false,
+            session_number
 
         }
 
@@ -42,15 +44,20 @@ impl<T> Sender<T>
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
         let mut mg = self.waker_queue_internals.lock();
 
-        mg.object = Some(object);
-
-        mg.should_be_awake = true;
-
-        if let Some(waker) = mg.waker.take()
+        if mg.session_number == self.session_number
         {
 
-            waker.wake();
-            
+            mg.opt_object = Some(object);
+
+            //mg.should_be_awake = true;
+
+            if let Some(waker) = mg.opt_waker.take()
+            {
+
+                waker.wake();
+                
+            }
+
         }
 
     }
@@ -72,12 +79,17 @@ impl<T> Drop for Sender<T>
             #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
             let mut mg = self.waker_queue_internals.lock();
 
-            mg.should_be_awake = true;
+            //mg.should_be_awake = true;
 
-            if let Some(waker) = mg.waker.take()
+            if mg.session_number == self.session_number
             {
 
-                waker.wake();
+                if let Some(waker) = mg.opt_waker.take()
+                {
+
+                    waker.wake();
+
+                }
 
             }
 

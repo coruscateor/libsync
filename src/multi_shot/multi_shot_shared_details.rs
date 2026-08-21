@@ -4,9 +4,10 @@ use std::task::Waker;
 pub struct MultiShotSharedDetails<T>
 {
 
-    pub object: Option<T>,
-    pub waker:Option<Waker>,
-    pub should_be_awake: bool
+    pub opt_object: Option<T>,
+    pub opt_waker:Option<Waker>,
+    //pub should_be_awake: bool
+    pub session_number: u32
 
 }
 
@@ -19,9 +20,10 @@ impl<T> MultiShotSharedDetails<T>
         Self
         {
 
-            object: Default::default(),
-            waker: Default::default(),
-            should_be_awake: false
+            opt_object: Default::default(),
+            opt_waker: Default::default(),
+            //should_be_awake: false
+            session_number: Default::default()
 
         }
 

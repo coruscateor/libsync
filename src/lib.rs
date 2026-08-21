@@ -175,3 +175,7 @@ mod std_sync_mutex_guard;
 
 #[cfg(feature="use_std_sync")]
 pub use std_sync_mutex_guard::*;
+
+mod enums;
+
+pub use enums::*;
