@@ -33,7 +33,7 @@ impl<T> Sender<T>
 
     }
 
-    pub fn send(mut self, object: T)
+    pub fn send(mut self, object: T) //-> 
     {
 
         self.used = true;

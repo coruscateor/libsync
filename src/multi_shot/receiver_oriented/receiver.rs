@@ -4,9 +4,11 @@ use std::task::Poll;
 
 use inc_dec::IntIncDecSelf;
 
+use crate::multi_shot::MultiShotError;
+
 use crate::{PreferredMutexType, TryLocked};
 
-use crate::multi_shot::multi_shot_shared_details::MultiShotSharedDetails;
+use crate::multi_shot::MultiShotSharedDetails;
 
 use super::Sender;
 
@@ -223,22 +225,22 @@ impl<'a, T> Future for RecvOrWait<'a, T>
 
 }
 
-/*
 impl<'a, T> Drop for RecvOrWait<'a, T>
 {
 
     fn drop(&mut self)
     {
 
-        if !self.used
-        {
+        #[cfg(feature="use_std_sync")]
+        let mut mg = get_mg(self.shared_details_ref); //mut_self.shared_details_ref);
 
-            
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.waker_queue_internals.lock();
 
-        }
+        mg.main_side_has_dropped = true;
 
         // SAFETY: `self` is pinned till after dropped.
         //unsafe { Drop::pin_drop(std::pin::Pin::new_unchecked(self)) }
     }
+
 }
-*/

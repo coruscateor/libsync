@@ -115,6 +115,8 @@ impl<T> Drop for Sender<T>
 
             }
 
+            mg.main_side_has_dropped = true;
+
         }
 
         // SAFETY: `self` is pinned till after dropped.

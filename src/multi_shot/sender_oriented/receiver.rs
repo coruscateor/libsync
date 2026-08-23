@@ -4,9 +4,9 @@ use std::task::Poll;
 
 use inc_dec::IntIncDecSelf;
 
-use crate::{PreferredMutexType, TryLocked};
+use crate::{PreferredMutexType, TryLockedReceiver};
 
-use crate::multi_shot::multi_shot_shared_details::MultiShotSharedDetails;
+use crate::multi_shot::{MultiShotError, MultiShotSharedDetails};
 
 use super::Sender;
 
@@ -17,7 +17,8 @@ pub struct Receiver<T>
 {
 
     shared_details: Arc<PreferredMutexType<MultiShotSharedDetails<T>>>,
-    session_number: u32
+    session_number: u32,
+    used: bool
 
 }
 
@@ -31,34 +32,56 @@ impl<T> Receiver<T>
         {
 
             shared_details,
-            session_number
+            session_number,
+            used: false
 
         }
 
     }
 
-    pub fn try_recv(&self) -> TryLocked<Option<T>>
+    pub fn try_recv(&mut self) -> TryLockedReceiver<Result<Option<T>, MultiShotError>>
     {
 
         #[cfg(feature="use_std_sync")]
         let mut opt_mg = try_get_mg(&self.shared_details);
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut opt_mg = self.waker_queue_internals.try_lock();
+        let mut opt_mg = self.shared_details.try_lock();
 
         if let Some(mg) = &mut opt_mg
         {
 
-            if mg.session_number == self.session_number
+            if mg.session_number == self.session_number && !self.used
             {
 
-                TryLocked::Result(mg.opt_object.take())
+                let opt_object = mg.opt_object.take();
+
+                self.used = opt_object.is_some();
+
+                if !self.used && mg.main_side_has_dropped
+                {
+
+                    TryLockedReceiver::Result(Err(MultiShotError::Closed))
+
+                    //TryLockedReceiver::Result(Err(opt_object))
+
+                }
+                else
+                {
+
+                    TryLockedReceiver::Result(Ok(opt_object))
+
+                }
+
+                //TryLockedReceiver::Result(Ok(opt_object))
 
             }
             else
             {
 
-                
+                TryLockedReceiver::Result(Err(MultiShotError::Irrelevant))
+
+                //TryLockedReceiver::Irrelevant
                 
             }
 
@@ -66,16 +89,16 @@ impl<T> Receiver<T>
         else
         {
 
-            TryLocked::WouldBlock
+            TryLockedReceiver::WouldBlock
 
         }
 
     }
 
-    pub fn recv<'a>(&'a self) -> RecvOrWait<'a, T> //Result<T, ()>
+    pub fn recv<'a>(&'a mut self) -> RecvOrWait<'a, T> //Result<T, ()>
     {
 
-        RecvOrWait::new(&self.shared_details)
+        RecvOrWait::new( self)
 
     }
 
@@ -84,7 +107,9 @@ impl<T> Receiver<T>
 pub struct RecvOrWait<'a, T>
 {
 
-    shared_details_ref: &'a Arc<PreferredMutexType<MultiShotSharedDetails<T>>>,
+    receiver_ref: &'a mut Receiver<T>
+
+    //shared_details_ref: &'a Arc<PreferredMutexType<MultiShotSharedDetails<T>>>,
     //used: bool
 
 }
@@ -92,13 +117,15 @@ pub struct RecvOrWait<'a, T>
 impl<'a, T> RecvOrWait<'a, T>
 {
 
-    pub fn new(shared_details_ref: &'a Arc<PreferredMutexType<MultiShotSharedDetails<T>>>) -> Self
+    pub fn new(receiver_ref: &'a mut Receiver<T>) -> Self //(shared_details_ref: &'a Arc<PreferredMutexType<MultiShotSharedDetails<T>>>) -> Self
     {
 
         Self
         {
 
-            shared_details_ref,
+            receiver_ref
+
+            //shared_details_ref,
             //used: false
 
         }
@@ -110,28 +137,30 @@ impl<'a, T> RecvOrWait<'a, T>
 impl<'a, T> Future for RecvOrWait<'a, T>
 {
 
-    type Output = Result<T, ()>;
+    type Output = Result<T, MultiShotError>;
 
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output>
     {
 
-        //let mut_self = self.get_mut();
+        let mut_self = self.get_mut();
         
         //mut_self.used = true;
 
         #[cfg(feature="use_std_sync")]
-        let mut mg = get_mg(self.shared_details_ref); //mut_self.shared_details_ref);
+        let mut mg = get_mg(&mut_self.receiver_ref.shared_details); //mut_self.shared_details_ref);
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.waker_queue_internals.lock();
+        let mut mg = self.receiver_ref.shared_details.lock();
 
         //If the Task wakes up spuriously, then its no big deal. Either the opt_object is occupied or it isn't. 
 
-        if mg.session_number == self.shared_details_ref.session_number
+        if mg.session_number == mut_self.receiver_ref.session_number && !mut_self.receiver_ref.used
         {
 
             if let Some(object) = mg.opt_object.take()
             {
+
+                mut_self.receiver_ref.used = true;
 
                 Poll::Ready(Ok(object))
 
@@ -139,10 +168,12 @@ impl<'a, T> Future for RecvOrWait<'a, T>
             else
             {
 
-                if Arc::strong_count(self.shared_details_ref) == 1 //mut_self.shared_details_ref) == 1
+                if mg.main_side_has_dropped //Arc::strong_count(&self.receiver_ref.shared_details) == 1 //mut_self.shared_details_ref) == 1
                 {
 
-                    Poll::Ready(Err(()))
+                    mut_self.receiver_ref.used = true;
+
+                    Poll::Ready(Err(MultiShotError::Closed))
 
                 }
                 else
@@ -160,7 +191,13 @@ impl<'a, T> Future for RecvOrWait<'a, T>
 
             }
 
-       }
+        }
+        else
+        {
+
+            Poll::Ready(Err(MultiShotError::Irrelevant))
+            
+        }
 
     }
 

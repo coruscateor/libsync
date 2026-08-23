@@ -7,7 +7,8 @@ pub struct MultiShotSharedDetails<T>
     pub opt_object: Option<T>,
     pub opt_waker:Option<Waker>,
     //pub should_be_awake: bool
-    pub session_number: u32
+    pub session_number: u32,
+    pub main_side_has_dropped: bool
 
 }
 
@@ -23,7 +24,8 @@ impl<T> MultiShotSharedDetails<T>
             opt_object: Default::default(),
             opt_waker: Default::default(),
             //should_be_awake: false
-            session_number: Default::default()
+            session_number: Default::default(),
+            main_side_has_dropped: false
 
         }
 
