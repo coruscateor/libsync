@@ -40,7 +40,7 @@ impl<T> Sender<T>
     pub fn send(&self, value: T) -> Result<(), T>
     {
 
-        let opt_waker;
+        let waker;
 
         {
 
@@ -59,10 +59,12 @@ impl<T> Sender<T>
 
             mg.message_queue.push_back(value);
 
-            opt_waker = mg.waker_queue.pop_front();
+            let opt_waker = mg.when_empty_waker_queue.pop_front();
 
-            if let Some(waker) = opt_waker
+            if let Some(the_waker) = opt_waker
             {
+
+                waker = the_waker;
 
                 let opt_entry = mg.active_ids.get_mut(&waker.id());
                 
@@ -73,20 +75,17 @@ impl<T> Sender<T>
 
                 }
 
-                waker.wake();
+            }
+            else
+            {
+
+                return Ok(());
 
             }
 
         }
 
-        /*
-        if let Some(waker) = opt_waker
-        {
-
-            waker.wake();
-            
-        }
-        */
+        waker.wake();
 
         Ok(())
 
@@ -235,7 +234,7 @@ impl<T> Drop for Sender<T>
     fn drop(&mut self)
     {
 
-        if self.strong_count() == 1
+        if Arc::strong_count(&self.shared_details) == 1
         {
 
             #[cfg(feature="use_std_sync")]
@@ -248,7 +247,7 @@ impl<T> Drop for Sender<T>
 
             //Engage free-for-all mode.
 
-            for waker in mg.waker_queue.drain(..)
+            for waker in mg.when_empty_waker_queue.drain(..)
             {
 
                 waker.wake();

@@ -1,12 +1,14 @@
+use std::collections::hash_map::Entry;
 use std::fmt::Debug;
 
+use inc_dec::{IncDecSelf, IntIncDecSelf};
 use pastey::paste;
 
 use accessorise::impl_ref_getter;
 
 use std::collections::{HashMap, VecDeque};
 
-use std::task::Waker;
+use std::task::{Context, Poll, Waker};
 
 use crate::QueuedWaker;
 
@@ -17,25 +19,117 @@ pub struct ChannelSharedDetails<T>
 {
 
     pub message_queue: VecDeque<T>,
-    pub waker_queue: VecDeque<QueuedWaker>,
+    pub when_empty_waker_queue: VecDeque<QueuedWaker>,
     pub is_closed: bool,
-    pub active_ids: HashMap<usize, bool>
+    pub latest_id: usize, //u32,
+    pub active_ids: HashMap<usize, bool> //HashMap<u32, bool>
 
 }
 
 impl<T> ChannelSharedDetails<T>
 {
 
-    pub fn new(message_queue: VecDeque<T>, waker_queue: VecDeque<QueuedWaker>, active_ids: HashMap<usize, bool>) -> Self
+    pub fn new(message_queue: VecDeque<T>, when_empty_waker_queue: VecDeque<QueuedWaker>, active_ids: HashMap<usize, bool>) -> Self
     {
 
         Self
         {
 
             message_queue,
-            waker_queue,
+            when_empty_waker_queue,
             is_closed: false,
+            latest_id: 0,
             active_ids
+
+        }
+
+    }
+
+    pub fn try_pop(&mut self, waker_id: usize) -> Option<T> //Option<Poll<Result<T, ()>>>
+    {
+
+        if let Entry::Occupied(entry) = self.active_ids.entry(waker_id)
+        //if let Some(shouldve_awoken) = self.active_ids.get(&waker_id)
+        {
+
+            let shouldve_awoken = entry.get();
+
+            if *shouldve_awoken
+            {
+
+                let opt_front = self.message_queue.pop_front();
+
+                if let Some(front) = opt_front
+                {
+
+                    entry.remove_entry();
+
+                    return Some(front);
+
+                    //self.active_ids.remove(&waker_id);
+
+                    //return Some(Poll::Ready(Ok(front)));
+
+                }
+
+            }
+
+            //return Some(Poll::Pending);
+
+        }
+
+        None
+
+        //Poll::Pending
+
+    }
+
+    pub fn push_waker(&mut self, cx: &Context<'_>) -> usize
+    {
+
+        let id = self.latest_id.wpp();
+
+        let waker = cx.waker().clone();
+
+        let queued_waker = QueuedWaker::new(waker, id);
+
+        self.when_empty_waker_queue.push_back(queued_waker);
+
+        id
+
+    }
+
+    pub fn remove_waker(&mut self, id: usize)
+    {
+
+        self.active_ids.remove(&id);
+
+        let mut index = 0;
+
+        let mut index_found = false;
+
+        //Remove the queued waker.
+
+        for item in self.when_empty_waker_queue.iter()
+        {
+
+            if id == item.id()
+            {
+
+                index_found = true;
+
+                break;
+
+            }  
+
+            index.pp();
+            
+        }
+
+        if index_found
+        {
+
+            self.when_empty_waker_queue.remove(index);
 
         }
 
@@ -52,7 +146,7 @@ impl<T> Debug for ChannelSharedDetails<T>
 {
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ChannelSharedDetails").field("message_queue", &self.message_queue).field("waker_queue", &self.waker_queue).finish()
+        f.debug_struct("ChannelSharedDetails").field("message_queue", &self.message_queue).field("when_empty_waker_queue", &self.when_empty_waker_queue).field("is_closed", &self.is_closed).field("active_ids", &self.active_ids).finish()
     }
-    
+
 }
