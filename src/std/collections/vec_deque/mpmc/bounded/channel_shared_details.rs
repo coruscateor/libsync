@@ -20,32 +20,36 @@ pub struct ChannelSharedDetails<T>
 
     pub message_queue: VecDeque<T>,
     pub when_empty_waker_queue: VecDeque<QueuedWaker>,
+    pub when_full_waker_queue: VecDeque<QueuedWaker>,
     pub is_closed: bool,
-    pub latest_id: usize, //u32,
-    pub active_ids: HashMap<usize, bool> //HashMap<u32, bool>
+    pub latest_id: usize,
+    pub active_ids: HashMap<usize, bool>,
+    capacity: usize
 
 }
 
 impl<T> ChannelSharedDetails<T>
 {
 
-    pub fn new(message_queue: VecDeque<T>, when_empty_waker_queue: VecDeque<QueuedWaker>, active_ids: HashMap<usize, bool>) -> Self
+    pub fn new(capacity: usize, when_empty_waker_queue: VecDeque<QueuedWaker>, when_full_waker_queue: VecDeque<QueuedWaker>, active_ids: HashMap<usize, bool>) -> Self
     {
 
         Self
         {
 
-            message_queue,
+            message_queue: VecDeque::with_capacity(capacity),
             when_empty_waker_queue,
+            when_full_waker_queue,
             is_closed: false,
             latest_id: 0,
-            active_ids
+            active_ids,
+            capacity
 
         }
 
     }
 
-    pub fn try_pop(&mut self, waker_id: usize) -> Option<T> //Option<Poll<Result<T, ()>>>
+    pub fn try_pop(&mut self, waker_id: usize) -> Option<T>
     {
 
         if let Entry::Occupied(entry) = self.active_ids.entry(waker_id)
