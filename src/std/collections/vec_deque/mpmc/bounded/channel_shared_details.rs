@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use inc_dec::{IncDecSelf, IntIncDecSelf};
 use pastey::paste;
 
-use accessorise::impl_ref_getter;
+use accessorise::impl_val_getter;
 
 use std::collections::{HashMap, VecDeque};
 
@@ -48,6 +48,8 @@ impl<T> ChannelSharedDetails<T>
         }
 
     }
+
+    impl_val_getter!(capacity, usize);
 
     pub fn try_pop(&mut self, waker_id: usize) -> Option<T>
     {

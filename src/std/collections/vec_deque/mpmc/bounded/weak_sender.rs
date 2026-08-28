@@ -9,6 +9,7 @@ use super::Sender;
 use super::ChannelSharedDetails;
 
 pub struct WeakSender<T>
+    where T: Unpin
 {
 
     shared_details: Weak<PreferredMutexType<ChannelSharedDetails<T>>>,
@@ -18,6 +19,7 @@ pub struct WeakSender<T>
 }
 
 impl<T> WeakSender<T>
+    where T: Unpin
 {
 
     pub fn new(shared_details: &Arc<PreferredMutexType<ChannelSharedDetails<T>>>, senders_count: &Arc<()>, receivers_count: Weak<()>) -> Self

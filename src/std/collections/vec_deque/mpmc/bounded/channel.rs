@@ -8,10 +8,11 @@ use super::{Sender, Receiver};
 
 use std::collections::{HashMap, VecDeque};
 
-pub fn channel<T>() -> (Sender<T>, Receiver<T>)
+pub fn channel<T>(capacity: usize) -> (Sender<T>, Receiver<T>)
+    where T: Unpin
 {
 
-    let shared_details = Arc::new(PreferredMutexType::new(ChannelSharedDetails::new(VecDeque::new(), VecDeque::new(), HashMap::new())));
+    let shared_details = Arc::new(PreferredMutexType::new(ChannelSharedDetails::new(capacity, VecDeque::new(), VecDeque::new(), HashMap::new())));
 
     let senders_count = Arc::new(());
 
@@ -29,10 +30,11 @@ pub fn channel<T>() -> (Sender<T>, Receiver<T>)
 
 }
 
-pub fn channel_with_capacities<T>(message_queue_capacity: usize, when_empty_waker_queue_and_acrive_ids_capacities: usize) -> (Sender<T>, Receiver<T>)
+pub fn channel_with_capacities<T>(capacity: usize, waker_queue_and_acrive_ids_capacities: usize) -> (Sender<T>, Receiver<T>)
+    where T: Unpin
 {
 
-    let shared_details = Arc::new(PreferredMutexType::new(ChannelSharedDetails::new(VecDeque::with_capacity(message_queue_capacity), VecDeque::with_capacity(when_empty_waker_queue_and_acrive_ids_capacities), HashMap::with_capacity(when_empty_waker_queue_and_acrive_ids_capacities))));
+    let shared_details = Arc::new(PreferredMutexType::new(ChannelSharedDetails::new(capacity, VecDeque::with_capacity(waker_queue_and_acrive_ids_capacities), VecDeque::with_capacity(waker_queue_and_acrive_ids_capacities), HashMap::with_capacity(waker_queue_and_acrive_ids_capacities))));
 
     let senders_count = Arc::new(());
 

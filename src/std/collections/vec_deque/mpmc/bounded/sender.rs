@@ -1,4 +1,6 @@
-use std::sync::{Arc, Weak};
+#[cfg(feature="tokio")]
+use std::time::Duration;
+use std::{sync::{Arc, Weak}, task::Poll};
 
 #[cfg(feature="use_std_sync")]
 use crate::get_mg;
@@ -8,12 +10,16 @@ use super::ChannelSharedDetails;
 use crate::{BoundedSendError, PreferredMutexType};
 
 use delegate::delegate;
+use futures::executor::block_on;
+#[cfg(feature="tokio")]
+use tokio::time::{Instant, error::Elapsed};
 
 use std::fmt::Debug;
 
 use super::WeakSender;
 
 pub struct Sender<T>
+    where T: Unpin
 {
 
     shared_details: Arc<PreferredMutexType<ChannelSharedDetails<T>>>,
@@ -23,6 +29,7 @@ pub struct Sender<T>
 }
 
 impl<T> Sender<T>
+    where T: Unpin
 {
 
     pub fn new(shared_details: Arc<PreferredMutexType<ChannelSharedDetails<T>>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
@@ -39,57 +46,41 @@ impl<T> Sender<T>
 
     }
 
-    pub fn send(&self, value: T) -> Result<(), T>
+    pub fn send<'a>(&'a self, value: T) -> SendFuture<'a, T>
     {
 
-        let waker;
+        SendFuture::new(self, value)
 
-        {
+    }
 
-            #[cfg(feature="use_std_sync")]
-            let mut mg = get_mg(&self.shared_details);
+    pub fn blocking_send(&self, value: T) -> Result<(), BoundedSendError<T>>
+    {
 
-            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.shared_details.lock();
+        block_on(self.send(value))
 
-            if mg.is_closed
-            {
+    }
 
-                return Err(value);
+    #[cfg(feature="tokio")]
+    pub async fn recv_timeout_tokio(&self, value: T, duration: Duration) -> Result<Result<(), BoundedSendError<T>>, Elapsed>
+    {
 
-            }
+        use tokio::time::timeout;
 
-            mg.message_queue.push_back(value);
+        let res = self.send(value);
 
-            let opt_waker = mg.when_empty_waker_queue.pop_front();
+        timeout(duration, res).await
 
-            if let Some(the_waker) = opt_waker
-            {
+    }
 
-                waker = the_waker;
+    #[cfg(feature="tokio")]
+    pub async fn recv_timeout_at_tokio(&self, value: T, deadline: Instant) -> Result<Result<(), BoundedSendError<T>>, Elapsed>
+    {
 
-                let opt_entry = mg.active_ids.get_mut(&waker.id());
-                
-                if let Some(entry) = opt_entry
-                {
+        use tokio::time::timeout_at;
 
-                    *entry = true;
+        let res = self.send(value);
 
-                }
-
-            }
-            else
-            {
-
-                return Ok(());
-
-            }
-
-        }
-
-        waker.wake();
-
-        Ok(())
+        timeout_at(deadline, res).await
 
     }
 
@@ -207,6 +198,7 @@ impl<T> Sender<T>
 }
 
 impl<T> Clone for Sender<T>
+    where T: Unpin
 {
 
     fn clone(&self) -> Self
@@ -226,7 +218,7 @@ impl<T> Clone for Sender<T>
 }
 
 impl<T> Debug for Sender<T>
-    where T: Debug
+    where T: Debug + Unpin
 {
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -236,6 +228,7 @@ impl<T> Debug for Sender<T>
 }
 
 impl<T> Drop for Sender<T>
+    where T: Unpin
 {
 
     fn drop(&mut self)
@@ -264,6 +257,153 @@ impl<T> Drop for Sender<T>
 
         }
     
+    }
+
+}
+
+static EXPECTED_VALUE_NOT_FOUND_MESSAGE: &str = "Error: Expected value not found.";
+
+pub struct SendFuture<'a, T>
+    where T: Unpin
+{
+
+    sender_ref: &'a Sender<T>,
+    opt_waker_id: Option<usize>,
+    opt_value: Option<T>
+
+}
+
+impl<'a, T> SendFuture<'a, T>
+    where T: Unpin
+{
+
+    pub fn new(sender_ref: &'a Sender<T>, value: T) -> Self
+    {
+
+        Self
+        {
+
+            sender_ref,
+            opt_waker_id: None,
+            opt_value: Some(value)
+
+        }
+
+    }
+
+}
+
+impl<'a, T> Future for SendFuture<'a, T>
+    where T: Unpin
+{
+
+    type Output = Result<(), BoundedSendError<T>>;
+
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
+    {
+        
+        let waker;
+
+        {
+
+            let mut_self = self.get_mut();
+
+            let value = mut_self.opt_value.take().expect(EXPECTED_VALUE_NOT_FOUND_MESSAGE);
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = get_mg(&mut_self.sender_ref.shared_details);
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = mut_self.sender_ref.shared_details.lock();
+
+            if mg.is_closed
+            {
+
+                return Poll::Ready(Err(BoundedSendError::Closed(value)));
+
+            }
+
+            if mg.message_queue.len() < mg.capacity()
+            {
+
+                mg.message_queue.push_back(value);
+
+                let opt_waker = mg.when_empty_waker_queue.pop_front();
+
+                if let Some(the_waker) = opt_waker
+                {
+
+                    waker = the_waker;
+
+                    let opt_entry = mg.active_ids.get_mut(&waker.id());
+                    
+                    if let Some(entry) = opt_entry
+                    {
+
+                        *entry = true;
+
+                    }
+
+                }
+                else
+                {
+
+                    return Poll::Ready(Ok(()));
+
+                }
+
+            }
+            else
+            {
+
+                return Poll::Ready(Err(BoundedSendError::Full(value)));
+
+            }
+
+        }
+
+        waker.wake();
+
+        Poll::Ready(Ok(()))
+
+    }
+
+}
+
+impl<'a, T> Debug for SendFuture<'a, T>
+    where T: Debug + Unpin
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SendFuture").field("sender_ref", &self.sender_ref).field("opt_waker_id", &self.opt_waker_id).field("opt_value", &self.opt_value).finish()
+    }
+
+}
+
+impl<'a, T> Drop for SendFuture<'a, T>
+    where T: Unpin
+{
+
+    fn drop(&mut self)
+    {
+
+        if let Some(id) = self.opt_waker_id
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = get_mg(&self.sender_ref.shared_details);
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.sender_ref.shared_details.lock();
+            
+            mg.remove_waker(id);
+
+            //mg.active_ids.remove(&id);
+
+        }
+
+        // SAFETY: `self` is pinned till after dropped.
+        //unsafe { Drop::pin_drop(std::pin::Pin::new_unchecked(self)) }
     }
 
 }
