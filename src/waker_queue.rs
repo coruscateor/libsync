@@ -17,7 +17,7 @@ use pastey::paste;
 
 use accessorise::impl_val_getter;
 
-use inc_dec::IntIncDecSelf;
+use inc_dec::{IncDecSelf, IntIncDecSelf};
 
 use crate::{PreferredMutexType, QueuedWaker};
 
@@ -514,116 +514,121 @@ impl Future for WakerQueueWakeMe<'_>
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
     {
 
-        match self.opt_waker_id
+        let mut_self = self.get_mut();
+
+        #[cfg(feature="use_std_sync")]
+        let mut mg = mut_self.waker_queue_ref.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = mut_self.waker_queue_ref.waker_queue_internals.lock();
+
+        if let Some(id) =  &mut_self.opt_waker_id
         {
 
-            Some(id) =>
+            /*
+            #[cfg(feature="use_std_sync")]
+            let mut mg = mut_self.waker_queue_ref.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = mut_self.waker_queue_ref.waker_queue_internals.lock();
+            */
+
+            match &mut *mg
             {
 
-                #[cfg(feature="use_std_sync")]
-                let mut mg = self.waker_queue_ref.get_mg();
-
-                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-                let mut mg = self.waker_queue_ref.waker_queue_internals.lock();
-
-                match &mut *mg
+                Some(val) =>
                 {
 
-                    Some(val) =>
+                    if let Some(shouldve_awoken) = val.active_ids.get(&id)
                     {
 
-                        if let Some(shouldve_awoken) = val.active_ids.get(&id)
+                        if *shouldve_awoken
                         {
 
-                            if *shouldve_awoken
-                            {
+                            val.active_ids.remove(id);
 
-                                val.active_ids.remove(&id);
+                            mut_self.opt_waker_id = None;
 
-                                return Poll::Ready(Ok(()));
-
-                            }
-                            else
-                            {
-
-                                //push my waker back into the queue.
-
-                                let queued_waker = QueuedWaker::new(cx.waker().clone(), id);
-
-                                val.queue.push_back(queued_waker);
-
-                                return Poll::Pending;
-                                
-                            }
+                            return Poll::Ready(Ok(()));
 
                         }
+                        else
+                        {
 
-                    }
-                    None =>
-                    {
+                            //push my waker back into the queue.
 
-                        return Poll::Ready(WakerQueueWakeMeClosedError::err());
+                            let queued_waker = QueuedWaker::new(cx.waker().clone(), *id);
+
+                            val.queue.push_back(queued_waker);
+
+                            return Poll::Pending;
+                            
+                        }
 
                     }
 
                 }
-
-            }
-            None =>
-            {
-
-                //The task is going to "sleep". Update the WQI so it can be woken up later.
-
-                let mut inserted = false;
-
-                let waker = cx.waker().clone();
-
-                let mut id = 0;
-
-                #[cfg(feature="use_std_sync")]
-                let mut mg = self.waker_queue_ref.get_mg();
-
-                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-                let mut mg = self.waker_queue_ref.waker_queue_internals.lock();
-
-                match &mut *mg
+                None =>
                 {
 
-                    Some(val) =>
-                    {
+                    return Poll::Ready(WakerQueueWakeMeClosedError::err());
 
-                        while !inserted
-                        {
-
-                            //Find the next avalible id.
-
-                            id = val.latest_id.wpp();
-
-                            inserted = val.active_ids.insert(id, false).is_none();
-                            
-                        }
-
-                        let queued_waker = QueuedWaker::new(waker, id);
-
-                        val.queue.push_back(queued_waker);
-
-                        let self_mut = self.get_mut();
-
-                        //Make sure this is set.
-
-                        self_mut.opt_waker_id = Some(id);
-
-                    }
-                    None =>
-                    {
-
-                        return Poll::Ready(WakerQueueWakeMeClosedError::err());
-
-                    }
-
-                }                 
+                }
 
             }
+
+            //The task is going to "sleep". Update the WQI so it can be woken up later.
+
+            let mut inserted = false;
+
+            let waker = cx.waker().clone();
+
+            let mut id = 0;
+
+            /*
+            #[cfg(feature="use_std_sync")]
+            let mut mg = mut_self.waker_queue_ref.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.waker_queue_ref.waker_queue_internals.lock();
+            */
+
+            match &mut *mg
+            {
+
+                Some(val) =>
+                {
+
+                    while !inserted
+                    {
+
+                        //Find the next avalible id.
+
+                        id = val.latest_id.wpp();
+
+                        inserted = val.active_ids.insert(id, false).is_none();
+                        
+                    }
+
+                    let queued_waker = QueuedWaker::new(waker, id);
+
+                    val.queue.push_back(queued_waker);
+
+                    //let self_mut = mut_self.get_mut();
+
+                    //Make sure this is set.
+
+                    mut_self.opt_waker_id = Some(id);
+
+                }
+                None =>
+                {
+
+                    return Poll::Ready(WakerQueueWakeMeClosedError::err());
+
+                }
+
+            }                 
 
         }
 
@@ -654,6 +659,33 @@ impl Drop for WakerQueueWakeMe<'_>
             {
 
                 wqi.active_ids.remove(&id);
+
+                let mut index = 0;
+
+                let mut found = false; 
+
+                for item in wqi.queue.iter()
+                {
+
+                    if item.id() == id
+                    {
+
+                        found = true;
+
+                        break;
+
+                    }
+
+                    index.pp();
+
+                }
+
+                if found
+                {
+
+                    wqi.queue.remove(index);
+
+                }
 
             }
             

@@ -61,7 +61,7 @@ impl<T> Sender<T>
     }
 
     #[cfg(feature="tokio")]
-    pub async fn recv_timeout_tokio(&self, value: T, duration: Duration) -> Result<Result<(), BoundedSendError<T>>, Elapsed>
+    pub async fn send_timeout_tokio(&self, value: T, duration: Duration) -> Result<Result<(), BoundedSendError<T>>, Elapsed>
     {
 
         use tokio::time::timeout;
@@ -73,7 +73,7 @@ impl<T> Sender<T>
     }
 
     #[cfg(feature="tokio")]
-    pub async fn recv_timeout_at_tokio(&self, value: T, deadline: Instant) -> Result<Result<(), BoundedSendError<T>>, Elapsed>
+    pub async fn send_timeout_at_tokio(&self, value: T, deadline: Instant) -> Result<Result<(), BoundedSendError<T>>, Elapsed>
     {
 
         use tokio::time::timeout_at;
