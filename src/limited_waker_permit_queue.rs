@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::error::Error;
 
 use std::fmt::Display;
@@ -20,6 +21,7 @@ use inc_dec::{IncDecSelf, IntIncDecSelf};
 use pastey::paste;
 
 use accessorise::impl_val_getter;
+use scc::hash_cache::Entry::Occupied;
 
 use crate::QueuedWaker;
 
@@ -1006,7 +1008,8 @@ impl LimitedWakerPermitQueueClosedError
     {
 
         Self
-        {}
+        {
+        }
 
     }
 
@@ -1072,250 +1075,270 @@ impl Future for LimitedWakerPermitQueueDecrementPermitsOrWait<'_>
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
     {
 
-        let opt_waker; // = None;
+        let mut_self = self.get_mut();
 
-        match self.opt_waker_id
+        #[cfg(feature="use_std_sync")]
+        let mut mg = mut_self.waker_permit_queue_ref.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = mut_self.waker_permit_queue_ref.internal_mut_state.lock();
+
+        //let opt_waker; // = None;
+
+        if let Some(id) =  mut_self.opt_waker_id.take()
         {
 
-            Some(id) =>
+            /*
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.waker_permit_queue_ref.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.waker_permit_queue_ref.internal_mut_state.lock();
+            */
+
+            match &mut *mg
             {
 
-                #[cfg(feature="use_std_sync")]
-                let mut mg = self.waker_permit_queue_ref.get_mg();
-
-                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-                let mut mg = self.waker_permit_queue_ref.internal_mut_state.lock();
-
-                match &mut *mg
+                Some(val) =>
                 {
 
-                    Some(val) =>
+                    //Make sure this is a proper wakup.
+
+                    //if let Some(shouldve_awoken) = val.active_ids.get(&id)
+                    if let Entry::Occupied(occupied) = val.active_ids.entry(id)
                     {
 
-                        //Make sure this is a proper wakup.
-
-                        if let Some(shouldve_awoken) = val.active_ids.get(&id)
+                        //if *shouldve_awoken
+                        if *occupied.get()
                         {
 
-                            if *shouldve_awoken
+                            //let self_mut = self.get_mut();
+
+                            //"Take" a permit.
+
+                            let permits = val.permits;
+
+                            if let Some(new_permits) = permits.checked_sub(1)
                             {
 
-                                let self_mut = self.get_mut();
+                                val.permits = new_permits;
 
-                                //"Take" a permit.
+                                //val.active_ids.remove(&id);
 
-                                let permits = val.permits;
+                                occupied.remove();
 
-                                if let Some(new_permits) = permits.checked_sub(1)
+                                //mut_self.opt_waker_id = None;
+
+                                let opt_waker = val.max_permits_queue.pop_front();
+
+                                if let Some(waker) = opt_waker
                                 {
 
-                                    val.permits = new_permits;
-
-                                    val.active_ids.remove(&id);
-
-                                    self_mut.opt_waker_id = None;
-
-                                    opt_waker = val.max_permits_queue.pop_front();
-
-                                    if let Some(waker) = &opt_waker
+                                    if let Some(mut_ref) = val.active_ids.get_mut(&waker.id())
                                     {
 
-                                        if let Some(mut_ref) = val.active_ids.get_mut(&waker.id())
-                                        {
-
-                                            *mut_ref = true;
-
-                                        }
+                                        *mut_ref = true;
 
                                     }
-                                    else
-                                    {
 
-                                        return Poll::Ready(Ok(()));
-                                        
-                                    }
+                                    drop(mg);
+
+                                    waker.wake();
+
+                                    return Poll::Ready(Ok(()));
 
                                 }
                                 else
                                 {
 
-                                    //The value of the permits should've been greater that one so this tasks get to proceed if it wakes up spuriously next time.
-
-                                    let waker = cx.waker().clone();
-
-                                    let queued_waker = QueuedWaker::new(waker, id);
-
-                                    val.no_permits_queue.push_back(queued_waker);
-
-                                    if let Some(mut_ref) = val.active_ids.get_mut(&id)
-                                    {
-
-                                        *mut_ref = false;
-
-                                    }
-
-                                    //Make sure this is set.
-
-                                    self_mut.opt_waker_id = Some(id);
-
-                                    return Poll::Pending;
+                                    return Poll::Ready(Ok(()));
                                     
                                 }
 
                             }
+                            /*
                             else
                             {
 
+                                //The value of the permits should've been greater that one so this tasks get to proceed if it wakes up spuriously next time.
+
                                 let waker = cx.waker().clone();
 
-                                let queued_waker = QueuedWaker::new(waker, id);
+                                let queued_waker = QueuedWaker::new(waker, *id);
 
                                 val.no_permits_queue.push_back(queued_waker);
 
-                                let self_mut = self.get_mut();
+                                /*
+                                if let Some(mut_ref) = val.active_ids.get_mut(&id)
+                                {
+
+                                    *mut_ref = false;
+
+                                }
+                                */
 
                                 //Make sure this is set.
 
-                                self_mut.opt_waker_id = Some(id);
-
+                                //mut_self.opt_waker_id = Some(id);
 
                                 return Poll::Pending;
                                 
                             }
+                            */
 
                         }
-                        else
-                        {
+                        //else
+                        //{
 
-                            //make sure this Task doen't get trapped if there's an error. 
+                        let waker = cx.waker().clone();
 
-                            return Poll::Ready(Ok(()));
+                        let queued_waker = QueuedWaker::new(waker, id);
 
-                        }
+                        val.no_permits_queue.push_back(queued_waker);
 
-                        /*
-                        if !val.active_ids.contains_key(&id)
-                        {
+                        //let self_mut = self.get_mut();
 
-                            //The task has been successfully awoken.
+                        //Make sure this is set.
 
-                            return Poll::Ready(Ok(()));
+                        mut_self.opt_waker_id = Some(id);
 
-                        }
-                        */
+                        return Poll::Pending;
+                            
+                        //}
 
                     }
-                    None =>
+
+                    /*
+                    if !val.active_ids.contains_key(&id)
                     {
 
-                        return Poll::Ready(LimitedWakerPermitQueueClosedError::err());
+                        //The task has been successfully awoken.
+
+                        return Poll::Ready(Ok(()));
 
                     }
+                    */
 
+                }
+                None =>
+                {
+
+                    return Poll::Ready(LimitedWakerPermitQueueClosedError::err());
+
+                }
+
+            }
+
+        }
+
+        //The task is going to "sleep". Update the WQI so it can be woken up later.
+
+        //let mut id = 0;
+
+        /*
+        #[cfg(feature="use_std_sync")]
+        let mut mg = self.waker_permit_queue_ref.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.waker_permit_queue_ref.internal_mut_state.lock();
+        */
+
+        match &mut *mg
+        {
+
+            Some(val) =>
+            {
+
+                let mut id = 0;
+
+                let permits = val.permits;
+
+                //Is there a queue?
+
+                if val.no_permits_queue.is_empty() && let Some(new_permits) = permits.checked_sub(1)
+                {
+
+                    val.permits = new_permits;
+
+                    let opt_waker = val.max_permits_queue.pop_front();
+
+                    if let Some(waker) = opt_waker
+                    {
+
+                        if let Some(mut_ref) = val.active_ids.get_mut(&waker.id())
+                        {
+
+                            *mut_ref = true;
+
+                        }
+
+                        drop(mg);
+
+                        waker.wake();
+
+                        return Poll::Ready(Ok(()));
+
+
+                    }
+                    else
+                    {
+
+                        return Poll::Ready(Ok(()));
+                        
+                    }
+                }
+                else
+                {
+
+                    let mut inserted = false;
+
+                    let waker = cx.waker().clone();
+
+                    while !inserted
+                    {
+
+                        //Find the next avalible id.
+
+                        id = val.latest_id.wpp();
+
+                        inserted = val.active_ids.insert(id, false).is_none(); //.is_some();
+                        
+                    }
+
+                    let queued_waker = QueuedWaker::new(waker, id);
+
+                    val.no_permits_queue.push_back(queued_waker);
+
+                    //let self_mut = self.get_mut();
+
+                    mut_self.opt_waker_id = Some(id);    
+
+                    //return Poll::Pending;
+                    
                 }
 
             }
             None =>
             {
 
-                //The task is going to "sleep". Update the WQI so it can be woken up later.
-
-                let mut id = 0;
-
-                #[cfg(feature="use_std_sync")]
-                let mut mg = self.waker_permit_queue_ref.get_mg();
-
-                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-                let mut mg = self.waker_permit_queue_ref.internal_mut_state.lock();
-
-                match &mut *mg
-                {
-
-                    Some(val) =>
-                    {
-
-
-                        let permits = val.permits;
-
-                        //Is there a queue?
-
-                        if val.no_permits_queue.is_empty() && let Some(new_permits) = permits.checked_sub(1)
-                        {
-
-                            val.permits = new_permits;
-
-                            opt_waker = val.max_permits_queue.pop_front();
-
-                            if let Some(waker) = &opt_waker
-                            {
-
-                                if let Some(mut_ref) = val.active_ids.get_mut(&waker.id())
-                                {
-
-                                    *mut_ref = true;
-
-                                }
-
-                            }
-                            else
-                            {
-
-                                return Poll::Ready(Ok(()));
-                                
-                            }
-                        }
-                        else
-                        {
-
-                            let mut inserted = false;
-
-                            let waker = cx.waker().clone();
-
-                            while !inserted
-                            {
-
-                                //Find the next avalible id.
-
-                                id = val.latest_id.wpp();
-
-                                inserted = val.active_ids.insert(id, false).is_none(); //.is_some();
-                                
-                            }
-
-                            let queued_waker = QueuedWaker::new(waker, id);
-
-                            val.no_permits_queue.push_back(queued_waker);
-
-                            let self_mut = self.get_mut();
-
-                            self_mut.opt_waker_id = Some(id);    
-
-                            return Poll::Pending;
-                            
-                        }
-
-                    }
-                    None =>
-                    {
-
-                        return Poll::Ready(LimitedWakerPermitQueueClosedError::err());
-
-                    }
-
-                }                 
+                return Poll::Ready(LimitedWakerPermitQueueClosedError::err());
 
             }
 
-        }
+        }                 
 
+        Poll::Pending
+
+        /*
         if let Some(waker) = opt_waker
         {
 
             waker.wake();
 
         }
+        */
 
-        Poll::Ready(Ok(()))
+        //Poll::Ready(Ok(()))
         
     }
 
@@ -1423,97 +1446,82 @@ impl Future for LimitedWakerPermitQueueIncrementPermitsOrWait<'_>
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
     {
 
-        let opt_waker;
+        let mut_self = self.get_mut();
+
+        #[cfg(feature="use_std_sync")]
+        let mut mg = mut_self.waker_permit_queue_ref.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = mut_self.waker_permit_queue_ref.internal_mut_state.lock();
+
+        //let opt_waker;
 
         //let mut opt_waker = None;
 
-        match self.opt_waker_id
+        if let Some(id) = mut_self.opt_waker_id.take()
         {
 
-            Some(id) =>
+            match &mut *mg
             {
 
-                #[cfg(feature="use_std_sync")]
-                let mut mg = self.waker_permit_queue_ref.get_mg();
-
-                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-                let mut mg = self.waker_permit_queue_ref.internal_mut_state.lock();
-
-                match &mut *mg
+                Some(val) =>
                 {
 
-                    Some(val) =>
+                    //Make sure this is a proper wakup.
+
+                    //if let Some(shouldve_awoken) = val.active_ids.get(&id)
+                    if let Entry::Occupied(occupied) = val.active_ids.entry(id)
                     {
 
-                        //Make sure this is a proper wakup.
-
-                        if let Some(shouldve_awoken) = val.active_ids.get(&id)
+                        //if *shouldve_awoken
+                        if *occupied.get()
                         {
 
-                            if *shouldve_awoken
+                            //let self_mut = self.get_mut();
+
+                            //"Add" a permit.
+
+                            let permits = val.permits;
+
+                            if let Some(new_permits) = permits.checked_add(1) && new_permits <= mut_self.waker_permit_queue_ref.max_permits
                             {
 
-                                let self_mut = self.get_mut();
+                                val.permits = new_permits;
 
-                                //"Add" a permit.
+                                occupied.remove();
 
-                                let permits = val.permits;
+                                //val.active_ids.remove(&id);
 
-                                if let Some(new_permits) = permits.checked_add(1) && new_permits <= self_mut.waker_permit_queue_ref.max_permits
+                                //self_mut.opt_waker_id = None;
+
+                                let opt_waker = val.no_permits_queue.pop_front();
+
+                                if let Some(waker) = opt_waker
                                 {
 
-                                    val.permits = new_permits;
-
-                                    val.active_ids.remove(&id);
-
-                                    self_mut.opt_waker_id = None;
-
-                                    opt_waker = val.no_permits_queue.pop_front();
-
-                                    if let Some(waker) = &opt_waker
+                                    if let Some(mut_ref) = val.active_ids.get_mut(&waker.id())
                                     {
 
-                                        if let Some(mut_ref) = val.active_ids.get_mut(&waker.id())
-                                        {
-
-                                            *mut_ref = true;
-
-                                        }
+                                        *mut_ref = true;
 
                                     }
-                                    else
-                                    {
 
-                                        return Poll::Ready(Ok(()));
-                                        
-                                    }
+                                    drop(mg);
+
+                                    waker.wake();
+
+                                    return Poll::Ready(Ok(()));
 
                                 }
                                 else
                                 {
 
-                                    let waker = cx.waker().clone();
-
-                                    let queued_waker = QueuedWaker::new(waker, id);
-
-                                    val.max_permits_queue.push_back(queued_waker);
-
-                                    if let Some(mut_ref) = val.active_ids.get_mut(&id)
-                                    {
-
-                                        *mut_ref = false;
-
-                                    }
-
-                                    //Make sure this is set.
-
-                                    self_mut.opt_waker_id = Some(id);
-
-                                    return Poll::Pending;
+                                    return Poll::Ready(Ok(()));
                                     
                                 }
 
                             }
+                            /*
                             else
                             {
 
@@ -1523,156 +1531,189 @@ impl Future for LimitedWakerPermitQueueIncrementPermitsOrWait<'_>
 
                                 val.max_permits_queue.push_back(queued_waker);
 
-                                let self_mut = self.get_mut();
+                                if let Some(mut_ref) = val.active_ids.get_mut(&id)
+                                {
+
+                                    *mut_ref = false;
+
+                                }
 
                                 //Make sure this is set.
 
-                                self_mut.opt_waker_id = Some(id);
+                                mut_self.opt_waker_id = Some(id);
 
                                 return Poll::Pending;
                                 
                             }
+                            */
 
                         }
-                        else
-                        {
+                        //else
+                        //{
 
-                            //make sure this Task doen't get trapped if there's an error. 
+                        let waker = cx.waker().clone();
 
-                            return Poll::Ready(Ok(()));
+                        let queued_waker = QueuedWaker::new(waker, id);
 
-                        }
+                        val.max_permits_queue.push_back(queued_waker);
 
-                        /*
-                        if !val.active_ids.contains_key(&id)
-                        {
+                        //let self_mut = self.get_mut();
 
-                            //The task has been successfully awoken.
+                        //Make sure this is set.
 
-                            return Poll::Ready(Ok(()));
+                        mut_self.opt_waker_id = Some(id);
 
-                        }
-                        */
+                        return Poll::Pending;
+                        
+                        //}
 
                     }
-                    None =>
+                    /*
+                    else
                     {
 
-                        return Poll::Ready(LimitedWakerPermitQueueClosedError::err());
+                        //make sure this Task doen't get trapped if there's an error. 
+
+                        return Poll::Ready(Ok(()));
 
                     }
+                    */
 
+                    /*
+                    if !val.active_ids.contains_key(&id)
+                    {
+
+                        //The task has been successfully awoken.
+
+                        return Poll::Ready(Ok(()));
+
+                    }
+                    */
+
+                }
+                None =>
+                {
+
+                    return Poll::Ready(LimitedWakerPermitQueueClosedError::err());
+
+                }
+
+            }
+
+        }
+
+        /*
+        #[cfg(feature="use_std_sync")]
+        let mut mg = self.waker_permit_queue_ref.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.waker_permit_queue_ref.internal_mut_state.lock();
+        */
+
+        match &mut *mg
+        {
+
+            Some(val) =>
+            {
+
+                //"Take" a permit.
+
+                let permits = val.permits;
+
+                //Is there a queue?
+
+                if val.max_permits_queue.is_empty() && let Some(new_permits) = permits.checked_add(1) && new_permits <= mut_self.waker_permit_queue_ref.max_permits
+                {
+
+                    val.permits = new_permits;
+
+                    let opt_waker = val.no_permits_queue.pop_front();
+
+                    if let Some(waker) = opt_waker
+                    {
+
+                        if let Some(mut_ref) = val.active_ids.get_mut(&waker.id())
+                        {
+
+                            *mut_ref = true;
+
+                        }
+
+                        drop(mg);
+
+                        waker.wake();
+
+                        return Poll::Ready(Ok(()));
+
+                    }
+                    else
+                    {
+
+                        return Poll::Ready(Ok(()));
+                        
+                    }
+
+                }
+                else
+                {
+
+                    //The task is going to "sleep". Update the WQI so it can be woken up later.
+
+                    let mut id = 0;
+
+                    let mut inserted = false;
+
+                    let waker = cx.waker().clone();
+
+                    while !inserted
+                    {
+
+                        //Find the next avalible id.
+
+                        id = val.latest_id.wpp();
+
+                        inserted = val.active_ids.insert(id, false).is_none();
+                        
+                    }
+
+                    let queued_waker = QueuedWaker::new(waker, id);
+
+                    val.max_permits_queue.push_back(queued_waker);
+
+                    //
+
+                    //Store the id in the future.
+
+                    //let self_mut = self.get_mut();
+
+                    /*
+                    let self_mut = unsafe
+                    {
+                        
+                        self.get_unchecked_mut()
+
+                    };
+                    */
+
+                    mut_self.opt_waker_id = Some(id);
+
+                    //return Poll::Pending;  
+                
                 }
 
             }
             None =>
             {
 
-                #[cfg(feature="use_std_sync")]
-                let mut mg = self.waker_permit_queue_ref.get_mg();
-
-                #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-                let mut mg = self.waker_permit_queue_ref.internal_mut_state.lock();
-
-                match &mut *mg
-                {
-
-                    Some(val) =>
-                    {
-
-                        //"Take" a permit.
-
-                        let permits = val.permits;
-
-                        //Is there a queue?
-
-                        if val.max_permits_queue.is_empty() && let Some(new_permits) = permits.checked_add(1) && new_permits <= self.waker_permit_queue_ref.max_permits
-                        {
-
-                            val.permits = new_permits;
-
-                            opt_waker = val.no_permits_queue.pop_front();
-
-                            if let Some(waker) = &opt_waker
-                            {
-
-                                if let Some(mut_ref) = val.active_ids.get_mut(&waker.id())
-                                {
-
-                                    *mut_ref = true;
-
-                                }
-
-                            }
-                            else
-                            {
-
-                                return Poll::Ready(Ok(()));
-                                
-                            }
-
-                        }
-                        else
-                        {
-
-                            //The task is going to "sleep". Update the WQI so it can be woken up later.
-
-                            let mut id = 0;
-
-                            let mut inserted = false;
-
-                            let waker = cx.waker().clone();
-
-                            while !inserted
-                            {
-
-                                //Find the next avalible id.
-
-                                id = val.latest_id.wpp();
-
-                                inserted = val.active_ids.insert(id, false).is_none();
-                                
-                            }
-
-                            let queued_waker = QueuedWaker::new(waker, id);
-
-                            val.max_permits_queue.push_back(queued_waker);
-
-                            //
-
-                            //Store the id in the future.
-
-                            let self_mut = self.get_mut();
-
-                            /*
-                            let self_mut = unsafe
-                            {
-                                
-                                self.get_unchecked_mut()
-
-                            };
-                            */
-
-                            self_mut.opt_waker_id = Some(id);
-
-                            return Poll::Pending;  
-                        
-                        }
-
-                    }
-                    None =>
-                    {
-
-                        return Poll::Ready(LimitedWakerPermitQueueClosedError::err());
-
-                    }
-
-                }                 
+                return Poll::Ready(LimitedWakerPermitQueueClosedError::err());
 
             }
 
         }
 
+        Poll::Pending
+
+        /*
         if let Some(waker) = opt_waker
         {
 
@@ -1681,7 +1722,8 @@ impl Future for LimitedWakerPermitQueueIncrementPermitsOrWait<'_>
         }
 
         Poll::Ready(Ok(()))
-        
+        */
+
     }
 
 }

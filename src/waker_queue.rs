@@ -577,14 +577,6 @@ impl Future for WakerQueueWakeMe<'_>
 
             }
 
-            //The task is going to "sleep". Update the WQI so it can be woken up later.
-
-            let mut inserted = false;
-
-            let waker = cx.waker().clone();
-
-            let mut id = 0;
-
             /*
             #[cfg(feature="use_std_sync")]
             let mut mg = mut_self.waker_queue_ref.get_mg();
@@ -598,6 +590,14 @@ impl Future for WakerQueueWakeMe<'_>
 
                 Some(val) =>
                 {
+
+                    //The task is going to "sleep". Update the WQI so it can be woken up later.
+
+                    let mut inserted = false;
+
+                    let waker = cx.waker().clone();
+
+                    let mut id = 0;
 
                     while !inserted
                     {

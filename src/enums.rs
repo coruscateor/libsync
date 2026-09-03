@@ -112,3 +112,56 @@ impl<T> Debug for TryLockedReceiver<T>
     }
 
 }
+
+pub enum PartialSend<T>
+{
+
+    Item(T),
+    Done
+
+}
+
+impl<T> PartialSend<T>
+{
+
+    pub fn is_item(&self) -> bool
+    {
+
+        matches!(self, Self::Item(_))
+
+    }
+
+    pub fn is_done(&self) -> bool
+    {
+
+        matches!(self, Self::Done)
+
+    }
+
+    pub fn take_item(self) -> Option<T>
+    {
+
+        match self
+        {
+
+            PartialSend::Item(item) => Some(item),
+            PartialSend::Done => None
+
+        }
+
+    }
+
+}
+
+impl<T> Debug for PartialSend<T>
+    where T: Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Item(arg0) => f.debug_tuple("Item").field(arg0).finish(),
+            Self::Done => write!(f, "Done"),
+        }
+    }
+    
+}
