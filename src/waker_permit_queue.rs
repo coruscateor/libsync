@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::error::Error;
 
 use std::fmt::Display;
@@ -883,7 +884,7 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
         let mut mg = mut_self.waker_permit_queue_ref.internal_mut_state.lock();
 
-        if let Some(id) = &mut_self.opt_waker_id
+        if let Some(id) = mut_self.opt_waker_id.take()
         {
 
             /*
@@ -902,10 +903,12 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                     //Make sure this is a proper wakup.
 
-                    if let Some(shouldve_awoken) = val.active_ids.get(&id)
+                    //if let Some(shouldve_awoken) = val.active_ids.get(&id)
+                    if let Entry::Occupied(occupied) = val.active_ids.entry(id)
                     {
 
-                        if *shouldve_awoken
+                        //if *shouldve_awoken
+                        if *occupied.get()
                         {
 
                             //"Take" a permit.
@@ -917,7 +920,12 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                                 val.permits = new_permits;
 
+                                occupied.remove();
+
+                                return Poll::Ready(Ok(()));
+
                             }
+                            /*
                             else
                             {
 
@@ -925,15 +933,18 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                                 let waker = cx.waker().clone();
 
-                                let queued_waker = QueuedWaker::new(waker, *id);
+                                let queued_waker = QueuedWaker::new(waker, id);
 
                                 val.no_permits_queue.push_back(queued_waker);
+
+                                mut_self.opt_waker_id = Some(id);
 
                                 return Poll::Pending;
                                 
                             }
+                            */
 
-                            val.active_ids.remove(&id);
+                            //val.active_ids.remove(&id);
 
                             //Make sure the waker id is dropped locally as well.
 
@@ -948,25 +959,28 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
                             };
                             */
 
-                            mut_self.opt_waker_id = None;
+                            //mut_self.opt_waker_id = None;
 
-                            return Poll::Ready(Ok(()));
+                            //return Poll::Ready(Ok(()));
 
                         }
-                        else
-                        {
+                        //else
+                        //{
 
-                            let waker = cx.waker().clone();
+                        let waker = cx.waker().clone();
 
-                            let queued_waker = QueuedWaker::new(waker, *id);
+                        let queued_waker = QueuedWaker::new(waker, id);
 
-                            val.no_permits_queue.push_back(queued_waker);
+                        val.no_permits_queue.push_back(queued_waker);
 
-                            return Poll::Pending;
+                        mut_self.opt_waker_id = Some(id);
+
+                        return Poll::Pending;
                             
-                        }
+                        //}
 
                     }
+                    /*
                     else
                     {
 
@@ -975,6 +989,7 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
                         return Poll::Ready(Ok(()));
 
                     }
+                    */
 
                     /*
                     if !val.active_ids.contains_key(&id)

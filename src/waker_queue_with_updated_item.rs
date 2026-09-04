@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::error::Error;
 
 use std::fmt::Display;
@@ -861,7 +862,7 @@ impl<T, U> Future for WakerQueueWakeMeWithItem<'_, T, U>
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
         let mut mg = mut_self.waker_queue_ref.waker_queue_internals.lock();
 
-        if let Some(id) = &mut_self.opt_waker_id
+        if let Some(id) = mut_self.opt_waker_id.take()
         {
 
             /*
@@ -878,15 +879,19 @@ impl<T, U> Future for WakerQueueWakeMeWithItem<'_, T, U>
                 Some(val) =>
                 {
 
-                    if let Some(shouldve_awoken) = val.active_ids.get(&id)
+                    //if let Some(shouldve_awoken) = val.active_ids.get(&id)
+                    if let Entry::Occupied(occupied) = val.active_ids.entry(id)
                     {
 
-                        if *shouldve_awoken
+                        //if *shouldve_awoken
+                        if *occupied.get()
                         {
 
-                            val.active_ids.remove(&id);
+                            occupied.remove();
 
-                            mut_self.opt_waker_id = None;
+                            //val.active_ids.remove(&id);
+
+                            //mut_self.opt_waker_id = None;
 
                             return Poll::Ready(Ok(val.item.clone()));
 
@@ -896,9 +901,11 @@ impl<T, U> Future for WakerQueueWakeMeWithItem<'_, T, U>
 
                             //push my waker back into the queue.
 
-                            let queued_waker = QueuedWaker::new(cx.waker().clone(), *id);
+                            let queued_waker = QueuedWaker::new(cx.waker().clone(), id);
 
                             val.queue.push_back(queued_waker);
+
+                            mut_self.opt_waker_id = Some(id);
 
                             return Poll::Pending;
                             
@@ -932,6 +939,15 @@ impl<T, U> Future for WakerQueueWakeMeWithItem<'_, T, U>
             Some(val) =>
             {
 
+                if val.item == mut_self.current_item
+                {
+
+                    //The items are the same so we skip waiting.
+
+                    return Poll::Ready(Ok(val.item.clone()));
+
+                }
+
                 //The task is going to "sleep". Update the WQI so it can be woken up later.
 
                 let mut inserted = false;
@@ -941,15 +957,6 @@ impl<T, U> Future for WakerQueueWakeMeWithItem<'_, T, U>
                 let mut id = 0;
 
                 //let self_mut = self.get_mut();
-
-                if val.item == mut_self.current_item
-                {
-
-                    //The items are the same so we skip waiting.
-
-                    return Poll::Ready(Ok(val.item.clone()));
-
-                }
 
                 while !inserted
                 {
@@ -1151,7 +1158,7 @@ impl<T, U> Future for WakerQueueWakeMeIgnoreItem<'_, T, U>
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
         let mut mg = mut_self.waker_queue_ref.waker_queue_internals.lock();
 
-        if let Some(id) = &mut_self.opt_waker_id
+        if let Some(id) = mut_self.opt_waker_id.take()
         {
 
             /*
@@ -1168,15 +1175,19 @@ impl<T, U> Future for WakerQueueWakeMeIgnoreItem<'_, T, U>
                 Some(val) =>
                 {
 
-                    if let Some(shouldve_awoken) = val.active_ids.get(&id)
+                    //if let Some(shouldve_awoken) = val.active_ids.get(&id)
+                    if let Entry::Occupied(occupied) = val.active_ids.entry(id)
                     {
 
-                        if *shouldve_awoken
+                        //if *shouldve_awoken
+                        if *occupied.get()
                         {
 
-                            val.active_ids.remove(&id);
+                            occupied.remove();
 
-                            mut_self.opt_waker_id = None;
+                            //val.active_ids.remove(&id);
+
+                            //mut_self.opt_waker_id = None;
 
                             return Poll::Ready(Ok(()));
 
@@ -1186,7 +1197,7 @@ impl<T, U> Future for WakerQueueWakeMeIgnoreItem<'_, T, U>
 
                             //push my waker back into the queue.
 
-                            let queued_waker = QueuedWaker::new(cx.waker().clone(), *id);
+                            let queued_waker = QueuedWaker::new(cx.waker().clone(), id);
 
                             val.queue.push_back(queued_waker);
 
