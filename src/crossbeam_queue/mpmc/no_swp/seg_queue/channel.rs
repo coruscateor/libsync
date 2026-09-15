@@ -2,12 +2,14 @@ use std::sync::Arc;
 
 use crossbeam_queue::SegQueue;
 
+use crate::{AutoWaker, ChannelSharedDetailsWithEmptyQueue};
+
 use super::{Sender, Receiver};
 
 pub fn channel<T>() -> (Sender<T>, Receiver<T>)
 {
 
-    let shared_details = Arc::new(SegQueue::<T>::new());
+    let shared_details = Arc::new(ChannelSharedDetailsWithEmptyQueue::<SegQueue<T>, SegQueue<AutoWaker>>::new(SegQueue::new(), SegQueue::new()));
 
     let senders_count = Arc::new(());
 

@@ -2,7 +2,7 @@ use std::{sync::{Arc, Weak}, time::Duration};
 
 use crossbeam_queue::SegQueue;
 
-use crate::{ChannelSharedDetails, ReceiveError, ReceiveResult, SendResult, TimeoutReceiveError, WakerPermitQueue};
+use crate::{AutoWaker, ChannelSharedDetails, ChannelSharedDetailsWithEmptyQueue, ReceiveError, ReceiveResult, SendResult, TimeoutReceiveError, WakerPermitQueue};
 
 use delegate::delegate;
 
@@ -13,7 +13,7 @@ use super::WeakReceiver;
 pub struct Receiver<T>
 {
 
-    shared_details: Arc<SegQueue<T>>,
+    shared_details: Arc<ChannelSharedDetailsWithEmptyQueue<SegQueue<T>, SegQueue<AutoWaker>>>,
     senders_count: Weak<()>,
     receivers_count: Arc<()>
 
@@ -25,7 +25,7 @@ impl<T> Receiver<T>
     ///
     /// Create a new channel Receiver object.
     /// 
-    pub fn new(shared_details: Arc<SegQueue<T>>, senders_count: Weak<()>, receivers_count: Arc<()>) -> Self
+    pub fn new(shared_details: Arc<ChannelSharedDetailsWithEmptyQueue<SegQueue<T>, SegQueue<AutoWaker>>>, senders_count: Weak<()>, receivers_count: Arc<()>) -> Self
     {
 
         Self

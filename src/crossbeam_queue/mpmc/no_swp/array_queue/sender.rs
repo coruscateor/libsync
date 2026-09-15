@@ -1,8 +1,10 @@
-use std::{collections::btree_map::Values, default, sync::{Arc, Weak}, time::Duration};
+use std::{collections::btree_map::Values, default, sync::{Arc, Weak}, task::{Poll, Waker}, time::Duration};
 
-use crossbeam_queue::ArrayQueue;
+use crossbeam_queue::{ArrayQueue, SegQueue};
 
-use crate::{BoundedSendError, ChannelSharedDetails, LimitedWakerPermitQueue, SendResult, TimeoutBoundedSendError};
+use futures::executor::block_on;
+
+use crate::{BoundedSendError, ChannelSharedDetails, ChannelSharedDetailsWithBothQueues, LimitedWakerPermitQueue, SendResult, TimeoutBoundedSendError, auto_waker};
 
 use super::WeakSender;
 
@@ -10,22 +12,26 @@ use delegate::delegate;
 
 use std::fmt::Debug;
 
+use crate::{AutoWaker, BoundedSendResult, EXPECTED_VALUE_NOT_FOUND_MESSAGE};
+
 pub struct Sender<T>
+    where T: Unpin
 {
 
-    shared_details: Arc<ArrayQueue<T>>,
+    shared_details: Arc<ChannelSharedDetailsWithBothQueues<ArrayQueue<T>, SegQueue<AutoWaker>>>,
     senders_count: Arc<()>,
     receivers_count: Weak<()>
 
 }
 
 impl<T> Sender<T>
+    where T: Unpin
 {
 
     ///
     /// Create a new channel Sender object.
     /// 
-    pub fn new(shared_details: Arc<ArrayQueue<T>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
+    pub fn new(shared_details: Arc<ChannelSharedDetailsWithBothQueues<ArrayQueue<T>, SegQueue<AutoWaker>>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
     {
 
         Self
@@ -39,29 +45,68 @@ impl<T> Sender<T>
 
     }
 
+    pub fn try_send(&self, value: T) -> BoundedSendResult<T>
+    {
+
+        if self.is_closed()
+        {
+
+            return BoundedSendResult::Err(BoundedSendError::Closed(value));
+
+        }
+
+        match self.shared_details.message_queue.push(value)
+        {
+
+            Ok(_) =>
+            {
+
+                if let Some(_auto_waker) = self.shared_details.empty_queue.pop()
+                {
+
+                    //auto_waker.wake();
+
+                }
+
+                BoundedSendResult::Ok(())
+
+            }
+            Err(value) =>
+            {
+
+                BoundedSendResult::Err(BoundedSendError::Full(value))
+
+            }
+            
+        }
+
+    }
+
     ///
     /// Sends a value, only if there are any receiver objects still existent.
     /// 
     /// Returns it in a Result::Err variant otherwise.
     /// 
-    pub async fn send(&self, value: T) -> SendResult<T>
+    pub async fn send<'a>(&'a self, value: T) -> SendFuture<'a, T>
     {
 
-        self.shared_details.push(value)
+        SendFuture::new(self, value)
 
     }
 
-    pub fn send_sync(&self, value: T) -> SendResult<T>
+    pub fn blocking_send(&self, value: T) -> SendResult<T>
     {
 
-        self.shared_details.push(value)
+        let fut = SendFuture::new(self, value);
+
+        block_on(fut)
 
     }
 
     delegate!
     {
 
-        to self.shared_details
+        to self.shared_details.message_queue
         {
         
             ///
@@ -137,7 +182,7 @@ impl<T> Sender<T>
     pub fn head_room(&self) -> usize
     {
 
-        let queue_ref = &self.shared_details;
+        let queue_ref = &self.shared_details.message_queue;
 
         queue_ref.capacity() - queue_ref.len()
 
@@ -174,6 +219,7 @@ impl<T> Sender<T>
 }
 
 impl<T> Clone for Sender<T>
+    where T: Unpin
 {
 
     fn clone(&self) -> Self
@@ -193,7 +239,7 @@ impl<T> Clone for Sender<T>
 }
 
 impl<T> Debug for Sender<T>
-    where T: Debug
+    where T: Unpin + Debug
 {
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -201,6 +247,97 @@ impl<T> Debug for Sender<T>
     }
     
 }
+
+pub struct SendFuture<'a, T>
+    where T: Unpin
+{
+
+    sender_ref: &'a Sender<T>,
+    opt_value: Option<T>
+
+}
+
+impl<'a, T> SendFuture<'a, T>
+    where T: Unpin
+{
+
+    pub fn new(sender_ref: &'a Sender<T>, value: T) -> Self
+    {
+
+        Self
+        {
+
+            sender_ref,
+            opt_value: Some(value)
+
+        }
+
+    }
+
+}
+
+impl<'a, T> Future for SendFuture<'a, T>
+    where T: Unpin
+{
+
+    type Output = SendResult<T>; //Result<(), SendError<T>>;
+
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
+    {
+
+        let mut_self = self.get_mut();
+
+        let value = mut_self.opt_value.take().expect(EXPECTED_VALUE_NOT_FOUND_MESSAGE);
+
+        if mut_self.sender_ref.is_closed()
+        {
+
+            return Poll::Ready(SendResult::Err(value));
+
+        }
+
+        if let Err(value) = mut_self.sender_ref.shared_details.message_queue.push(value)
+        {
+
+            let waker = cx.waker().clone();
+
+            let auto_waker = AutoWaker::new(waker);
+
+            if let Err(value) = mut_self.sender_ref.shared_details.message_queue.push(value)
+            {
+
+                if mut_self.sender_ref.is_closed()
+                {
+
+                    return Poll::Ready(Err(value));
+
+                }
+
+                //Cannot push the value
+
+                mut_self.sender_ref.shared_details.full_queue.push(auto_waker);
+
+                mut_self.opt_value = Some(value);
+
+                return Poll::Pending;
+
+            }
+
+        }
+
+        if let Some(_auto_waker) = mut_self.sender_ref.shared_details.empty_queue.pop()
+        {
+
+            //auto_waker.wake();
+
+        }
+
+        Poll::Ready(SendResult::Ok(()))
+
+    }
+
+}
+
 
 /*
 impl<T> Drop for Sender<T>

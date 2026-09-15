@@ -7,7 +7,7 @@ use crate::get_mg;
 
 use super::ChannelSharedDetails;
 
-use crate::{BoundedSendError, PreferredMutexType};
+use crate::{BoundedSendError, EXPECTED_VALUE_NOT_FOUND_MESSAGE, PreferredMutexType};
 
 use delegate::delegate;
 use futures::executor::block_on;
@@ -260,8 +260,6 @@ impl<T> Drop for Sender<T>
     }
 
 }
-
-static EXPECTED_VALUE_NOT_FOUND_MESSAGE: &str = "Error: Expected value not found.";
 
 pub struct SendFuture<'a, T>
     where T: Unpin

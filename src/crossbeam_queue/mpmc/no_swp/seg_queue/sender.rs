@@ -2,18 +2,18 @@ use std::sync::{Arc, Weak};
 
 use crossbeam_queue::SegQueue;
 
-use crate::{ChannelSharedDetails, SendResult, WakerPermitQueue};
-
 use delegate::delegate;
 
 use std::fmt::Debug;
 
 use super::WeakSender;
 
+use crate::{AutoWaker, ChannelSharedDetailsWithEmptyQueue};
+
 pub struct Sender<T>
 {
 
-    shared_details: Arc<SegQueue<T>>,
+    shared_details: Arc<ChannelSharedDetailsWithEmptyQueue<SegQueue<T>, SegQueue<AutoWaker>>>,
     senders_count: Arc<()>,
     receivers_count: Weak<()>
 
@@ -25,7 +25,7 @@ impl<T> Sender<T>
     ///
     /// Create a new channel Sender object.
     /// 
-    pub fn new(shared_details: Arc<SegQueue<T>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
+    pub fn new(shared_details: Arc<ChannelSharedDetailsWithEmptyQueue<SegQueue<T>, SegQueue<AutoWaker>>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
     {
 
         Self
@@ -44,25 +44,21 @@ impl<T> Sender<T>
     /// 
     /// Returns it in a Result::Err variant otherwise.
     /// 
-    pub async fn send(&self, value: T)
+    pub fn send(&self, value: T)
     {
 
-        self.shared_details.push(value);
+        self.shared_details.message_queue.push(value);
+
+        if let Some(_auto_waker) = self.shared_details.empty_queue.pop()
+        {
+        }
 
     }
-
-    pub fn send_sync(&self, value: T)
-    {
-
-        self.shared_details.push(value);
-
-    }
-
 
     delegate!
     {
 
-        to self.shared_details
+        to self.shared_details.message_queue
         {
         
             ///

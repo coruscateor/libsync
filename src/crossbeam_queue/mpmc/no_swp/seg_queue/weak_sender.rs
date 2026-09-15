@@ -2,12 +2,14 @@ use std::sync::{Arc, Weak};
 
 use crossbeam_queue::SegQueue;
 
+use crate::{AutoWaker, ChannelSharedDetailsWithEmptyQueue};
+
 use super::Sender;
 
 pub struct WeakSender<T>
 {
 
-    shared_details: Weak<SegQueue<T>>,
+    shared_details: Weak<ChannelSharedDetailsWithEmptyQueue<SegQueue<T>, SegQueue<AutoWaker>>>,
     senders_count: Weak<()>,
     receivers_count: Weak<()>
 
@@ -16,7 +18,7 @@ pub struct WeakSender<T>
 impl<T> WeakSender<T>
 {
 
-    pub fn new(shared_details: &Arc<SegQueue<T>>, senders_count: &Arc<()>, receivers_count: &Weak<()>) -> Self
+    pub fn new(shared_details: &Arc<ChannelSharedDetailsWithEmptyQueue<SegQueue<T>, SegQueue<AutoWaker>>>, senders_count: &Arc<()>, receivers_count: &Weak<()>) -> Self
     {
 
         Self

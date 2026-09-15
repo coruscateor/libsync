@@ -1,24 +1,26 @@
 use std::sync::{Arc, Weak};
 
-use crossbeam_queue::ArrayQueue;
+use crossbeam_queue::{ArrayQueue, SegQueue};
 
 use super::Receiver;
 
-use crate::{ChannelSharedDetails, LimitedWakerPermitQueue};
+use crate::{AutoWaker, ChannelSharedDetails, ChannelSharedDetailsWithBothQueues, LimitedWakerPermitQueue};
 
 pub struct WeakReceiver<T>
+    where T: Unpin
 {
 
-    shared_details: Weak<ArrayQueue<T>>,
+    shared_details: Weak<ChannelSharedDetailsWithBothQueues<ArrayQueue<T>, SegQueue<AutoWaker>>>,
     senders_count: Weak<()>,
     receivers_count: Weak<()>
 
 }
 
 impl<T> WeakReceiver<T>
+    where T: Unpin
 {
 
-    pub fn new(shared_details: &Arc<ArrayQueue<T>>, senders_count: &Weak<()>, receivers_count: &Arc<()>) -> Self
+    pub fn new(shared_details: &Arc<ChannelSharedDetailsWithBothQueues<ArrayQueue<T>, SegQueue<AutoWaker>>>, senders_count: &Weak<()>, receivers_count: &Arc<()>) -> Self
     {
 
         Self

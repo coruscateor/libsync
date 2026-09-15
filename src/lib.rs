@@ -179,3 +179,13 @@ pub use std_sync_mutex_guard::*;
 mod enums;
 
 pub use enums::*;
+
+static EXPECTED_VALUE_NOT_FOUND_MESSAGE: &str = "Error: Expected value not found.";
+
+mod channel_shared_details_with_waker_queues;
+
+pub use channel_shared_details_with_waker_queues::*;
+
+mod auto_waker;
+
+pub use auto_waker::*;
