@@ -47,19 +47,14 @@ impl<T> Receiver<T>
     pub async fn recv(&self) -> Option<T>
     {
 
-        self.shared_details.pop()
-    }
+        self.shared_details.message_queue.pop()
 
-    pub fn recv_sync(&self) -> Option<T>
-    {
-
-        self.shared_details.pop()
     }
 
     delegate!
     {
 
-        to self.shared_details
+        to self.shared_details.message_queue
         {
         
             ///

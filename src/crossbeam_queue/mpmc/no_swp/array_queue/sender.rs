@@ -1,10 +1,10 @@
-use std::{collections::btree_map::Values, default, sync::{Arc, Weak}, task::{Poll, Waker}, time::Duration};
+use std::{collections::btree_map::Values, default, sync::{Arc, Weak, atomic::AtomicBool}, task::{Poll, Waker}, time::Duration};
 
 use crossbeam_queue::{ArrayQueue, SegQueue};
 
 use futures::executor::block_on;
 
-use crate::{BoundedSendError, ChannelSharedDetails, ChannelSharedDetailsWithBothQueues, LimitedWakerPermitQueue, SendResult, TimeoutBoundedSendError, auto_waker};
+use crate::{BoundedSendError, ChannelSharedDetails, ChannelSharedDetailsWithBothQueues, LimitedWakerPermitQueue, SendResult, TimeoutBoundedSendError}; //, auto_waker
 
 use super::WeakSender;
 
@@ -12,13 +12,13 @@ use delegate::delegate;
 
 use std::fmt::Debug;
 
-use crate::{AutoWaker, BoundedSendResult, EXPECTED_VALUE_NOT_FOUND_MESSAGE};
+use crate::{BoundedSendResult, EXPECTED_VALUE_NOT_FOUND_MESSAGE}; //AutoWaker, 
 
 pub struct Sender<T>
     where T: Unpin
 {
 
-    shared_details: Arc<ChannelSharedDetailsWithBothQueues<ArrayQueue<T>, SegQueue<AutoWaker>>>,
+    shared_details: Arc<ChannelSharedDetailsWithBothQueues<ArrayQueue<T>, SegQueue<Waker>, AtomicBool>>,
     senders_count: Arc<()>,
     receivers_count: Weak<()>
 
@@ -31,7 +31,7 @@ impl<T> Sender<T>
     ///
     /// Create a new channel Sender object.
     /// 
-    pub fn new(shared_details: Arc<ChannelSharedDetailsWithBothQueues<ArrayQueue<T>, SegQueue<AutoWaker>>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
+    pub fn new(shared_details: Arc<ChannelSharedDetailsWithBothQueues<ArrayQueue<T>, SegQueue<Waker>, AtomicBool>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
     {
 
         Self
@@ -172,7 +172,9 @@ impl<T> Sender<T>
     pub fn is_closed(&self) -> bool
     {
 
-        self.receivers_strong_count() == 0
+        self.shared_details.is_closed()
+
+        //self.receivers_strong_count() == 0
 
     }
 
@@ -301,7 +303,7 @@ impl<'a, T> Future for SendFuture<'a, T>
 
             let waker = cx.waker().clone();
 
-            let auto_waker = AutoWaker::new(waker);
+            //let auto_waker = AutoWaker::new(waker);
 
             if let Err(value) = mut_self.sender_ref.shared_details.message_queue.push(value)
             {
@@ -315,7 +317,7 @@ impl<'a, T> Future for SendFuture<'a, T>
 
                 //Cannot push the value
 
-                mut_self.sender_ref.shared_details.full_queue.push(auto_waker);
+                mut_self.sender_ref.shared_details.full_queue.push(waker);
 
                 mut_self.opt_value = Some(value);
 
@@ -325,10 +327,10 @@ impl<'a, T> Future for SendFuture<'a, T>
 
         }
 
-        if let Some(_auto_waker) = mut_self.sender_ref.shared_details.empty_queue.pop()
+        if let Some(waker) = mut_self.sender_ref.shared_details.empty_queue.pop()
         {
 
-            //auto_waker.wake();
+            waker.wake();
 
         }
 
@@ -339,23 +341,36 @@ impl<'a, T> Future for SendFuture<'a, T>
 }
 
 
-/*
 impl<T> Drop for Sender<T>
+    where T: Unpin
 {
 
     fn drop(&mut self)
     {
 
-        if self.strong_count() == 1
+        if self.strong_count() == 1 && !self.is_closed()
         {
+
+            self.shared_details.set_closed();
 
             //Engage free-for-all mode.
 
-            self.shared_details.notifier_ref().close();
+            while let Some(waker) = self.shared_details.empty_queue.pop()
+            {
+
+                waker.wake();
+
+            }
+
+            while let Some(waker) = self.shared_details.full_queue.pop()
+            {
+
+                waker.wake();
+
+            }
 
         }
     
     }
 
 }
-*/

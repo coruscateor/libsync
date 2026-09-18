@@ -186,6 +186,8 @@ mod channel_shared_details_with_waker_queues;
 
 pub use channel_shared_details_with_waker_queues::*;
 
-mod auto_waker;
+//Disabled
 
-pub use auto_waker::*;
+//mod auto_waker;
+
+//pub use auto_waker::*;
