@@ -48,7 +48,7 @@ impl<T> Receiver<T>
     /// 
     /// Returns an error if the channels queue is empty and there are no instantiated Senders detected.
     /// 
-    pub async fn recv<'a>(&'a self) -> RecvFuture<'a, T>
+    pub fn recv<'a>(&'a self) -> RecvFuture<'a, T>
     {
 
         RecvFuture::new(self)
@@ -187,6 +187,40 @@ impl<T> Debug for Receiver<T>
 
 }
 
+impl<T> Drop for Receiver<T>
+    where T: Unpin
+{
+
+    fn drop(&mut self)
+    {
+
+        if self.strong_count() == 1 && !self.is_closed()
+        {
+
+            self.shared_details.set_closed();
+
+            //Engage free-for-all mode.
+
+            while let Some(waker) = self.shared_details.empty_queue.pop()
+            {
+
+                waker.wake();
+
+            }
+
+            while let Some(waker) = self.shared_details.full_queue.pop()
+            {
+
+                waker.wake();
+
+            }
+
+        }
+    
+    }
+
+}
+
 pub struct RecvFuture<'a, T>
     where T: Unpin
 {
@@ -285,40 +319,6 @@ impl<'a, T> Future for RecvFuture<'a, T>
 
         Poll::Pending
 
-    }
-
-}
-
-impl<T> Drop for Receiver<T>
-    where T: Unpin
-{
-
-    fn drop(&mut self)
-    {
-
-        if self.strong_count() == 1 && !self.is_closed()
-        {
-
-            self.shared_details.set_closed();
-
-            //Engage free-for-all mode.
-
-            while let Some(waker) = self.shared_details.empty_queue.pop()
-            {
-
-                waker.wake();
-
-            }
-
-            while let Some(waker) = self.shared_details.full_queue.pop()
-            {
-
-                waker.wake();
-
-            }
-
-        }
-    
     }
 
 }

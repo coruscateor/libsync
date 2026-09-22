@@ -1,4 +1,4 @@
-use std::sync::{Arc, Weak};
+use std::{sync::{Arc, Weak, atomic::AtomicBool}, task::Waker};
 
 use crossbeam_queue::SegQueue;
 
@@ -8,24 +8,26 @@ use std::fmt::Debug;
 
 use super::WeakSender;
 
-use crate::{AutoWaker, ChannelSharedDetailsWithEmptyQueue};
+use crate::ChannelSharedDetailsWithEmptyQueue;
 
 pub struct Sender<T>
+    where T: Unpin
 {
 
-    shared_details: Arc<ChannelSharedDetailsWithEmptyQueue<SegQueue<T>, SegQueue<AutoWaker>>>,
+    shared_details: Arc<ChannelSharedDetailsWithEmptyQueue<SegQueue<T>, SegQueue<Waker>, AtomicBool>>,
     senders_count: Arc<()>,
     receivers_count: Weak<()>
 
 }
 
 impl<T> Sender<T>
+    where T: Unpin
 {
 
     ///
     /// Create a new channel Sender object.
     /// 
-    pub fn new(shared_details: Arc<ChannelSharedDetailsWithEmptyQueue<SegQueue<T>, SegQueue<AutoWaker>>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
+    pub fn new(shared_details: Arc<ChannelSharedDetailsWithEmptyQueue<SegQueue<T>, SegQueue<Waker>, AtomicBool>>, senders_count: Arc<()>, receivers_count: Weak<()>) -> Self
     {
 
         Self
@@ -49,8 +51,11 @@ impl<T> Sender<T>
 
         self.shared_details.message_queue.push(value);
 
-        if let Some(_auto_waker) = self.shared_details.empty_queue.pop()
+        if let Some(waker) = self.shared_details.empty_queue.pop()
         {
+
+            waker.wake();
+
         }
 
     }
@@ -120,7 +125,9 @@ impl<T> Sender<T>
     pub fn is_closed(&self) -> bool
     {
 
-        self.receivers_strong_count() == 0
+        self.shared_details.is_closed()
+
+        //self.receivers_strong_count() == 0
 
     }
 
@@ -155,6 +162,7 @@ impl<T> Sender<T>
 }
 
 impl<T> Clone for Sender<T>
+    where T: Unpin
 {
 
     fn clone(&self) -> Self
@@ -174,7 +182,7 @@ impl<T> Clone for Sender<T>
 }
 
 impl<T> Debug for Sender<T>
-    where T: Debug
+    where T: Debug + Unpin
 {
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -183,23 +191,27 @@ impl<T> Debug for Sender<T>
     
 }
 
-/*
 impl<T> Drop for Sender<T>
+    where T: Unpin
 {
 
     fn drop(&mut self)
     {
 
-        if self.strong_count() == 1
+        if self.strong_count() == 1 && !self.is_closed()
         {
 
-            //Engage free-for-all mode.
+            self.shared_details.set_closed();
 
-            self.shared_details.notifier_ref().close();
+            while let Some(waker) = self.shared_details.empty_queue.pop()
+            {
 
+                waker.wake();
+
+            }
+            
         }
-    
+
     }
 
 }
-*/

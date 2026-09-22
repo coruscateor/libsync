@@ -12,7 +12,7 @@ pub fn channel<T>(size: usize) -> (Sender<T>, Receiver<T>)
 
     let message_queue = ArrayQueue::<T>::new(size);
 
-    let shared_details = Arc::new(ChannelSharedDetailsWithBothQueues::new(message_queue, SegQueue::new(), SegQueue::new()));
+    let shared_details = Arc::new(ChannelSharedDetailsWithBothQueues::with_atomic_bool(message_queue, SegQueue::new(), SegQueue::new()));
 
     let senders_count = Arc::new(());
 

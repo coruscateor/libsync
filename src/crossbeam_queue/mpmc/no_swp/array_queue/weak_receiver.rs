@@ -1,16 +1,16 @@
-use std::sync::{Arc, Weak};
+use std::{sync::{Arc, Weak, atomic::AtomicBool}, task::Waker};
 
 use crossbeam_queue::{ArrayQueue, SegQueue};
 
 use super::Receiver;
 
-use crate::{AutoWaker, ChannelSharedDetails, ChannelSharedDetailsWithBothQueues, LimitedWakerPermitQueue};
+use crate::{ChannelSharedDetails, ChannelSharedDetailsWithBothQueues, LimitedWakerPermitQueue};
 
 pub struct WeakReceiver<T>
     where T: Unpin
 {
 
-    shared_details: Weak<ChannelSharedDetailsWithBothQueues<ArrayQueue<T>, SegQueue<AutoWaker>>>,
+    shared_details: Weak<ChannelSharedDetailsWithBothQueues<ArrayQueue<T>, SegQueue<Waker>, AtomicBool>>,
     senders_count: Weak<()>,
     receivers_count: Weak<()>
 
@@ -20,7 +20,7 @@ impl<T> WeakReceiver<T>
     where T: Unpin
 {
 
-    pub fn new(shared_details: &Arc<ChannelSharedDetailsWithBothQueues<ArrayQueue<T>, SegQueue<AutoWaker>>>, senders_count: &Weak<()>, receivers_count: &Arc<()>) -> Self
+    pub fn new(shared_details: &Arc<ChannelSharedDetailsWithBothQueues<ArrayQueue<T>, SegQueue<Waker>, AtomicBool>>, senders_count: &Weak<()>, receivers_count: &Arc<()>) -> Self
     {
 
         Self

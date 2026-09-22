@@ -1,15 +1,16 @@
-use std::sync::Arc;
+use std::{sync::Arc, task::Waker};
 
 use crossbeam_queue::SegQueue;
 
-use crate::{AutoWaker, ChannelSharedDetailsWithEmptyQueue};
+use crate::ChannelSharedDetailsWithEmptyQueue;
 
 use super::{Sender, Receiver};
 
 pub fn channel<T>() -> (Sender<T>, Receiver<T>)
+    where T: Unpin
 {
 
-    let shared_details = Arc::new(ChannelSharedDetailsWithEmptyQueue::<SegQueue<T>, SegQueue<AutoWaker>>::new(SegQueue::new(), SegQueue::new()));
+    let shared_details = Arc::new(ChannelSharedDetailsWithEmptyQueue::with_atomic_bool(SegQueue::new(), SegQueue::new()));
 
     let senders_count = Arc::new(());
 

@@ -1,16 +1,18 @@
-use std::{sync::{Arc, Weak, atomic::AtomicBool}, task::Waker};
+use std::sync::{Arc, Weak};
 
 use crossbeam_queue::SegQueue;
 
-use crate::ChannelSharedDetailsWithEmptyQueue;
+use crate::PreferredMutexType;
 
 use super::Sender;
+
+use super::ChannelSharedDetails;
 
 pub struct WeakSender<T>
     where T: Unpin
 {
 
-    shared_details: Weak<ChannelSharedDetailsWithEmptyQueue<SegQueue<T>, SegQueue<Waker>, AtomicBool>>,
+    shared_details: Weak<PreferredMutexType<ChannelSharedDetails<T>>>,
     senders_count: Weak<()>,
     receivers_count: Weak<()>
 
@@ -20,7 +22,7 @@ impl<T> WeakSender<T>
     where T: Unpin
 {
 
-    pub fn new(shared_details: &Arc<ChannelSharedDetailsWithEmptyQueue<SegQueue<T>, SegQueue<Waker>, AtomicBool>>, senders_count: &Arc<()>, receivers_count: &Weak<()>) -> Self
+    pub fn new(shared_details: &Arc<PreferredMutexType<ChannelSharedDetails<T>>>, senders_count: &Arc<()>, receivers_count: Weak<()>) -> Self
     {
 
         Self
@@ -28,7 +30,7 @@ impl<T> WeakSender<T>
 
             shared_details: Arc::downgrade(shared_details),
             senders_count: Arc::downgrade(senders_count),
-            receivers_count: receivers_count.clone()
+            receivers_count: receivers_count
 
         }
 
@@ -69,6 +71,20 @@ impl<T> WeakSender<T>
     {
 
         self.senders_count.weak_count()
+        
+    }
+
+    pub fn receivers_strong_count(&self) -> usize
+    {
+
+        self.receivers_count.strong_count()
+
+    }
+
+    pub fn receivers_weak_count(&self) -> usize
+    {
+
+        self.receivers_count.weak_count()
         
     }
 
