@@ -51,7 +51,7 @@ impl<T> Sender<T>
         if self.is_closed()
         {
 
-            return BoundedSendResult::Err(BoundedSendError::Closed(value));
+            return Err(BoundedSendError::Closed(value));
 
         }
 
@@ -61,20 +61,20 @@ impl<T> Sender<T>
             Ok(_) =>
             {
 
-                if let Some(_auto_waker) = self.shared_details.empty_queue.pop()
+                if let Some(waker) = self.shared_details.empty_queue.pop()
                 {
 
-                    //auto_waker.wake();
+                    waker.wake();
 
                 }
 
-                BoundedSendResult::Ok(())
+                Ok(())
 
             }
             Err(value) =>
             {
 
-                BoundedSendResult::Err(BoundedSendError::Full(value))
+                Err(BoundedSendError::Full(value))
 
             }
             

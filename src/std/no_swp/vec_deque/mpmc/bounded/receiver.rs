@@ -9,7 +9,7 @@ use crate::get_mg;
 
 use super::ChannelSharedDetails;
 
-use crate::{BoundedSendError, PreferredMutexType, QueuedWaker};
+use crate::{BoundedSendError, PreferredMutexType, QueuedWaker, ReceiveError, ReceiveResult};
 
 use delegate::delegate;
 
@@ -45,6 +45,50 @@ impl<T> Receiver<T>
             receivers_count
             
         }
+
+    }
+
+    ///
+    /// Try to receive a value immediately.
+    /// 
+    pub fn try_recv(&self) -> ReceiveResult<T>
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mut mg = get_mg(&self.shared_details);
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.receiver_ref.shared_details.lock();
+
+        if mg.when_empty_waker_queue.len() < 1
+        {
+
+            if let Some(message) = mg.message_queue.pop_front()
+            {
+
+                if let Some(waker) = mg.when_full_waker_queue.pop_front()
+                {
+                    
+                    drop(mg);
+
+                    waker.wake();
+
+                }
+
+                return Ok(message)
+
+            }
+
+        }
+
+        if mg.is_closed
+        {
+
+             return Err(ReceiveError::Closed);
+
+        }
+
+        Err(ReceiveError::Empty)
 
     }
 
@@ -276,8 +320,7 @@ impl<T> Drop for Receiver<T>
 pub struct RecvFuture<'a, T>
 {
 
-    receiver_ref: &'a Receiver<T>,
-    opt_waker_id: Option<usize>
+    receiver_ref: &'a Receiver<T>
 
 }
 
@@ -290,9 +333,7 @@ impl<'a, T> RecvFuture<'a, T>
         Self
         {
 
-            receiver_ref,
-            opt_waker_id: None
-
+            receiver_ref
         }
 
     }
@@ -313,35 +354,31 @@ impl<'a, T> Future for RecvFuture<'a, T>
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
         let mut mg = self.receiver_ref.shared_details.lock();
 
-        if mg.is_closed
+        if mg.when_empty_waker_queue.len() < 1
         {
 
-            let opt_message = mg.message_queue.pop_front();
-
-            match opt_message
+            if let Some(message) = mg.message_queue.pop_front()
             {
 
-                Some(message) =>
+                if let Some(waker) = mg.when_full_waker_queue.pop_front()
                 {
 
-                    return Poll::Ready(Ok(message));
+                    drop(mg);
+
+                    waker.wake();
 
                 }
-                None =>
-                {
 
-                    return Poll::Ready(Err(()));
-
-                }
+                return Poll::Ready(Ok(message));
 
             }
 
         }
 
-        if let Some(message) = mg.message_queue.pop_front()
+        if mg.is_closed
         {
 
-            return Poll::Ready(Ok(message));
+            return Poll::Ready(Err(()));
 
         }
 
@@ -349,8 +386,7 @@ impl<'a, T> Future for RecvFuture<'a, T>
 
         mg.when_empty_waker_queue.push_back(waker);
 
-
-        Poll::Pending
+        return Poll::Pending;
 
     }
 
@@ -361,9 +397,9 @@ impl<'a, T> Debug for RecvFuture<'a, T>
 {
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RecvFuture").field("receiver_ref", &self.receiver_ref).field("opt_waker_id", &self.opt_waker_id).finish()
+        f.debug_struct("RecvFuture").field("receiver_ref", &self.receiver_ref).finish()
     }
-
+    
 }
 
 /*

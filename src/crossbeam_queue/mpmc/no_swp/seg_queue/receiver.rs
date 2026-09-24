@@ -42,6 +42,44 @@ impl<T> Receiver<T>
     }
 
     ///
+    /// Try to receive a value immediately.
+    /// 
+    pub fn try_recv(&self) -> ReceiveResult<T>
+    {
+
+        if self.shared_details.empty_queue.len() > 0
+        {
+
+            if self.is_closed()
+            {
+
+                return Err(crate::ReceiveError::Closed);
+
+            }
+
+            return Err(crate::ReceiveError::Empty);
+
+        }
+
+        if let Some(value) = self.shared_details.message_queue.pop()
+        {
+
+            return Ok(value);
+
+        }
+
+        if self.is_closed()
+        {
+
+            return Err(crate::ReceiveError::Closed);
+
+        }
+
+        Err(crate::ReceiveError::Empty)
+
+    }
+
+    ///
     /// Attempt to receive a value without waiting.
     /// 
     /// Returns an error if the channels queue is empty and there are no instantiated Senders detected.

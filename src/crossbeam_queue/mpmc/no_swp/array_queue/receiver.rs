@@ -4,7 +4,7 @@ use crossbeam_queue::{ArrayQueue, SegQueue};
 
 use futures::executor::block_on;
 
-use crate::ChannelSharedDetailsWithBothQueues;
+use crate::{ChannelSharedDetailsWithBothQueues, ReceiveResult};
 
 use super::{Sender, WeakReceiver};
 
@@ -40,6 +40,51 @@ impl<T> Receiver<T>
             receivers_count
 
         }
+
+    }
+
+    ///
+    /// Try to receive a value immediately.
+    /// 
+    pub fn try_recv(&self) -> ReceiveResult<T>
+    {
+
+        if self.shared_details.empty_queue.len() > 0
+        {
+
+            if self.is_closed()
+            {
+
+                return Err(crate::ReceiveError::Closed);
+
+            }
+
+            return Err(crate::ReceiveError::Empty);
+
+        }
+
+        if let Some(value) = self.shared_details.message_queue.pop()
+        {
+
+            if let Some(waker) = self.shared_details.full_queue.pop()
+            {
+
+                waker.wake();
+
+            }
+
+            return Ok(value);
+
+        }
+
+        if self.is_closed()
+        {
+
+            return Err(crate::ReceiveError::Closed);
+
+        }
+
+        Err(crate::ReceiveError::Empty)
 
     }
 
@@ -256,54 +301,56 @@ impl<'a, T> Future for RecvFuture<'a, T>
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output>
     {
 
-        //let mut_self = self.get_mut();
+        let my_waker;
 
-        /*
-        if self.receiver_ref.is_closed()
+        if self.receiver_ref.shared_details.empty_queue.len() == 0
         {
 
-            return Poll::Ready(Err(()));
-
-        }
-        */
-
-        if let Some(value) = self.receiver_ref.shared_details.message_queue.pop()
-        {
-
-            if let Some(waker) = self.receiver_ref.shared_details.full_queue.pop()
+            if let Some(value) = self.receiver_ref.shared_details.message_queue.pop()
             {
 
-                waker.wake();
+                if let Some(waker) = self.receiver_ref.shared_details.full_queue.pop()
+                {
+
+                    waker.wake();
+
+                }
+
+                return Poll::Ready(Ok(value));
 
             }
 
-            return Poll::Ready(Ok(value));
+            my_waker = cx.waker().clone();
 
-        }
+            //let auto_waker = AutoWaker::new(waker);
 
-        let my_waker = cx.waker().clone();
-
-        //let auto_waker = AutoWaker::new(waker);
-
-        if let Some(value) = self.receiver_ref.shared_details.message_queue.pop()
-        {
-
-            if let Some(waker) = self.receiver_ref.shared_details.full_queue.pop()
+            if let Some(value) = self.receiver_ref.shared_details.message_queue.pop()
             {
 
-                waker.wake();
+                if let Some(waker) = self.receiver_ref.shared_details.full_queue.pop()
+                {
+
+                    waker.wake();
+
+                }
+
+                return Poll::Ready(Ok(value));
 
             }
 
-            return Poll::Ready(Ok(value));
+            if self.receiver_ref.is_closed()
+            {
+
+                return Poll::Ready(Err(()));
+
+            }
 
         }
-
-        if self.receiver_ref.is_closed()
+        else
         {
 
-            return Poll::Ready(Err(()));
-
+            my_waker = cx.waker().clone();
+            
         }
 
         self.receiver_ref.shared_details.empty_queue.push(my_waker);

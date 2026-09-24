@@ -7,7 +7,7 @@ use crate::get_mg;
 
 use super::ChannelSharedDetails;
 
-use crate::{BoundedSendError, EXPECTED_VALUE_NOT_FOUND_MESSAGE, PreferredMutexType};
+use crate::{BoundedSendError, BoundedSendResult, EXPECTED_VALUE_NOT_FOUND_MESSAGE, PreferredMutexType};
 
 use delegate::delegate;
 use futures::executor::block_on;
@@ -46,6 +46,60 @@ impl<T> Sender<T>
 
     }
 
+    pub fn try_send(&self, value: T) -> BoundedSendResult<T>
+    {
+
+        let waker;
+
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = get_mg(&self.shared_details);
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = mut_self.sender_ref.shared_details.lock();
+
+            if mg.is_closed
+            {
+
+                return Err(BoundedSendError::Closed(value));
+
+            }
+
+            if mg.message_queue.len() < mg.capacity()
+            {
+
+                mg.message_queue.push_back(value);
+
+                if let Some(w) = mg.when_empty_waker_queue.pop_front()
+                {
+
+                    waker = w;
+
+                }
+                else
+                {
+
+                    return Ok(());
+                    
+                }
+
+            }
+            else
+            {            
+
+                return Err(BoundedSendError::Full(value));
+
+            }
+
+        }
+
+        waker.wake();
+
+        Ok(())
+
+    }
+
     pub fn send<'a>(&'a self, value: T) -> SendFuture<'a, T>
     {
 
@@ -56,7 +110,9 @@ impl<T> Sender<T>
     pub fn blocking_send(&self, value: T) -> Result<(), BoundedSendError<T>>
     {
 
-        block_on(self.send(value))
+        let fut = SendFuture::new(self, value);
+
+        block_on(fut)
 
     }
 
@@ -66,9 +122,11 @@ impl<T> Sender<T>
 
         use tokio::time::timeout;
 
-        let res = self.send(value);
+        let fut = SendFuture::new(self, value);
 
-        timeout(duration, res).await
+        //let res = self.send(value);
+
+        timeout(duration, fut).await
 
     }
 
@@ -78,9 +136,11 @@ impl<T> Sender<T>
 
         use tokio::time::timeout_at;
 
-        let res = self.send(value);
+        let fut = SendFuture::new(self, value);
 
-        timeout_at(deadline, res).await
+        //let res = self.send(value);
+
+        timeout_at(deadline, fut).await
 
     }
 

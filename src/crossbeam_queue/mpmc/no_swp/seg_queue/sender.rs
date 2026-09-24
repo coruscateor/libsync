@@ -8,7 +8,7 @@ use std::fmt::Debug;
 
 use super::WeakSender;
 
-use crate::ChannelSharedDetailsWithEmptyQueue;
+use crate::{ChannelSharedDetailsWithEmptyQueue, SendResult};
 
 pub struct Sender<T>
     where T: Unpin
@@ -38,6 +38,29 @@ impl<T> Sender<T>
             receivers_count
 
         }
+
+    }
+
+    pub fn try_send(&self, value: T) -> SendResult<T>
+    {
+
+        if self.is_closed()
+        {
+
+            return SendResult::Err(value);
+
+        }
+
+        self.shared_details.message_queue.push(value);
+
+        if let Some(waker) = self.shared_details.empty_queue.pop()
+        {
+
+            waker.wake();
+
+        }
+
+        SendResult::Ok(())
 
     }
 
