@@ -10,8 +10,6 @@ use std::collections::{HashMap, VecDeque};
 
 use std::task::{Context, Poll, Waker};
 
-use crate::QueuedWaker;
-
 ///
 /// For containing the objects that are shared between the sender and the receiver parts of a channel.
 /// 
@@ -19,32 +17,29 @@ pub struct ChannelSharedDetails<T>
 {
 
     pub message_queue: VecDeque<T>,
-    pub when_empty_waker_queue: VecDeque<QueuedWaker>,
-    pub is_closed: bool,
-    pub latest_id: usize, //u32,
-    pub active_ids: HashMap<usize, bool> //HashMap<u32, bool>
+    pub empty_queue: VecDeque<Waker>,
+    pub is_closed: bool
 
 }
 
 impl<T> ChannelSharedDetails<T>
 {
 
-    pub fn new(message_queue: VecDeque<T>, when_empty_waker_queue: VecDeque<QueuedWaker>, active_ids: HashMap<usize, bool>) -> Self
+    pub fn new(message_queue: VecDeque<T>, empty_queue: VecDeque<Waker>) -> Self
     {
 
         Self
         {
 
             message_queue,
-            when_empty_waker_queue,
-            is_closed: false,
-            latest_id: 0,
-            active_ids
+            empty_queue,
+            is_closed: false
 
         }
 
     }
 
+    /*
     pub fn try_pop(&mut self, waker_id: usize) -> Option<T> //Option<Poll<Result<T, ()>>>
     {
 
@@ -111,7 +106,7 @@ impl<T> ChannelSharedDetails<T>
 
         let queued_waker = QueuedWaker::new(waker, id);
 
-        self.when_empty_waker_queue.push_back(queued_waker);
+        self.empty_queue.push_back(queued_waker);
 
         id
 
@@ -128,7 +123,7 @@ impl<T> ChannelSharedDetails<T>
 
         //Remove the queued waker.
 
-        for item in self.when_empty_waker_queue.iter()
+        for item in self.empty_queue.iter()
         {
 
             if id == item.id()
@@ -147,15 +142,12 @@ impl<T> ChannelSharedDetails<T>
         if index_found
         {
 
-            self.when_empty_waker_queue.remove(index);
+            self.empty_queue.remove(index);
 
         }
 
     }
-
-    //impl_ref_getter!(message_queue, VecDeque<T>);
-
-    //impl_ref_getter!(notifier, N);
+    */
 
 }
 
@@ -164,7 +156,7 @@ impl<T> Debug for ChannelSharedDetails<T>
 {
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ChannelSharedDetails").field("message_queue", &self.message_queue).field("when_empty_waker_queue", &self.when_empty_waker_queue).field("is_closed", &self.is_closed).field("active_ids", &self.active_ids).finish()
+        f.debug_struct("ChannelSharedDetails").field("message_queue", &self.message_queue).field("empty_queue", &self.empty_queue).field("is_closed", &self.is_closed).finish()
     }
 
 }

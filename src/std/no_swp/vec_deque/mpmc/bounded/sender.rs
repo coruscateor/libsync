@@ -71,7 +71,7 @@ impl<T> Sender<T>
 
                 mg.message_queue.push_back(value);
 
-                if let Some(w) = mg.when_empty_waker_queue.pop_front()
+                if let Some(w) = mg.empty_queue.pop_front()
                 {
 
                     waker = w;
@@ -308,14 +308,14 @@ impl<T> Drop for Sender<T>
 
             //Engage free-for-all mode.
 
-            for waker in mg.when_empty_waker_queue.drain(..)
+            for waker in mg.empty_queue.drain(..)
             {
 
                 waker.wake();
 
             }
 
-            for waker in mg.when_full_waker_queue.drain(..)
+            for waker in mg.full_queue.drain(..)
             {
 
                 waker.wake();
@@ -393,7 +393,7 @@ impl<'a, T> Future for SendFuture<'a, T>
 
                 mg.message_queue.push_back(value);
 
-                if let Some(w) = mg.when_empty_waker_queue.pop_front()
+                if let Some(w) = mg.empty_queue.pop_front()
                 {
 
                     waker = w;
@@ -412,7 +412,7 @@ impl<'a, T> Future for SendFuture<'a, T>
 
                 let waker = cx.waker().clone();
 
-                mg.when_full_waker_queue.push_back(waker);
+                mg.full_queue.push_back(waker);
 
                 return Poll::Pending;                
 

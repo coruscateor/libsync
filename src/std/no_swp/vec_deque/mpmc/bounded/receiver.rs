@@ -60,13 +60,13 @@ impl<T> Receiver<T>
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
         let mut mg = self.receiver_ref.shared_details.lock();
 
-        if mg.when_empty_waker_queue.len() < 1
+        if mg.empty_queue.len() < 1
         {
 
             if let Some(message) = mg.message_queue.pop_front()
             {
 
-                if let Some(waker) = mg.when_full_waker_queue.pop_front()
+                if let Some(waker) = mg.full_queue.pop_front()
                 {
                     
                     drop(mg);
@@ -297,14 +297,14 @@ impl<T> Drop for Receiver<T>
 
             //Engage free-for-all mode.
 
-            for waker in mg.when_empty_waker_queue.drain(..)
+            for waker in mg.empty_queue.drain(..)
             {
 
                 waker.wake();
 
             }
 
-            for waker in mg.when_full_waker_queue.drain(..)
+            for waker in mg.full_queue.drain(..)
             {
 
                 waker.wake();
@@ -354,13 +354,13 @@ impl<'a, T> Future for RecvFuture<'a, T>
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
         let mut mg = self.receiver_ref.shared_details.lock();
 
-        if mg.when_empty_waker_queue.len() < 1
+        if mg.empty_queue.len() < 1
         {
 
             if let Some(message) = mg.message_queue.pop_front()
             {
 
-                if let Some(waker) = mg.when_full_waker_queue.pop_front()
+                if let Some(waker) = mg.full_queue.pop_front()
                 {
 
                     drop(mg);
@@ -384,7 +384,7 @@ impl<'a, T> Future for RecvFuture<'a, T>
 
         let waker = cx.waker().clone();
 
-        mg.when_empty_waker_queue.push_back(waker);
+        mg.empty_queue.push_back(waker);
 
         return Poll::Pending;
 

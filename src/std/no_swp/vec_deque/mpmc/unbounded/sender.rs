@@ -5,7 +5,7 @@ use crate::get_mg;
 
 use super::ChannelSharedDetails;
 
-use crate::{BoundedSendError, PreferredMutexType};
+use crate::{BoundedSendError, PreferredMutexType, SendResult};
 
 use delegate::delegate;
 
@@ -39,6 +39,49 @@ impl<T> Sender<T>
 
     }
 
+    pub fn try_send(&self, value: T) -> SendResult<T>
+    {
+
+        let waker;
+
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = get_mg(&self.shared_details);
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = mut_self.sender_ref.shared_details.lock();
+
+            if mg.is_closed
+            {
+
+                return Err(value);
+
+            }
+
+            mg.message_queue.push_back(value);
+
+            if let Some(w) = mg.empty_queue.pop_front()
+            {
+
+                waker = w;
+
+            }
+            else
+            {
+
+                return Ok(());
+                
+            }
+
+        }
+
+        waker.wake();
+
+        Ok(())
+
+    }
+
     pub fn send(&self, value: T) -> Result<(), T>
     {
 
@@ -61,22 +104,13 @@ impl<T> Sender<T>
 
             mg.message_queue.push_back(value);
 
-            let opt_waker = mg.when_empty_waker_queue.pop_front();
+            let opt_waker = mg.empty_queue.pop_front();
 
             if let Some(the_waker) = opt_waker
             {
 
                 waker = the_waker;
-
-                let opt_entry = mg.active_ids.get_mut(&waker.id());
                 
-                if let Some(entry) = opt_entry
-                {
-
-                    *entry = true;
-
-                }
-
             }
             else
             {
@@ -255,7 +289,7 @@ impl<T> Drop for Sender<T>
 
             //Engage free-for-all mode.
 
-            for waker in mg.when_empty_waker_queue.drain(..)
+            for waker in mg.empty_queue.drain(..)
             {
 
                 waker.wake();

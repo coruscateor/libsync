@@ -17,8 +17,8 @@ pub struct ChannelSharedDetails<T>
 {
 
     pub message_queue: VecDeque<T>,
-    pub when_empty_waker_queue: VecDeque<Waker>,
-    pub when_full_waker_queue: VecDeque<Waker>,
+    pub empty_queue: VecDeque<Waker>,
+    pub full_queue: VecDeque<Waker>,
     pub is_closed: bool,
     capacity: usize
 
@@ -27,15 +27,15 @@ pub struct ChannelSharedDetails<T>
 impl<T> ChannelSharedDetails<T>
 {
 
-    pub fn new(capacity: usize, when_empty_waker_queue: VecDeque<Waker>, when_full_waker_queue: VecDeque<Waker>) -> Self
+    pub fn new(capacity: usize, empty_queue: VecDeque<Waker>, full_queue: VecDeque<Waker>) -> Self
     {
 
         Self
         {
 
             message_queue: VecDeque::with_capacity(capacity),
-            when_empty_waker_queue,
-            when_full_waker_queue,
+            empty_queue,
+            full_queue,
             is_closed: false,
             capacity
 
@@ -168,7 +168,7 @@ impl<T> Debug for ChannelSharedDetails<T>
 {
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ChannelSharedDetails").field("message_queue", &self.message_queue).field("when_empty_waker_queue", &self.when_empty_waker_queue).field("when_full_waker_queue", &self.when_full_waker_queue).field("is_closed", &self.is_closed).field("capacity", &self.capacity).finish()
+        f.debug_struct("ChannelSharedDetails").field("message_queue", &self.message_queue).field("empty_queue", &self.empty_queue).field("full_queue", &self.full_queue).field("is_closed", &self.is_closed).field("capacity", &self.capacity).finish()
     }
     
 }

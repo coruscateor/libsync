@@ -9,7 +9,7 @@ use crate::get_mg;
 
 use super::ChannelSharedDetails;
 
-use crate::{BoundedSendError, PreferredMutexType, QueuedWaker};
+use crate::{BoundedSendError, PreferredMutexType, QueuedWaker, ReceiveError, ReceiveResult};
 
 use delegate::delegate;
 
@@ -45,6 +45,41 @@ impl<T> Receiver<T>
             receivers_count
             
         }
+
+    }
+
+    ///
+    /// Try to receive a value immediately.
+    /// 
+    pub fn try_recv(&self) -> ReceiveResult<T>
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mut mg = get_mg(&self.shared_details);
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.receiver_ref.shared_details.lock();
+
+        if mg.empty_queue.len() == 0
+        {
+
+            if let Some(message) = mg.message_queue.pop_front()
+            {
+
+                return Ok(message)
+
+            }
+
+        }
+
+        if mg.is_closed
+        {
+
+             return Err(ReceiveError::Closed);
+
+        }
+
+        Err(ReceiveError::Empty)
 
     }
 
@@ -254,7 +289,7 @@ impl<T> Drop for Receiver<T>
 
             //Engage free-for-all mode.
 
-            for waker in mg.when_empty_waker_queue.drain(..)
+            for waker in mg.empty_queue.drain(..)
             {
 
                 waker.wake();
@@ -270,8 +305,7 @@ impl<T> Drop for Receiver<T>
 pub struct RecvFuture<'a, T>
 {
 
-    receiver_ref: &'a Receiver<T>,
-    opt_waker_id: Option<usize>
+    receiver_ref: &'a Receiver<T>
 
 }
 
@@ -284,8 +318,7 @@ impl<'a, T> RecvFuture<'a, T>
         Self
         {
 
-            receiver_ref,
-            opt_waker_id: None
+            receiver_ref
 
         }
 
@@ -301,8 +334,6 @@ impl<'a, T> Future for RecvFuture<'a, T>
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
     {
         
-        let id;
-
         {
 
             #[cfg(feature="use_std_sync")]
@@ -336,55 +367,32 @@ impl<'a, T> Future for RecvFuture<'a, T>
 
             }
 
-            if let Some(id) = self.opt_waker_id
+            if mg.empty_queue.len() == 0
             {
 
-                if let Some(res) = mg.try_pop(id)
+                if let Some(message) = mg.message_queue.pop_front()
                 {
 
-                    return Poll::Ready(Ok(res));
-
-                }
-
-                /*
-                //if let Entry::Occupied(entry) = mg.active_ids.entry(id)
-                if let Some(shouldve_awoken) = mg.active_ids.get(&id)
-                {
-
-                    //let shouldve_awoken = entry.get();
-
-                    if *shouldve_awoken
+                    if let Some(waker) = mg.empty_queue.pop_front()
                     {
 
-                        let opt_front = mg.message_queue.pop_front();
+                        drop(mg);
 
-                        if let Some(front) = opt_front
-                        {
-
-                            //entry.remove_entry();
-
-                            mg.active_ids.remove(&id);
-
-                            return Poll::Ready(Ok(front));
-
-                        }
+                        waker.wake();
 
                     }
 
-                    return Poll::Pending;
-                    
+                    return Poll::Ready(Ok(message));
+
                 }
-                */
 
             }
 
-            id = mg.push_waker(cx);
+            let waker = cx.waker().clone();
 
-        }
+            mg.empty_queue.push_back(waker);
 
-        let mut_self = self.get_mut();
-
-        mut_self.opt_waker_id = Some(id);
+        }        
 
         Poll::Pending
 
@@ -397,11 +405,14 @@ impl<'a, T> Debug for RecvFuture<'a, T>
 {
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RecvFuture").field("receiver_ref", &self.receiver_ref).field("opt_waker_id", &self.opt_waker_id).finish()
+        f.debug_struct("RecvFuture").field("receiver_ref", &self.receiver_ref).finish()
     }
-
+    
 }
 
+//RecvFuture<'a, T>
+
+/*
 impl<'a, T> Drop for RecvFuture<'a, T>
 {
 
@@ -428,3 +439,4 @@ impl<'a, T> Drop for RecvFuture<'a, T>
     }
 
 }
+*/
