@@ -6,9 +6,9 @@ use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
 #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
 use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
 
-use crate::{PreferredRwLockType, shared_reading_and_writing::WeakSharedReader};
+use crate::PreferredRwLockType;
 
-use super::Reader;
+use super::{Reader, WeakSharedReader};
 
 pub struct SharedReader<T>
 {

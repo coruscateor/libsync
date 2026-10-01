@@ -15,9 +15,9 @@ use tokio::time::{error::Elapsed, timeout, timeout_at};
 
 use delegate::delegate;
 
-use crate::{ItemUpdater, PreferredRwLockType, shared_reading_and_writing::{NotifyingSharedInternals, NotifyingSharedReader}};
+use crate::{ItemUpdater, PreferredRwLockType};
 
-use super::{SharedReader, Reader, Writer, NotifyingWriter, WeakNotifyingSharedWriter};
+use super::{SharedReader, Reader, Writer, NotifyingWriter, WeakNotifyingSharedWriter, NotifyingSharedInternals, NotifyingSharedReader};
 
 pub struct NotifyingSharedWriter<T, I, U>
     where U: ItemUpdater<I>, 

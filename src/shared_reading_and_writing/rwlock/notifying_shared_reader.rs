@@ -16,7 +16,9 @@ use futures::executor::block_on;
 #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
 use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
 
-use crate::{ItemUpdater, PreferredRwLockType, shared_reading_and_writing::NotifyingSharedInternals};
+use crate::{ItemUpdater, PreferredRwLockType};
+
+use super::NotifyingSharedInternals;
 
 use pastey::paste;
 

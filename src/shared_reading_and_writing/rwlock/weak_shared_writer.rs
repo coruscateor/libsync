@@ -1,7 +1,9 @@
 
 use std::sync::{Arc, Weak};
 
-use crate::{PreferredRwLockType, shared_reading_and_writing::SharedWriter};
+use super::SharedWriter;
+
+use crate::PreferredRwLockType;
 
 pub struct WeakSharedWriter<T>
 {
