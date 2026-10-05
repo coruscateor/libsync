@@ -15,7 +15,7 @@ categories = ["asynchronous", "concurrency"]
 
 crossbeam = { version = "0.8.4", optional = true }
 
-crossbeam-queue = { version = "0.3.12", optional = true }
+crossbeam-queue = { version = "0.3.14", optional = true }
 
 tokio = { version = "1.52.3", features = ["sync", "time", "rt", "macros", "rt-multi-thread"], optional = true } #The rt, macros, rt-multi-thread and time features are needed for testing.
 
