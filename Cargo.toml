@@ -13,7 +13,7 @@ categories = ["asynchronous", "concurrency"]
 
 [dependencies]
 
-crossbeam = { version = "0.8.4", optional = true }
+crossbeam = { version = "0.8.5", optional = true }
 
 crossbeam-queue = { version = "0.3.14", optional = true }
 

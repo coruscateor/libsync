@@ -1,0 +1,1180 @@
+use std::collections::hash_map::Entry;
+use std::error::Error;
+
+use std::fmt::Display;
+
+use std::future::Future;
+
+#[cfg(feature="use_std_sync")]
+use std::sync::{MutexGuard, TryLockError};
+
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use std::collections::{HashMap, HashSet, VecDeque};
+
+use std::task::{Poll, Waker};
+
+//use core::result::Result;
+
+use inc_dec::{IncDecSelf, IntIncDecSelf};
+
+use pastey::paste;
+
+use accessorise::impl_val_getter;
+
+use std::fmt::Debug;
+
+use crate::PreferredMutexType;
+
+#[derive(Debug)]
+pub struct LimitedWakerPermitQueueInternals
+{
+
+    pub no_permits_queue: VecDeque<Waker>, //Wakers that were enqueued because the were no permits available.
+    pub permits: usize,
+    pub max_permits_queue: VecDeque<Waker> //Wakers that were enqueued because the maximum number of permits had been reached.
+
+}
+
+impl LimitedWakerPermitQueueInternals
+{
+
+    pub fn new() -> Self
+    {
+
+        Self
+        {
+
+            no_permits_queue: VecDeque::new(),
+            permits: 0,
+            max_permits_queue: VecDeque::new()
+
+        }
+
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self
+    {
+
+        Self
+        {
+
+            no_permits_queue: VecDeque::with_capacity(capacity),
+            permits: 0,
+            max_permits_queue:  VecDeque::with_capacity(capacity)
+
+        }
+
+    }
+
+    pub fn with_permits(permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            no_permits_queue: VecDeque::new(), //VecDeque::with_capacity(permits),
+            permits: permits,
+            max_permits_queue: VecDeque::new()
+
+        }
+
+    }
+
+    pub fn with_capacity_and_permits(capacity_and_permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            no_permits_queue: VecDeque::with_capacity(capacity_and_permits),
+            permits: capacity_and_permits,
+            max_permits_queue:  VecDeque::with_capacity(capacity_and_permits)
+
+        }
+
+    }
+
+    pub fn with_capacity_and_permits_separate(capacity: usize, permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            no_permits_queue: VecDeque::with_capacity(capacity),
+            permits,
+            max_permits_queue:  VecDeque::with_capacity(capacity)
+
+        }
+
+    }
+
+}
+
+#[derive(Debug)]
+pub struct LimitedWakerPermitQueue
+{
+
+    internal_mut_state: PreferredMutexType<Option<LimitedWakerPermitQueueInternals>>,
+    max_permits: usize
+
+}
+
+impl LimitedWakerPermitQueue
+{
+
+    pub fn new(max_permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            internal_mut_state: PreferredMutexType::new(Some(LimitedWakerPermitQueueInternals::new())),
+            max_permits
+
+        }
+
+    }
+
+    pub fn with_capacity(max_permits: usize, capacity: usize) -> Self
+    {
+
+        Self
+        {
+
+            internal_mut_state: PreferredMutexType::new(Some(LimitedWakerPermitQueueInternals::with_capacity(capacity))),
+            max_permits
+
+        }
+
+    }
+
+    pub fn with_permits(max_permits: usize, permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            internal_mut_state: PreferredMutexType::new(Some(LimitedWakerPermitQueueInternals::with_capacity(permits))),
+            max_permits
+
+        }
+
+    }
+
+    pub fn with_capacity_and_permits(max_permits: usize, capacity_and_permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            internal_mut_state: PreferredMutexType::new(Some(LimitedWakerPermitQueueInternals::with_capacity_and_permits(capacity_and_permits))),
+            max_permits
+
+        }
+
+    }
+
+    pub fn with_capacity_and_permits_separate(max_permits: usize, capacity: usize, permits: usize) -> Self
+    {
+
+        Self
+        {
+
+            internal_mut_state: PreferredMutexType::new(Some(LimitedWakerPermitQueueInternals::with_capacity_and_permits_separate(capacity, permits))),
+            max_permits
+
+        }
+
+    }
+
+    #[cfg(feature="use_std_sync")]
+    fn get_mg(&self) -> MutexGuard<'_, Option<LimitedWakerPermitQueueInternals>>
+    {
+
+        let lock_result = self.internal_mut_state.lock();
+
+        match lock_result
+        {
+
+            Ok(mg) =>
+            {
+
+                mg
+
+            }
+            Err(err) =>
+            {
+
+                self.internal_mut_state.clear_poison();
+
+                err.into_inner()
+
+            }
+
+        }
+
+    }
+
+    //Disabled
+
+    /*
+    #[cfg(feature="use_std_sync")]
+    fn try_get_mg(&self) -> Option<MutexGuard<'_, Option<LimitedWakerPermitQueueInternals>>>
+    {
+
+        let lock_result = self.internal_mut_state.try_lock();
+
+        match lock_result
+        {
+
+            Ok(val) =>
+            {
+
+                Some(val)
+
+            }
+            Err(err) =>
+            {
+
+                match err
+                {
+
+                    TryLockError::Poisoned(poison_error) =>
+                    {
+
+                        self.internal_mut_state.clear_poison();
+
+                        Some(poison_error.into_inner())
+
+                    }
+                    TryLockError::WouldBlock =>
+                    {
+
+                        None
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+    */
+
+    pub fn avalible_permits(&self) -> Option<usize>
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mut mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.internal_mut_state.lock();
+
+        if let Some(val) = &mut *mg
+        {
+
+            return Some(val.permits);
+
+        } 
+
+        None
+
+    }
+
+    pub fn is_closed(&self) -> bool
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mg = self.internal_mut_state.lock();
+
+        mg.is_none()
+
+    }
+
+    impl_val_getter!(max_permits, usize);
+
+    pub fn has_max_permits(&self) -> Option<bool>
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mg = self.internal_mut_state.lock();
+
+        if let Some(val) = &*mg
+        {
+
+            let is_at_max = val.permits == self.max_permits;
+
+            return Some(is_at_max);
+
+        } 
+
+        None
+
+    }
+
+    pub fn head_room(&self) -> Option<usize>
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mg = self.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mg = self.internal_mut_state.lock();
+
+        if let Some(val) = &*mg
+        {
+
+            let head_room = self.max_permits - val.permits;
+
+            return Some(head_room);
+
+        } 
+
+        None
+
+    }
+
+    //Disabled
+    
+    /*
+    pub fn try_add_permits(&self, count: usize) -> bool
+    {
+
+        if count == 0
+        {
+
+            return false;
+
+        }
+
+        let mut mg;
+
+        let opt_mg = self.try_get_mg();
+
+        if let Some(val) = opt_mg
+        {
+
+            mg = val;
+
+        }
+        else
+        {
+
+            return false;
+
+
+        }
+
+        if let Some(val) = &mut *mg
+        {
+
+            let permits = val.permits;
+
+            if let Some(mut permits) = permits.checked_add(count)
+            {
+
+                val.permits = permits;
+
+                while permits > 0
+                {
+
+                    //Check for wakers and wake them if present.
+
+                    let opt_front_waker = val.no_permits_queue.pop_front();
+
+                    if let Some(front_waker) = opt_front_waker
+                    {
+
+                        if let Some(shouldve_awoken) = val.active_ids.get_mut(&front_waker.id())
+                        {
+
+                            *shouldve_awoken = true;
+
+                        }
+
+                        //does the waker need to be marked as "should wake"?
+
+                        front_waker.wake();
+
+                    }
+                    else
+                    {
+
+                        break;
+
+                    }
+
+                    permits.mm();
+                    
+                }
+
+                return true;
+
+            }
+
+        }
+
+        false
+
+    }
+
+    pub fn try_add_permit(&self) -> bool
+    {
+
+        self.try_add_permits(1)
+        
+    }
+    */
+
+    pub fn add_permits(&self, count: usize, buffer: &mut VecDeque<Waker>) -> Option<usize>
+    {
+
+        let permits_added;
+
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.internal_mut_state.lock();
+
+            if let Some(val) = &mut *mg
+            {
+                
+                if count == 0
+                {
+
+                    return Some(0);
+
+                }
+
+                let original_permits = val.permits;
+
+                let permits = val.permits;
+
+                let new_permits;
+
+                if let Some(resultant_permits) = permits.checked_add(count)
+                {
+
+                    new_permits = resultant_permits;
+
+                }
+                else
+                {
+
+                    return Some(0);
+
+                    //new_permits = usize::MAX;
+                    
+                }
+
+                //let permits;
+
+                if new_permits > self.max_permits
+                {
+
+                    val.permits = self.max_permits;
+
+                    permits_added = self.max_permits - original_permits;
+
+                }
+                else
+                {
+
+                    val.permits = new_permits;
+                    
+                    permits_added = count;
+
+                }
+
+                /* 
+                if permits_added == 0
+                {
+
+                    return Some(0);
+
+                }
+                */
+
+                //val.permits = permits;
+
+                let mut potential_wakers_to_wake = permits_added;
+
+                while potential_wakers_to_wake > 0
+                {
+
+                    //Check for wakers and wake them if present.
+
+                    let opt_front_waker = val.no_permits_queue.pop_front();
+
+                    if let Some(front_waker) = opt_front_waker
+                    {
+
+                        buffer.push_back(front_waker);
+
+                        //does the waker need to be marked as "should wake"?
+
+                        //front_waker.wake();
+
+                    }
+                    else
+                    {
+
+                        break;
+
+                    }
+
+                    potential_wakers_to_wake.mm();
+                    
+                }
+
+            }
+            else
+            {
+
+                return None;
+                
+            }
+
+        }
+
+        for item in buffer.drain(..)
+        {
+
+            item.wake();
+
+        }
+
+        Some(permits_added)
+
+    }
+
+    pub fn add_permit(&self) -> Option<bool>
+    {
+
+        let opt_waker;
+
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.internal_mut_state.lock();
+
+            if let Some(val) = &mut *mg
+            {
+
+                let permits = val.permits;
+
+                let resultant_permits;
+
+                match permits.checked_add(1)
+                {
+
+                    Some(val) =>
+                    {
+
+                        resultant_permits = val;
+
+                    }
+                    None =>
+                    {
+
+                        return Some(false);
+
+                        //resultant_permits = usize::MAX;
+
+                    }
+
+                }
+
+                if resultant_permits > self.max_permits
+                {
+
+                    //Too many permits, permit cannot be added.
+
+                    return Some(false);
+
+                }
+
+                val.permits = resultant_permits;
+
+                //Check for wakers and wake them if present.
+
+                opt_waker = val.no_permits_queue.pop_front();
+
+            }
+            else
+            {
+
+                return None;
+                
+            }
+
+        }
+
+        if let Some(waker) = opt_waker
+        {
+
+            //Wake the waker outside the mg.
+
+            waker.wake();
+
+            //return true;
+            
+        }
+
+        Some(true)
+
+    }
+
+    pub fn remove_permits(&self, count: usize, buffer: &mut VecDeque<Waker>) -> Option<usize>
+    {
+
+        let permits_removed;
+
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.internal_mut_state.lock();
+
+            if let Some(val) = &mut *mg
+            {
+
+                if count == 0
+                {
+
+                    return Some(0);
+
+                }
+
+                let permits = val.permits;
+
+                if let Some(resultant_permits) = permits.checked_sub(count)
+                {
+
+                    val.permits = resultant_permits;
+
+                    permits_removed = count;
+
+                }
+                else
+                {
+
+                    permits_removed = count - (count - val.permits);
+
+                    val.permits = 0;
+                    
+                }
+
+                let mut potential_wakers_to_wake = permits_removed;
+
+                while potential_wakers_to_wake > 0
+                {
+
+                    //Check for wakers and wake them if present.
+
+                    let opt_front_waker = val.max_permits_queue.pop_front();
+
+                    if let Some(front_waker) = opt_front_waker
+                    {
+
+                        buffer.push_back(front_waker);
+
+                        //does the waker need to be marked as "should wake"?
+
+                        //front_waker.wake();
+
+                    }
+                    else
+                    {
+
+                        break;
+
+                    }
+
+                    potential_wakers_to_wake.mm();
+                    
+                }
+
+            }
+            else
+            {
+
+                return None;
+                
+            }
+
+        }
+
+        for item in buffer.drain(..)
+        {
+
+            item.wake();
+
+        }
+
+        Some(permits_removed)
+
+    }
+
+    pub fn remove_permit(&self) -> Option<bool>
+    {
+
+        let opt_waker;
+
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.internal_mut_state.lock();
+
+            if let Some(val) = &mut *mg
+            {
+
+                let permits = val.permits;
+
+                if let Some(resultant_permits) = permits.checked_sub(1)
+                {
+
+                    val.permits = resultant_permits;
+
+                    //Check for wakers and wake them if present.
+
+                    opt_waker = val.max_permits_queue.pop_front();
+
+                }
+                else
+                {
+
+                    return Some(false);
+                    
+                }
+
+            }
+            else
+            {
+
+                return None;
+                
+            }
+
+        }
+
+        if let Some(waker) = opt_waker
+        {
+
+            //Wake the waker outside the mg.
+
+            waker.wake();
+            
+        }
+
+        Some(true)
+
+    }
+
+    //Disabled
+    
+    /*
+
+    pub fn try_decrement_permits(&self) -> bool
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let opt_mg = self.try_get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let opt_mg = self.internal_mut_state.try_lock();
+
+        if let Some(mut mg) = opt_mg
+        {
+
+            match &mut *mg
+            {
+
+                Some(val) =>
+                {
+
+                    //"Take" a permit.
+
+                    let permits = val.permits;
+
+                    if let Some(new_permits) = permits.checked_sub(1)
+                    {
+
+                        val.permits = new_permits;
+
+                        return true;
+
+                    }
+
+                }
+                None => {}
+
+            }
+
+        }
+
+        false        
+
+    }
+    */
+    
+    pub fn decrement_permits_or_wait<'a>(&'a self) -> LimitedWakerPermitQueueDecrementPermitsOrWait<'a>
+    {
+
+        LimitedWakerPermitQueueDecrementPermitsOrWait::new(self)
+
+    }
+
+    pub fn increment_permits_or_wait<'a>(&'a self) -> LimitedWakerPermitQueueIncrementPermitsOrWait<'a>
+    {
+
+        LimitedWakerPermitQueueIncrementPermitsOrWait::new(self)
+
+    }
+
+    pub fn close(&self)
+    {
+
+        let opt_internals;
+
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = self.get_mg();
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = self.internal_mut_state.lock();
+
+            opt_internals = mg.take();
+
+        }
+
+        if let Some(mut internal_mut_state) = opt_internals
+        {
+
+            for item in internal_mut_state.no_permits_queue.drain(..)
+            {
+
+                item.wake();
+
+            }
+
+            for item in internal_mut_state.max_permits_queue.drain(..)
+            {
+
+                item.wake();
+
+            }
+
+        }
+
+    }
+
+    //impl_get_val!(max_number_of_permits, usize);
+
+    /*
+    pub fn add_permit(&self)
+    {
+
+        self.avalible_permits.compare_exchange(current, new, success, failure)
+
+    }
+    */
+    
+}
+
+impl Drop for LimitedWakerPermitQueue
+{
+
+    fn drop(&mut self)
+    {
+
+        //Is this call necessary?
+        
+        self.close();
+
+    }
+
+}
+
+#[derive(Debug, PartialEq)]
+pub struct LimitedWakerPermitQueueClosedError
+{
+}
+
+impl LimitedWakerPermitQueueClosedError
+{
+
+    pub fn new() -> Self
+    {
+
+        Self
+        {
+        }
+
+    }
+
+    pub fn err() -> Result<(), Self>
+    {
+
+        Err(Self::new())
+
+    }
+
+}
+
+impl Display for LimitedWakerPermitQueueClosedError
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        
+        write!(f, "LimitedWakerPermitQueue is closed")
+
+    }
+
+}
+
+impl Error for LimitedWakerPermitQueueClosedError
+{    
+}
+
+#[derive(Debug)]
+pub struct LimitedWakerPermitQueueDecrementPermitsOrWait<'a>
+{
+
+    waker_permit_queue_ref: &'a LimitedWakerPermitQueue
+}
+
+impl<'a> LimitedWakerPermitQueueDecrementPermitsOrWait<'a>
+{
+
+    pub fn new(waker_permit_queue_ref: &'a LimitedWakerPermitQueue) -> Self
+    {
+
+        Self
+        {
+
+            waker_permit_queue_ref
+
+        }
+
+    }
+    
+}
+
+//Handles "sleeping", "waking" and permit incrementation/decrementation.
+
+impl Future for LimitedWakerPermitQueueDecrementPermitsOrWait<'_>
+{
+
+    type Output = Result<(), LimitedWakerPermitQueueClosedError>;
+
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
+    {
+
+        let mut_self = self.get_mut();
+
+        #[cfg(feature="use_std_sync")]
+        let mut mg = mut_self.waker_permit_queue_ref.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = mut_self.waker_permit_queue_ref.internal_mut_state.lock();
+
+        match &mut *mg
+        {
+
+            Some(val) =>
+            {
+
+                let permits = val.permits;
+
+                //Is there a queue?
+
+                if val.no_permits_queue.is_empty() && let Some(new_permits) = permits.checked_sub(1)
+                {
+
+                    val.permits = new_permits;
+
+                    let opt_waker = val.max_permits_queue.pop_front();
+
+                    if let Some(waker) = opt_waker
+                    {
+
+                        drop(mg);
+
+                        waker.wake();
+
+                        return Poll::Ready(Ok(()));
+
+
+                    }
+                    else
+                    {
+
+                        return Poll::Ready(Ok(()));
+                        
+                    }
+                }
+                else
+                {
+
+                    let waker = cx.waker().clone();
+
+                    val.no_permits_queue.push_back(waker);
+                    
+                }
+
+            }
+            None =>
+            {
+
+                return Poll::Ready(LimitedWakerPermitQueueClosedError::err());
+
+            }
+
+        }                 
+
+        Poll::Pending
+
+        /*
+        if let Some(waker) = opt_waker
+        {
+
+            waker.wake();
+
+        }
+        */
+
+        //Poll::Ready(Ok(()))
+        
+    }
+
+}
+
+#[derive(Debug)]
+pub struct LimitedWakerPermitQueueIncrementPermitsOrWait<'a>
+{
+
+    waker_permit_queue_ref: &'a LimitedWakerPermitQueue
+
+}
+
+impl<'a> LimitedWakerPermitQueueIncrementPermitsOrWait<'a>
+{
+
+    pub fn new(waker_permit_queue_ref: &'a LimitedWakerPermitQueue) -> Self
+    {
+
+        Self
+        {
+
+            waker_permit_queue_ref
+
+        }
+
+    }
+    
+}
+
+//Handles "sleeping", "waking" and permit incrementation.
+
+impl Future for LimitedWakerPermitQueueIncrementPermitsOrWait<'_>
+{
+
+    type Output = Result<(), LimitedWakerPermitQueueClosedError>;
+
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
+    {
+
+        let mut_self = self.get_mut();
+
+        #[cfg(feature="use_std_sync")]
+        let mut mg = mut_self.waker_permit_queue_ref.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = mut_self.waker_permit_queue_ref.internal_mut_state.lock();
+
+        match &mut *mg
+        {
+
+            Some(val) =>
+            {
+
+                //"Take" a permit.
+
+                let permits = val.permits;
+
+                //Is there a queue?
+
+                if val.max_permits_queue.is_empty() && let Some(new_permits) = permits.checked_add(1) && new_permits <= mut_self.waker_permit_queue_ref.max_permits
+                {
+
+                    val.permits = new_permits;
+
+                    let opt_waker = val.no_permits_queue.pop_front();
+
+                    if let Some(waker) = opt_waker
+                    {
+
+                        drop(mg);
+
+                        waker.wake();
+
+                        return Poll::Ready(Ok(()));
+
+                    }
+                    else
+                    {
+
+                        return Poll::Ready(Ok(()));
+                        
+                    }
+
+                }
+                else
+                {
+
+                    //The task is going to "sleep". Update the WQI so it can be woken up later.
+
+                    let waker = cx.waker().clone();
+
+                    val.max_permits_queue.push_back(waker);
+                
+                }
+
+            }
+            None =>
+            {
+
+                return Poll::Ready(LimitedWakerPermitQueueClosedError::err());
+
+            }
+
+        }
+
+        Poll::Pending
+
+    }
+
+}

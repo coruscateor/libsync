@@ -394,16 +394,16 @@ impl WakerQueue
 
             }
 
-            while let Some(front_waker) = buffer.pop_front()
-            {
+        }
 
-                front_waker.wake();
+        while let Some(front_waker) = buffer.pop_front()
+        {
 
-            }
-
-            res
+            front_waker.wake();
 
         }
+
+        res
 
     }
 

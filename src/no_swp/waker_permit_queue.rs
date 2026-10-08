@@ -70,7 +70,7 @@ impl WakerPermitQueueInternals
         Self
         {
 
-            no_permits_queue: VecDeque::new(), //VecDeque::with_capacity(permits),
+            no_permits_queue: VecDeque::new(),
             permits: permits
 
         }

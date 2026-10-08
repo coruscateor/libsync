@@ -171,7 +171,7 @@ impl WakerPermitQueue
         Self
         {
 
-            internal_mut_state: PreferredMutexType::new(Some(WakerPermitQueueInternals::with_capacity(permits)))
+            internal_mut_state: PreferredMutexType::new(Some(WakerPermitQueueInternals::with_permits(permits)))
 
         }
 

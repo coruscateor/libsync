@@ -193,3 +193,9 @@ pub use channel_shared_details_with_waker_queues::*;
 //pub use auto_waker::*;
 
 pub mod no_swp;
+
+pub mod atomic;
+
+mod spin_count;
+
+pub use spin_count::*;

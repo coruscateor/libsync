@@ -319,16 +319,16 @@ impl WakerQueue
 
             }
 
-            while let Some(front_waker) = buffer.pop_front()
-            {
+        }
 
-                front_waker.wake();
+        while let Some(front_waker) = buffer.pop_front()
+        {
 
-            }
-
-            res
+            front_waker.wake();
 
         }
+
+        res
 
     }
 
@@ -409,7 +409,8 @@ impl Error for WakerQueueWakeMeClosedError
 pub struct WakerQueueWakeMe<'a>
 {
 
-    waker_queue_ref: &'a WakerQueue
+    waker_queue_ref: &'a WakerQueue,
+    ready_next: bool
 
 }
 
@@ -422,7 +423,8 @@ impl<'a> WakerQueueWakeMe<'a>
         Self
         {
 
-            waker_queue_ref
+            waker_queue_ref,
+            ready_next: false
 
         }
 
@@ -451,6 +453,17 @@ impl Future for WakerQueueWakeMe<'_>
 
             Some(val) =>
             {
+
+                if mut_self.ready_next
+                {
+
+                    mut_self.ready_next = false;
+
+                    return Poll::Ready(Ok(()));
+
+                }
+
+                mut_self.ready_next = true;
 
                 //The task is going to "sleep". Update the WQI so it can be woken up later.
 

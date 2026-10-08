@@ -8,4 +8,4 @@ pub mod mpmc;
 
 //pub mod spsc;
 
-//Re-enabled in v0.4.0?
+pub mod no_swp;
