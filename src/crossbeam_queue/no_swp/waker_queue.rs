@@ -103,8 +103,7 @@ impl WakerQueue
 
     pub fn notify_one(&self) -> Option<bool>
     {
-
-
+        
         if let Some(waker) = self.waker_queue_internals.queue.pop()
         {
 

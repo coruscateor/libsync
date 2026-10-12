@@ -124,6 +124,15 @@ pub type PreferredMutexType<T> = ::std::sync::Mutex<T>;
 #[cfg(feature="use_parking_lot_sync")]
 pub type PreferredMutexType<T> = parking_lot::Mutex<T>;
 
+#[cfg(feature="use_std_sync")]
+pub type MutexGuard<'a, T> = ::std::sync::MutexGuard<'a, T>;
+
+#[cfg(feature="use_parking_lot_sync")]
+pub type MutexGuard<'a, T> = Parking_lot::MutexGuard<'a, T>;
+
+#[cfg(feature="use_parking_lot_fair_sync")]
+pub type MutexGuard<'a, T> = Parking_lot::FairMutexGuard<'a, T>;
+
 ///
 /// The preferred type of mutex to be used for synchronisation.
 /// 

@@ -1,5 +1,4 @@
-#[cfg(feature="use_std_sync")]
-use std::sync::MutexGuard;
+use crate::MutexGuard;
 
 use std::fmt::Debug;
 
@@ -165,3 +164,11 @@ impl<T> Debug for PartialSend<T>
     }
     
 }
+
+pub enum ValueOrMutexGuard<'a, T>
+{
+
+    Value(T),
+    MutexGuard(MutexGuard<'a, T>)
+
+} 

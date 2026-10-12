@@ -20,6 +20,8 @@ use inc_dec::{IncDecSelf, IntIncDecSelf};
 
 use std::fmt::Debug;
 
+#[cfg(feature="use_std_sync")]
+use crate::get_mg;
 use crate::{ItemUpdater, PreferredMutexType};
 
 use crossbeam_queue::SegQueue;
@@ -28,17 +30,20 @@ use delegate::delegate;
 
 use crate::spin_a_bit;
 
+use crate::atomic::AtomicValueOrMutex;
+
 //use crossbeam::atomic::AtomicCell;
 
 pub struct WakerQueueWithUpdatedItemInternals<T, U>
     where U: ItemUpdater<T>, 
-          T: Clone + PartialEq + Unpin
+          T: Clone + PartialEq + Unpin + 'static
 {
 
     pub queue: SegQueue<Waker>,
-    pub item: PreferredMutexType<T>, //AtomicCell<T>,
+    pub item: AtomicValueOrMutex<T>, //AtomicCell<T>,
     pub is_closed: AtomicBool,
     phantom_data: PhantomData<U>
+    
 }
 
 impl<T, U> WakerQueueWithUpdatedItemInternals<T, U>
@@ -53,7 +58,7 @@ impl<T, U> WakerQueueWithUpdatedItemInternals<T, U>
         {
 
             queue: SegQueue::new(),
-            item: PreferredMutexType::new(U::init()), //AtomicCell::new(U::init()),
+            item: AtomicValueOrMutex::new(U::init()),
             is_closed: AtomicBool::new(false),
             phantom_data: PhantomData::default()
 
@@ -79,7 +84,7 @@ impl<T, U> WakerQueueWithUpdatedItemInternals<T, U>
 
 impl<T, U> Debug for WakerQueueWithUpdatedItem<T, U>
     where U: ItemUpdater<T> + Debug, 
-          T: Clone + PartialEq + Unpin + Debug
+          T: Clone + PartialEq + Unpin + Debug + 'static
 {
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -90,7 +95,7 @@ impl<T, U> Debug for WakerQueueWithUpdatedItem<T, U>
 
 pub struct WakerQueueWithUpdatedItem<T, U>
     where U: ItemUpdater<T>, 
-          T: Clone + PartialEq + Unpin
+          T: Clone + PartialEq + Unpin + 'static
 {
 
     waker_queue_internals: WakerQueueWithUpdatedItemInternals<T, U>
@@ -99,7 +104,7 @@ pub struct WakerQueueWithUpdatedItem<T, U>
 
 impl<T, U> WakerQueueWithUpdatedItem<T, U>
     where U: ItemUpdater<T>, 
-          T: Clone + PartialEq + Unpin
+          T: Clone + PartialEq + Unpin + 'static
 {
 
     pub fn new() -> Self
@@ -143,455 +148,163 @@ impl<T, U> WakerQueueWithUpdatedItem<T, U>
     pub fn notify_one(&self) -> Option<bool>
     {
 
-        let waker;
-
+        if let Some(waker) = self.waker_queue_internals.queue.pop()
         {
 
-            #[cfg(feature="use_std_sync")]
-            let mut mg = self.get_mg();
-
-            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.waker_queue_internals.lock();
-
-            match &mut *mg
+            let mut fun = |val_mut: &mut T|
             {
 
-                Some(val) =>
-                {
+                U::update( val_mut);
 
-                    if let Some(front_waker) = val.queue.pop_front()
-                    {
+            };
 
-                        U::update(&mut val.item);
+            self.waker_queue_internals.item.update(&mut fun);
 
-                        waker = front_waker;
+            waker.wake();
 
-                    }
-                    else
-                    {
-
-                        return Some(false);
-                        
-                    }
-
-                }
-                None =>
-                {
-                    
-                   return None;
-
-                }
-
-            }
+            Some(true)
 
         }
+        else
+        {
 
-        waker.wake();
+            if self.is_closed()
+            {
 
-        Some(true)
+                None
+
+            }
+            else
+            {
+
+                Some(false)
+                
+            }
+            
+        }
 
     }
 
     pub fn notify_one_no_update(&self) -> Option<bool>
     {
 
-        let waker;
-
+        if let Some(waker) = self.waker_queue_internals.queue.pop()
         {
 
-            #[cfg(feature="use_std_sync")]
-            let mut mg = self.get_mg();
+            waker.wake();
 
-            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.waker_queue_internals.lock();
-
-            match &mut *mg
-            {
-
-                Some(val) =>
-                {
-
-                    if let Some(front_waker) = val.queue.pop_front()
-                    {
-
-                        waker = front_waker;
-
-                    }
-                    else
-                    {
-
-                        return Some(false);
-                        
-                    }
-
-                }
-                None =>
-                {
-                    
-                   return None;
-
-                }
-
-            }
+            Some(true)
 
         }
-
-        waker.wake();
-
-        Some(true)
-
-    }
-
-    pub fn notify_last(&self) -> Option<bool>
-    {
-
-        let waker;
-
+        else
         {
 
-            #[cfg(feature="use_std_sync")]
-            let mut mg = self.get_mg();
-
-            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.waker_queue_internals.lock();
-
-            match &mut *mg
+            if self.is_closed()
             {
 
-                Some(val) =>
-                {
-
-                    if let Some(back_waker) = val.queue.pop_back()
-                    {
-
-                        U::update(&mut val.item);
-
-                        waker = back_waker;
-
-                    }
-                    else
-                    {
-
-                        return Some(false);
-                        
-                    }
-
-                }
-                None =>
-                {
-                    
-                    return None;
-
-                }
+                None
 
             }
-
-        }
-
-        waker.wake();
-
-        Some(true)
-
-    }
-
-    pub fn notify_last_no_update(&self) -> Option<bool>
-    {
-
-        let waker;
-
-        {
-
-            #[cfg(feature="use_std_sync")]
-            let mut mg = self.get_mg();
-
-            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.waker_queue_internals.lock();
-
-            match &mut *mg
+            else
             {
 
-                Some(val) =>
-                {
-
-                    if let Some(back_waker) = val.queue.pop_back()
-                    {
-
-                        waker = back_waker;
-
-                    }
-                    else
-                    {
-
-                        return Some(false);
-                        
-                    }
-
-                }
-                None =>
-                {
-                    
-                    return None;
-
-                }
-
+                Some(false)
+                
             }
-
+            
         }
-
-        waker.wake();
-
-        Some(true)
 
     }
     
     pub fn notify_waiters(&self) -> Option<usize>
     {
 
-        #[cfg(feature="use_std_sync")]
-        let mut mg = self.get_mg();
-
-        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.waker_queue_internals.lock();
-
-        match &mut *mg
+        if self.is_closed()
         {
 
-            Some(val) =>
-            {
-
-                let res = Some(val.queue.len());
-
-                U::update(&mut val.item);
-
-                while let Some(front_waker) = val.queue.pop_front()
-                {
-
-                    front_waker.wake();
-
-                }
-
-                res
-
-            }
-            None =>
-            {
-                
-                None
-
-            }
+            return None;
 
         }
+
+        let mut fun=  |to_update: &mut T|
+        {
+
+            U::update(to_update)
+
+        };
+
+        self.waker_queue_internals.item.update(&mut fun);
+
+        let res = Some(self.waker_queue_internals.queue.len());
+
+        while let Some(waker) = self.waker_queue_internals.queue.pop()
+        {
+
+            waker.wake();
+
+        }
+
+        res
 
     }
 
     pub fn notify_waiters_no_update(&self) -> Option<usize>
     {
 
-        #[cfg(feature="use_std_sync")]
-        let mut mg = self.get_mg();
-
-        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.waker_queue_internals.lock();
-
-        match &mut *mg
+        if self.is_closed()
         {
 
-            Some(val) =>
-            {
-
-                let res = Some(val.queue.len());
-
-                while let Some(front_waker) = val.queue.pop_front()
-                {
-
-                    front_waker.wake();
-
-                }
-
-                res
-
-            }
-            None =>
-            {
-                
-                None
-
-            }
+            return None;
 
         }
 
-    }
+        let res = Some(self.waker_queue_internals.queue.len());
 
-    pub fn notify_waiters_buffered(&self, buffer: &mut VecDeque<Waker>) -> Option<usize>
-    {
-
-        buffer.clear();
-
-        let res;
-
+        while let Some(waker) = self.waker_queue_internals.queue.pop()
         {
 
-            #[cfg(feature="use_std_sync")]
-            let mut mg = self.get_mg();
-
-            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.waker_queue_internals.lock();
-
-            match &mut *mg
-            {
-
-                Some(val) =>
-                {
-
-                    buffer.reserve(val.queue.len());
-
-                    res = Some(val.queue.len());
-
-                    U::update(&mut val.item);
-
-                    while let Some(front_waker) = val.queue.pop_front()
-                    {
-
-                        buffer.push_back(front_waker);
-
-                    }
-
-                }
-                None =>
-                {
-                    
-                    return None;
-
-                }
-
-            }
-
-            while let Some(front_waker) = buffer.pop_front()
-            {
-
-                front_waker.wake();
-
-            }
-
-            res
+            waker.wake();
 
         }
 
-    }
-
-
-    pub fn notify_waiters_buffered_no_update(&self, buffer: &mut VecDeque<Waker>) -> Option<usize>
-    {
-
-        buffer.clear();
-
-        let res;
-
-        {
-
-            #[cfg(feature="use_std_sync")]
-            let mut mg = self.get_mg();
-
-            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.waker_queue_internals.lock();
-
-            match &mut *mg
-            {
-
-                Some(val) =>
-                {
-
-                    buffer.reserve(val.queue.len());
-
-                    res = Some(val.queue.len());
-
-                    while let Some(front_waker) = val.queue.pop_front()
-                    {
-
-                        buffer.push_back(front_waker);
-
-                    }
-
-                }
-                None =>
-                {
-                    
-                    return None;
-
-                }
-
-            }
-
-            while let Some(front_waker) = buffer.pop_front()
-            {
-
-                front_waker.wake();
-
-            }
-
-            res
-
-        }
+        res
 
     }
 
     pub fn update_dont_notify(&self) -> bool
     {
 
-        #[cfg(feature="use_std_sync")]
-        let mut mg = self.get_mg();
-
-        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.waker_queue_internals.lock();
-
-        match &mut *mg
+        if self.is_closed()
         {
 
-            Some(val) =>
-            {
-
-                U::update(&mut val.item);
-
-                true
-
-            }
-            None =>
-            {
-
-                false
-
-            }
+            return false;
 
         }
+
+        let mut fun=  |to_update: &mut T|
+        {
+
+            U::update(to_update)
+
+        };
+
+        self.waker_queue_internals.item.update(&mut fun);
+
+        true
 
     }
 
     pub fn close(&self)
     {
 
-        let opt_internals;
+        self.waker_queue_internals.close();
 
+        spin_a_bit();
+
+        while let Some(waker) = self.waker_queue_internals.queue.pop()
         {
 
-            #[cfg(feature="use_std_sync")]
-            let mut mg = self.get_mg();
-
-            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.waker_queue_internals.lock();
-
-            opt_internals = mg.take();
-
-        }
-
-        if let Some(mut waker_queue_internals) = opt_internals
-        {
-
-            for item in waker_queue_internals.queue.drain(..)
-            {
-
-                item.wake();
-
-            }
+            waker.wake();
 
         }
 
@@ -622,7 +335,8 @@ impl WakerQueueWakeMeWithItemClosedError
     {
 
         Self
-        {}
+        {
+        }
 
     }
 
@@ -653,7 +367,7 @@ impl Error for WakerQueueWakeMeWithItemClosedError
 
 pub struct WakerQueueWakeMeWithItem<'a, T, U>
     where U: ItemUpdater<T>, 
-          T: Clone + PartialEq + Unpin
+          T: Clone + PartialEq + Unpin + 'static
 {
 
     waker_queue_ref: &'a WakerQueueWithUpdatedItem<T, U>,
@@ -663,7 +377,7 @@ pub struct WakerQueueWakeMeWithItem<'a, T, U>
 
 impl<'a, T, U> WakerQueueWakeMeWithItem<'a, T, U>
     where U: ItemUpdater<T>, 
-          T: Clone + PartialEq + Unpin
+          T: Clone + PartialEq + Unpin + 'static
 {
 
     pub fn new(waker_queue_ref: &'a WakerQueueWithUpdatedItem<T, U>, current_item: T) -> Self
@@ -683,7 +397,7 @@ impl<'a, T, U> WakerQueueWakeMeWithItem<'a, T, U>
 
 impl<T, U> Future for WakerQueueWakeMeWithItem<'_, T, U>
     where U: ItemUpdater<T>, 
-          T: Clone + PartialEq + Unpin
+          T: Clone + PartialEq + Unpin + 'static
 {
 
     type Output = Result<T, WakerQueueWakeMeWithItemClosedError>;
@@ -691,44 +405,31 @@ impl<T, U> Future for WakerQueueWakeMeWithItem<'_, T, U>
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
     {
 
-        let mut_self = self.get_mut();
+        let waker_queue_internals = &self.waker_queue_ref.waker_queue_internals;
 
-        #[cfg(feature="use_std_sync")]
-        let mut mg = mut_self.waker_queue_ref.get_mg();
+        let value = waker_queue_internals.item.clone_value();
 
-        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = mut_self.waker_queue_ref.waker_queue_internals.lock();
-
-        match &mut *mg
+        if value == self.current_item
         {
 
-            Some(val) =>
-            {
+            //The items are the same so we skip waiting.
 
-                if val.item == mut_self.current_item
-                {
-
-                    //The items are the same so we skip waiting.
-
-                    return Poll::Ready(Ok(val.item.clone()));
-
-                }
-
-                //The task is going to "sleep". Update the WQI so it can be woken up later.
-
-                let waker = cx.waker().clone();
-
-                val.queue.push_back(waker);
-
-            }
-            None =>
-            {
-
-                return Poll::Ready(WakerQueueWakeMeWithItemClosedError::err());
-
-            }
+            return Poll::Ready(Ok(value));
 
         }
+
+        //The task is going to "sleep". Update the WQI so it can be woken up later.
+
+        let waker = cx.waker().clone();
+
+        if waker_queue_internals.is_closed()
+        {
+
+            return Poll::Ready(WakerQueueWakeMeWithItemClosedError::err());
+
+        }
+
+        waker_queue_internals.queue.push(waker);
 
         Poll::Pending
 
@@ -738,7 +439,7 @@ impl<T, U> Future for WakerQueueWakeMeWithItem<'_, T, U>
 
 impl<T, U> Debug for WakerQueueWakeMeWithItem<'_, T, U>
     where U: ItemUpdater<T> + Debug, 
-          T: Clone + PartialEq + Unpin + Debug
+          T: Clone + PartialEq + Unpin + Debug + 'static
 {
 
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -761,7 +462,8 @@ impl WakerQueueWakeMeIgnoreItemClosedError
     {
 
         Self
-        {}
+        {
+        }
 
     }
 
@@ -792,7 +494,7 @@ impl Error for WakerQueueWakeMeIgnoreItemClosedError
 
 pub struct WakerQueueWakeMeIgnoreItem<'a, T, U>
     where U: ItemUpdater<T>, 
-          T: Clone + PartialEq + Unpin
+          T: Clone + PartialEq + Unpin + 'static
 {
 
     waker_queue_ref: &'a WakerQueueWithUpdatedItem<T, U>
@@ -801,7 +503,7 @@ pub struct WakerQueueWakeMeIgnoreItem<'a, T, U>
 
 impl<'a, T, U> WakerQueueWakeMeIgnoreItem<'a, T, U>
     where U: ItemUpdater<T>, 
-          T: Clone + PartialEq + Unpin
+          T: Clone + PartialEq + Unpin + 'static
 {
 
     //Ignore current_item
@@ -822,7 +524,7 @@ impl<'a, T, U> WakerQueueWakeMeIgnoreItem<'a, T, U>
 
 impl<T, U> Future for WakerQueueWakeMeIgnoreItem<'_, T, U>
     where U: ItemUpdater<T>, 
-          T: Clone + PartialEq + Unpin
+          T: Clone + PartialEq + Unpin + 'static
 {
 
     type Output = Result<(), WakerQueueWakeMeIgnoreItemClosedError>;
@@ -830,35 +532,20 @@ impl<T, U> Future for WakerQueueWakeMeIgnoreItem<'_, T, U>
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
     {
 
-        let mut_self = self.get_mut();
+        let waker_queue_internals = &self.waker_queue_ref.waker_queue_internals;
 
-        #[cfg(feature="use_std_sync")]
-        let mut mg = mut_self.waker_queue_ref.get_mg();
+        //The task is going to "sleep". Update the WQI so it can be woken up later.
 
-        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = mut_self.waker_queue_ref.waker_queue_internals.lock();
+        let waker = cx.waker().clone();
 
-        match &mut *mg
+        if waker_queue_internals.is_closed()
         {
 
-            Some(val) =>
-            {
-
-                //The task is going to "sleep". Update the WQI so it can be woken up later.
-
-                let waker = cx.waker().clone();
-
-                val.queue.push_back(waker);
-
-            }
-            None =>
-            {
-
-                return Poll::Ready(WakerQueueWakeMeIgnoreItemClosedError::err());
-
-            }
+            return Poll::Ready(WakerQueueWakeMeIgnoreItemClosedError::err());
 
         }
+
+        waker_queue_internals.queue.push(waker);
 
         Poll::Pending
 
