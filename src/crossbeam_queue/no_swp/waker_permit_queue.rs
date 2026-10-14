@@ -72,7 +72,7 @@ impl WakerPermitQueueInternals
     pub fn permits(&self) -> usize
     {
 
-        self.permits.load(Ordering::SeqCst) //Ordering::Acquire)
+        self.permits.load(Ordering::Acquire)
 
     }
 
