@@ -475,7 +475,7 @@ impl<T> AtomicOrMutex<T>
 
                     Self::update_value(&mut value, fun);
 
-                    let res = atomic.compare_exchange(origninal_value, value, Ordering::SeqCst ,Ordering::SeqCst);
+                    let res = atomic.compare_exchange(origninal_value, value, Ordering::Relaxed, Ordering::Acquire);
 
                     match res
                     {
@@ -510,7 +510,7 @@ impl<T> AtomicOrMutex<T>
 
                     Self::update_value(&mut value, fun);
 
-                    let res = atomic.compare_exchange(origninal_value, value, Ordering::SeqCst ,Ordering::SeqCst);
+                    let res = atomic.compare_exchange(origninal_value, value, Ordering::Relaxed, Ordering::Acquire);
 
                     match res
                     {
@@ -545,7 +545,7 @@ impl<T> AtomicOrMutex<T>
 
                     Self::update_value(&mut value, fun);
 
-                    let res = atomic.compare_exchange(origninal_value, value, Ordering::SeqCst ,Ordering::SeqCst);
+                    let res = atomic.compare_exchange(origninal_value, value, Ordering::Relaxed, Ordering::Acquire);
 
                     match res
                     {
@@ -580,7 +580,7 @@ impl<T> AtomicOrMutex<T>
 
                     Self::update_value(&mut value, fun);
 
-                    let res = atomic.compare_exchange(origninal_value, value, Ordering::SeqCst ,Ordering::SeqCst);
+                    let res = atomic.compare_exchange(origninal_value, value, Ordering::Relaxed, Ordering::Acquire);
 
                     match res
                     {
@@ -615,7 +615,7 @@ impl<T> AtomicOrMutex<T>
 
                     Self::update_value(&mut value, fun);
 
-                    let res = atomic.compare_exchange(origninal_value, value, Ordering::SeqCst ,Ordering::SeqCst);
+                    let res = atomic.compare_exchange(origninal_value, value, Ordering::Relaxed, Ordering::Acquire);
 
                     match res
                     {
@@ -650,7 +650,7 @@ impl<T> AtomicOrMutex<T>
 
                     Self::update_value(&mut value, fun);
 
-                    let res = atomic.compare_exchange(origninal_value, value, Ordering::SeqCst ,Ordering::SeqCst);
+                    let res = atomic.compare_exchange(origninal_value, value, Ordering::Relaxed, Ordering::Acquire);
 
                     match res
                     {
@@ -685,7 +685,7 @@ impl<T> AtomicOrMutex<T>
 
                     Self::update_value(&mut value, fun);
 
-                    let res = atomic.compare_exchange(origninal_value, value, Ordering::SeqCst ,Ordering::SeqCst);
+                    let res = atomic.compare_exchange(origninal_value, value, Ordering::Relaxed, Ordering::Acquire);
 
                     match res
                     {
@@ -720,7 +720,7 @@ impl<T> AtomicOrMutex<T>
 
                     Self::update_value(&mut value, fun);
 
-                    let res = atomic.compare_exchange(origninal_value, value, Ordering::SeqCst ,Ordering::SeqCst);
+                    let res = atomic.compare_exchange(origninal_value, value, Ordering::Relaxed, Ordering::Acquire);
 
                     match res
                     {
@@ -755,7 +755,7 @@ impl<T> AtomicOrMutex<T>
 
                     Self::update_value(&mut value, fun);
 
-                    let res = atomic.compare_exchange(origninal_value, value, Ordering::SeqCst ,Ordering::SeqCst);
+                    let res = atomic.compare_exchange(origninal_value, value, Ordering::Relaxed, Ordering::Acquire);
 
                     match res
                     {
@@ -790,7 +790,7 @@ impl<T> AtomicOrMutex<T>
 
                     Self::update_value(&mut value, fun);
 
-                    let res = atomic.compare_exchange(origninal_value, value, Ordering::SeqCst ,Ordering::SeqCst);
+                    let res = atomic.compare_exchange(origninal_value, value, Ordering::Relaxed, Ordering::Acquire);
 
                     match res
                     {
@@ -825,7 +825,7 @@ impl<T> AtomicOrMutex<T>
 
                     Self::update_value(&mut value, fun);
 
-                    let res = atomic.compare_exchange(origninal_value, value, Ordering::SeqCst ,Ordering::SeqCst);
+                    let res = atomic.compare_exchange(origninal_value, value, Ordering::Relaxed, Ordering::Acquire);
 
                     match res
                     {
@@ -860,7 +860,7 @@ impl<T> AtomicOrMutex<T>
 
                     Self::update_value(&mut value, fun);
 
-                    let res = atomic.compare_exchange(origninal_value, value, Ordering::SeqCst ,Ordering::SeqCst);
+                    let res = atomic.compare_exchange(origninal_value, value, Ordering::Relaxed, Ordering::Acquire);
 
                     match res
                     {
