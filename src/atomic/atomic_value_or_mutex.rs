@@ -5,7 +5,7 @@ use crate::{PreferredMutexType, ValueOrMutexGuard};
 use std::fmt::Debug;
 
 #[cfg(feature="use_std_sync")]
-use crate::get_mg;
+use crate::sync::get_mg;
 
 use delegate::delegate;
 

@@ -94,7 +94,7 @@ mod single_waker_multi_permit_tests;
 
 //Re-enabled in v0.4.0?
 
-#[cfg(feature="crossbeam-queue")]
+#[cfg(feature="crossbeam_queue")]
 pub mod crossbeam_queue;
 
 //Disabled
@@ -124,6 +124,8 @@ pub type PreferredMutexType<T> = ::std::sync::Mutex<T>;
 #[cfg(feature="use_parking_lot_sync")]
 pub type PreferredMutexType<T> = parking_lot::Mutex<T>;
 
+//MutexGuard Aliases
+
 #[cfg(feature="use_std_sync")]
 pub type MutexGuard<'a, T> = ::std::sync::MutexGuard<'a, T>;
 
@@ -132,6 +134,8 @@ pub type MutexGuard<'a, T> = Parking_lot::MutexGuard<'a, T>;
 
 #[cfg(feature="use_parking_lot_fair_sync")]
 pub type MutexGuard<'a, T> = Parking_lot::FairMutexGuard<'a, T>;
+
+//
 
 ///
 /// The preferred type of mutex to be used for synchronisation.
@@ -144,6 +148,43 @@ pub type PreferredMutexType<T> = parking_lot::FairMutex<T>;
 /// 
 #[cfg(feature="use_std_sync")]
 pub type PreferredRwLockType<T> = ::std::sync::RwLock<T>;
+
+#[cfg(feature="use_faux_rwlock")]
+pub type PreferredRwLockType<T> = crate::sync::RwLock<T>;
+
+//RwLockReadGuard and RwLockWriteGuard Aliases
+
+cfg_select!
+{
+
+    feature="use_std_sync" =>
+    {
+
+        pub type RwLockReadGuard<'a, T> = ::std::sync::RwLockReadGuard<'a, T>;
+
+        pub type RwLockWriteGuard<'a, T> = ::std::sync::RwLockWriteGuard<'a, T>;
+
+    }
+    any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync") =>
+    {
+
+        pub type RwLockReadGuard<'a, T> = Parking_lot::RwLockReadGuard<'a, T>;
+
+        pub type RwLockWriteGuard<'a, T> = Parking_lot::RwLockWriteGuard<'a, T>;
+
+    }
+    feature="use_faux_rwlock" =>
+    {
+
+        pub type RwLockReadGuard<'a, T> = crate::sync::FauxRwLockReadGuard<'a, T>;
+
+        pub type RwLockWriteGuard<'a, T> = crate::sync::FauxRwLockWriteGuard<'a, T>;
+
+    }
+
+}
+
+//
 
 ///
 /// The preferred type of RwLock to be used for synchronisation.
@@ -179,12 +220,6 @@ pub use item_updaters::*;
 
 pub mod multi_shot;
 
-#[cfg(feature="use_std_sync")]
-mod std_sync_mutex_guard;
-
-#[cfg(feature="use_std_sync")]
-pub use std_sync_mutex_guard::*;
-
 mod enums;
 
 pub use enums::*;
@@ -208,3 +243,5 @@ pub mod atomic;
 mod spin_count;
 
 pub use spin_count::*;
+
+pub mod sync;

@@ -1,7 +1,6 @@
 use std::{fmt::{Display, write}, ops::{Deref, DerefMut}, sync::Arc};
 
-#[cfg(feature="use_std_sync")]
-use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
+use crate::RwLockWriteGuard;
 
 #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
 use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };

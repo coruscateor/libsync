@@ -5,7 +5,7 @@ use crate::PreferredMutexType;
 use crate::multi_shot::multi_shot_shared_details::MultiShotSharedDetails;
 
 #[cfg(feature="use_std_sync")]
-use crate::get_mg;
+use crate::sync::get_mg;
 
 pub struct Sender<T>
 {

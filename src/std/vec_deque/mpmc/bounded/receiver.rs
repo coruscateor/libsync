@@ -4,8 +4,9 @@ use std::{collections::hash_map::Entry, sync::{Arc, Weak}, task::Poll};
 
 #[cfg(feature="tokio")]
 use crate::TimeoutReceiveError;
+
 #[cfg(feature="use_std_sync")]
-use crate::get_mg;
+use crate::sync::get_mg;
 
 use super::ChannelSharedDetails;
 
@@ -14,7 +15,9 @@ use crate::{BoundedSendError, PreferredMutexType, QueuedWaker};
 use delegate::delegate;
 
 use futures::executor::block_on;
+
 use inc_dec::IntIncDecSelf;
+
 #[cfg(feature="tokio")]
 use tokio::time::{Instant, error::Elapsed};
 

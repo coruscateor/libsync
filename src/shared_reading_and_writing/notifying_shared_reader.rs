@@ -1,8 +1,5 @@
 use std::sync::Arc;
 
-#[cfg(feature="use_std_sync")]
-use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
-
 #[cfg(feature="tokio")]
 use std::time::Duration;
 
@@ -13,10 +10,7 @@ use accessorise::impl_ref_getter;
 
 use futures::executor::block_on;
 
-#[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
-
-use crate::{ItemUpdater, PreferredRwLockType};
+use crate::ItemUpdater;
 
 use super::NotifyingSharedInternals;
 
@@ -25,6 +19,9 @@ use pastey::paste;
 use delegate::delegate;
 
 use super::{Reader, WeakNotifyingSharedReader};
+
+#[cfg(feature="use_std_sync")]
+use crate::sync::{read_get_rg, try_read_get_rg};
 
 pub struct NotifyingSharedReader<T, I, U>
     where U: ItemUpdater<I>, 
@@ -87,34 +84,6 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
 
     impl_ref_getter!(current_item, I);
 
-    #[cfg(feature="use_std_sync")]
-    fn read_get_rg(&self) -> RwLockReadGuard<'_, T>
-    {
-
-        let lock_result = self.internals.rw_lock.read();
-
-        match lock_result
-        {
-
-            Ok(mg) =>
-            {
-
-                mg
-
-            }
-            Err(err) =>
-            {
-
-                self.internals.rw_lock.clear_poison();
-
-                err.into_inner()
-
-            }
-
-        }
-
-    }
-
     async fn wake_me_with_item(&mut self)
     {
 
@@ -138,7 +107,7 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
 
         self.wake_me_with_item().await;
         
-        Reader::new(self.read_get_rg())
+        Reader::new(read_get_rg(&self.internals.rw_lock))
 
     }
 
@@ -215,7 +184,7 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
     pub fn read_dont_wait(&self) -> Reader<'_, T>
     {
         
-        Reader::new(self.read_get_rg())
+        Reader::new(read_get_rg(&self.internals.rw_lock))
 
     }
 

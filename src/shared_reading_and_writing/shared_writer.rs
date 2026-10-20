@@ -1,15 +1,11 @@
 use std::{mem::{replace, swap, take}, sync::Arc};
 
-#[cfg(feature="use_std_sync")]
-use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
-
-#[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
-
 use crate::PreferredRwLockType;
 
 use super::{SharedReader, Reader, Writer, WeakSharedWriter};
 
+#[cfg(feature="use_std_sync")]
+use crate::sync::{read_get_rg, write_get_wg, try_read_get_rg, try_write_get_wg};
 
 pub struct SharedWriter<T>
 {
@@ -46,38 +42,10 @@ impl<T> SharedWriter<T>
     }
 
     #[cfg(feature="use_std_sync")]
-    fn read_get_rg(&self) -> RwLockReadGuard<'_, T>
-    {
-
-        let lock_result = self.rw_lock.read();
-
-        match lock_result
-        {
-
-            Ok(mg) =>
-            {
-
-                mg
-
-            }
-            Err(err) =>
-            {
-
-                self.rw_lock.clear_poison();
-
-                err.into_inner()
-
-            }
-
-        }
-
-    }
-
-    #[cfg(feature="use_std_sync")]
     pub fn read(&self) -> Reader<'_, T>
     {
         
-        Reader::new(self.read_get_rg())
+        Reader::new(read_get_rg(&self.rw_lock))
 
     }
 
@@ -96,40 +64,12 @@ impl<T> SharedWriter<T>
         (*self.read()).clone()
 
     }
-
-    #[cfg(feature="use_std_sync")]
-    fn write_get_wg(&self) -> RwLockWriteGuard<'_, T>
-    {
-
-        let lock_result = self.rw_lock.write();
-
-        match lock_result
-        {
-
-            Ok(wg) =>
-            {
-
-                wg
-
-            }
-            Err(err) =>
-            {
-
-                self.rw_lock.clear_poison();
-
-                err.into_inner()
-
-            }
-
-        }
-
-    }
     
     #[cfg(feature="use_std_sync")]
     pub fn write(&self) -> Writer<'_, T>
     {
 
-        Writer::new(self.write_get_wg())
+        Writer::new(write_get_wg(&self.rw_lock))
 
     }
 
@@ -205,55 +145,10 @@ impl<T> SharedWriter<T>
     }
 
     #[cfg(feature="use_std_sync")]
-    fn try_read_get_rg(&self) -> Option<RwLockReadGuard<'_, T>>
-    {
-
-        let lock_result = self.rw_lock.try_read();
-
-        match lock_result
-        {
-
-            Ok(rg) =>
-            {
-
-               Some(rg)
-
-            }
-            Err(err) =>
-            {
-
-                match err
-                {
-
-                    TryLockError::Poisoned(poison_error) =>
-                    {
-
-                        self.rw_lock.clear_poison();
-
-                        Some(poison_error.into_inner())
-
-
-                    }
-                    TryLockError::WouldBlock =>
-                    {
-
-                        None
-
-                    }
-
-                }
-
-            }
-
-        }
-
-    }
-
-    #[cfg(feature="use_std_sync")]
     pub fn try_read(&self) -> Option<Reader<'_, T>>
     {
 
-        if let Some(read_guard) = self.try_read_get_rg()
+        if let Some(read_guard) = try_read_get_rg(&self.rw_lock)
         {
 
             Some(Reader::new(read_guard))
@@ -288,55 +183,10 @@ impl<T> SharedWriter<T>
     }
 
     #[cfg(feature="use_std_sync")]
-    fn try_write_get_wg(&self) -> Option<RwLockWriteGuard<'_, T>>
-    {
-
-        let lock_result = self.rw_lock.try_write();
-
-        match lock_result
-        {
-
-            Ok(wg) =>
-            {
-
-               Some(wg)
-
-            }
-            Err(err) =>
-            {
-
-                match err
-                {
-
-                    TryLockError::Poisoned(poison_error) =>
-                    {
-
-                        self.rw_lock.clear_poison();
-
-                        Some(poison_error.into_inner())
-
-
-                    }
-                    TryLockError::WouldBlock =>
-                    {
-
-                        None
-
-                    }
-
-                }
-
-            }
-
-        }
-
-    }
-
-    #[cfg(feature="use_std_sync")]
     pub fn try_write(&self) -> Option<Writer<'_, T>>
     {
 
-        if let Some(write_guard) = self.try_write_get_wg()
+        if let Some(write_guard) = try_write_get_wg(&self.rw_lock)
         {
 
             Some(Writer::new(write_guard))

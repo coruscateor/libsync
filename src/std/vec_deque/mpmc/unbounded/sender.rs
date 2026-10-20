@@ -1,7 +1,7 @@
 use std::sync::{Arc, Weak};
 
 #[cfg(feature="use_std_sync")]
-use crate::get_mg;
+use crate::sync::get_mg;
 
 use super::ChannelSharedDetails;
 

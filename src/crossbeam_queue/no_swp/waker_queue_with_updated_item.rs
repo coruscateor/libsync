@@ -21,7 +21,8 @@ use inc_dec::{IncDecSelf, IntIncDecSelf};
 use std::fmt::Debug;
 
 #[cfg(feature="use_std_sync")]
-use crate::get_mg;
+use crate::sync::get_mg;
+
 use crate::{ItemUpdater, PreferredMutexType};
 
 use crossbeam_queue::SegQueue;

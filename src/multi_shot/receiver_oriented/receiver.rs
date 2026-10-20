@@ -13,7 +13,7 @@ use crate::multi_shot::MultiShotSharedDetails;
 use super::Sender;
 
 #[cfg(feature="use_std_sync")]
-use crate::{get_mg, try_get_mg};
+use crate::sync::{get_mg, try_get_mg};
 
 pub struct Receiver<T>
 {

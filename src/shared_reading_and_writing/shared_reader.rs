@@ -1,14 +1,11 @@
 use std::sync::Arc;
 
-#[cfg(feature="use_std_sync")]
-use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
-
-#[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
-
 use crate::PreferredRwLockType;
 
 use super::{Reader, WeakSharedReader};
+
+#[cfg(feature="use_std_sync")]
+use crate::sync::read_get_rg;
 
 pub struct SharedReader<T>
 {
@@ -33,38 +30,10 @@ impl<T> SharedReader<T>
     }
 
     #[cfg(feature="use_std_sync")]
-    fn read_get_rg(&self) -> RwLockReadGuard<'_, T>
-    {
-
-        let lock_result = self.rw_lock.read();
-
-        match lock_result
-        {
-
-            Ok(mg) =>
-            {
-
-                mg
-
-            }
-            Err(err) =>
-            {
-
-                self.rw_lock.clear_poison();
-
-                err.into_inner()
-
-            }
-
-        }
-
-    }
-
-    #[cfg(feature="use_std_sync")]
     pub fn read(&self) -> Reader<'_, T>
     {
         
-        Reader::new(self.read_get_rg())
+        Reader::new(read_get_rg(&self.rw_lock))
 
     }
 

@@ -1,8 +1,5 @@
 use std::sync::{Arc, Weak};
 
-#[cfg(feature="use_std_sync")]
-use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
-
 use crate::PreferredRwLockType;
 
 use super::SharedReader;

@@ -5,7 +5,7 @@ use std::{collections::hash_map::Entry, sync::{Arc, Weak}, task::Poll};
 #[cfg(feature="tokio")]
 use crate::TimeoutReceiveError;
 #[cfg(feature="use_std_sync")]
-use crate::get_mg;
+use crate::sync::get_mg;
 
 use super::ChannelSharedDetails;
 

@@ -1,11 +1,5 @@
 use std::sync::{Arc, Weak};
 
-#[cfg(feature="use_std_sync")]
-use std::sync::{ RwLockReadGuard, RwLockWriteGuard, TryLockError };
-
-#[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-use parking_lot::{ RwLockReadGuard, RwLockWriteGuard };
-
 use crate::{ItemUpdater, PreferredRwLockType};
 
 use super::{SharedReader, NotifyingSharedInternals, NotifyingSharedReader};
