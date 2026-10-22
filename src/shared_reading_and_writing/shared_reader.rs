@@ -29,6 +29,7 @@ impl<T> SharedReader<T>
 
     }
 
+    #[cfg(not(feature="use_faux_rwlock"))]
     #[cfg(feature="use_std_sync")]
     pub fn read(&self) -> Reader<'_, T>
     {
@@ -37,7 +38,7 @@ impl<T> SharedReader<T>
 
     }
 
-    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
     pub fn read(&self) -> Reader<'_, T>
     {
 

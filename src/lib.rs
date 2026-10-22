@@ -146,17 +146,33 @@ pub type PreferredMutexType<T> = parking_lot::FairMutex<T>;
 ///
 /// The preferred type of RwLock to be used for synchronisation.
 /// 
+#[cfg(not(feature="use_faux_rwlock"))]
 #[cfg(feature="use_std_sync")]
 pub type PreferredRwLockType<T> = ::std::sync::RwLock<T>;
 
+///
+/// The preferred type of RwLock to be used for synchronisation.
+/// 
+#[cfg(not(feature="use_faux_rwlock"))]
+#[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+pub type PreferredRwLockType<T> = parking_lot::RwLock<T>;
+
 #[cfg(feature="use_faux_rwlock")]
-pub type PreferredRwLockType<T> = crate::sync::RwLock<T>;
+pub type PreferredRwLockType<T> = crate::sync::FauxRwlock<T>;
 
 //RwLockReadGuard and RwLockWriteGuard Aliases
 
 cfg_select!
 {
 
+    feature="use_faux_rwlock" =>
+    {
+
+        pub type RwLockReadGuard<'a, T> = crate::sync::FauxRwLockReadGuard<'a, T>;
+
+        pub type RwLockWriteGuard<'a, T> = crate::sync::FauxRwLockWriteGuard<'a, T>;
+
+    }
     feature="use_std_sync" =>
     {
 
@@ -173,24 +189,10 @@ cfg_select!
         pub type RwLockWriteGuard<'a, T> = Parking_lot::RwLockWriteGuard<'a, T>;
 
     }
-    feature="use_faux_rwlock" =>
-    {
-
-        pub type RwLockReadGuard<'a, T> = crate::sync::FauxRwLockReadGuard<'a, T>;
-
-        pub type RwLockWriteGuard<'a, T> = crate::sync::FauxRwLockWriteGuard<'a, T>;
-
-    }
 
 }
 
 //
-
-///
-/// The preferred type of RwLock to be used for synchronisation.
-/// 
-#[cfg(feature="use_parking_lot_sync")]
-pub type PreferredRwLockType<T> = parking_lot::RwLock<T>;
 
 pub mod shared_reading_and_writing;
 

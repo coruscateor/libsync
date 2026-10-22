@@ -62,6 +62,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
     }
 
+    #[cfg(not(feature="use_faux_rwlock"))]
     #[cfg(feature="use_std_sync")]
     pub async fn read(&self) -> Reader<'_, T>
     {
@@ -72,7 +73,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
     }
 
-    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
     pub async fn read(&self) -> Reader<'_, T>
     {
 
@@ -141,6 +142,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
     //dont_wait
 
+    #[cfg(not(feature="use_faux_rwlock"))]
     #[cfg(feature="use_std_sync")]
     pub fn read_dont_wait(&self) -> Reader<'_, T>
     {
@@ -149,7 +151,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
     }
 
-    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
     pub fn read_dont_wait(&self) -> Reader<'_, T>
     {
 
@@ -167,6 +169,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
     //Writing
     
+    #[cfg(not(feature="use_faux_rwlock"))]
     #[cfg(feature="use_std_sync")]
     pub fn write(&self) -> NotifyingWriter<'_, T, I, U>
     {
@@ -175,7 +178,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
     }
 
-    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
     pub fn write(&self) -> NotifyingWriter<'_, T, I, U>
     {
 
@@ -273,6 +276,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
     //Write don't notify
 
+    #[cfg(not(feature="use_faux_rwlock"))]
     #[cfg(feature="use_std_sync")]
     pub fn write_dont_notify(&self) -> Writer<'_, T>
     {
@@ -281,7 +285,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
     }
 
-    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
     pub fn write_dont_notify(&self) -> Writer<'_, T>
     {
 
@@ -354,6 +358,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
     //
 
+    #[cfg(not(feature="use_faux_rwlock"))]
     #[cfg(feature="use_std_sync")]
     pub fn try_read(&self) -> Option<Reader<'_, T>>
     {
@@ -373,7 +378,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
     }
 
-    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
     pub fn try_read(&self) -> Option<Reader<'_, T>>
     {
 
@@ -392,6 +397,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
     }
 
+    #[cfg(not(feature="use_faux_rwlock"))]
     #[cfg(feature="use_std_sync")]
     pub fn try_write(&self) -> Option<Writer<'_, T>>
     {
@@ -411,7 +417,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
     }
 
-    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
     pub fn try_write(&self) -> Option<Writer<'_, T>>
     {
 

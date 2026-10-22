@@ -101,6 +101,7 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
 
     }
 
+    #[cfg(not(feature="use_faux_rwlock"))]
     #[cfg(feature="use_std_sync")]
     pub async fn read(&mut self) -> Reader<'_, T>
     {
@@ -111,7 +112,7 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
 
     }
 
-    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
     pub async fn read(&mut self) -> Reader<'_, T>
     {
 
@@ -180,6 +181,7 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
 
     }
 
+    #[cfg(not(feature="use_faux_rwlock"))]
     #[cfg(feature="use_std_sync")]
     pub fn read_dont_wait(&self) -> Reader<'_, T>
     {
@@ -188,7 +190,7 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
 
     }
 
-    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
     pub fn read_dont_wait(&self) -> Reader<'_, T>
     {
 

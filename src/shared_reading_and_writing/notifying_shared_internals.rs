@@ -33,6 +33,7 @@ impl<T, I, U> NotifyingSharedInternals<T, I, U>
     pub fn into_inner(self) -> Option<T>
     {
 
+        #[cfg(not(feature="use_faux_rwlock"))]
         #[cfg(feature="use_std_sync")]
         match self.rw_lock.into_inner()
         {
@@ -52,7 +53,7 @@ impl<T, I, U> NotifyingSharedInternals<T, I, U>
 
         }
 
-        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
         Some(self.rw_lock.into_inner())
 
 

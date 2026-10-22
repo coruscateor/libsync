@@ -1,7 +1,19 @@
+cfg_select!
+{
 
-mod faux_rwlock;
+    any(feature="faux_rwlock", feature="use_faux_rwlock") =>
+    {
 
-pub use faux_rwlock::*;
+        mod faux_rwlock;
+
+        pub use faux_rwlock::*;
+
+    }
+    _ =>
+    {
+    }
+
+}
 
 cfg_select!
 {

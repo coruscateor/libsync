@@ -89,6 +89,54 @@ impl<T> FauxRwlock<T>
 
     }
 
+    pub fn is_locked(&self) -> bool
+    {
+
+        #[cfg(feature="use_std_sync")]
+        {
+
+            let opt_mg = self.mutex.try_lock();
+
+            opt_mg.is_err()
+
+        }
+        
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        self.mutex.is_locked()
+
+    }
+
+    pub fn into_inner(self) -> T
+    {
+
+        #[cfg(feature="use_std_sync")]
+        {
+
+            match self.mutex.into_inner()
+            {
+
+                Ok(val) =>
+                {
+
+                    val
+
+                }
+                Err(err) =>
+                {
+
+                    err.into_inner()
+
+                }
+
+            }
+
+        }
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        self.mutex.into_inner()
+
+    }
+
 }
 
 

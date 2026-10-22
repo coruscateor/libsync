@@ -41,6 +41,7 @@ impl<T> SharedWriter<T>
 
     }
 
+    #[cfg(not(feature="use_faux_rwlock"))]
     #[cfg(feature="use_std_sync")]
     pub fn read(&self) -> Reader<'_, T>
     {
@@ -49,7 +50,7 @@ impl<T> SharedWriter<T>
 
     }
 
-    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
     pub fn read(&self) -> Reader<'_, T>
     {
 
@@ -65,6 +66,7 @@ impl<T> SharedWriter<T>
 
     }
     
+    #[cfg(not(feature="use_faux_rwlock"))]
     #[cfg(feature="use_std_sync")]
     pub fn write(&self) -> Writer<'_, T>
     {
@@ -73,7 +75,7 @@ impl<T> SharedWriter<T>
 
     }
 
-    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
     pub fn write(&self) -> Writer<'_, T>
     {
 
@@ -144,6 +146,7 @@ impl<T> SharedWriter<T>
 
     }
 
+    #[cfg(not(feature="use_faux_rwlock"))]
     #[cfg(feature="use_std_sync")]
     pub fn try_read(&self) -> Option<Reader<'_, T>>
     {
@@ -163,7 +166,7 @@ impl<T> SharedWriter<T>
 
     }
 
-    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
     pub fn try_read(&self) -> Option<Reader<'_, T>>
     {
 
@@ -182,6 +185,7 @@ impl<T> SharedWriter<T>
 
     }
 
+    #[cfg(not(feature="use_faux_rwlock"))]
     #[cfg(feature="use_std_sync")]
     pub fn try_write(&self) -> Option<Writer<'_, T>>
     {
@@ -201,7 +205,7 @@ impl<T> SharedWriter<T>
 
     }
 
-    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+    #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
     pub fn try_write(&self) -> Option<Writer<'_, T>>
     {
 
@@ -226,6 +230,7 @@ impl<T> SharedWriter<T>
         if let Some(rw_lock) = Arc::into_inner(self.rw_lock)
         {
 
+            #[cfg(not(feature="use_faux_rwlock"))]
             #[cfg(feature="use_std_sync")]
             match rw_lock.into_inner()
             {
@@ -244,8 +249,8 @@ impl<T> SharedWriter<T>
                 }
 
             }
-
-            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync", feature="use_faux_rwlock"))]
             Some(rw_lock.into_inner())
 
         }

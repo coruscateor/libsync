@@ -48,6 +48,7 @@ shared_reading_and_writing_mutex = []
 shared_reading_and_writing_rwlock = []
 use_no_swp = []
 use_crossbeam_queue_no_swp = ["dep:crossbeam-queue"]
+faux_rwlock = []
 use_faux_rwlock = []
 
 [package.metadata.docs.rs]
