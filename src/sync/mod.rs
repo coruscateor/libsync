@@ -30,5 +30,8 @@ cfg_select!
         pub use std_sync_rwlock_read_write_guards::*;
 
     }
+    _ =>
+    {
+    }
 
 }

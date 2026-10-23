@@ -130,10 +130,10 @@ pub type PreferredMutexType<T> = parking_lot::Mutex<T>;
 pub type MutexGuard<'a, T> = ::std::sync::MutexGuard<'a, T>;
 
 #[cfg(feature="use_parking_lot_sync")]
-pub type MutexGuard<'a, T> = Parking_lot::MutexGuard<'a, T>;
+pub type MutexGuard<'a, T> = parking_lot::MutexGuard<'a, T>;
 
 #[cfg(feature="use_parking_lot_fair_sync")]
-pub type MutexGuard<'a, T> = Parking_lot::FairMutexGuard<'a, T>;
+pub type MutexGuard<'a, T> = parking_lot::FairMutexGuard<'a, T>;
 
 //
 
@@ -184,9 +184,9 @@ cfg_select!
     any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync") =>
     {
 
-        pub type RwLockReadGuard<'a, T> = Parking_lot::RwLockReadGuard<'a, T>;
+        pub type RwLockReadGuard<'a, T> = parking_lot::RwLockReadGuard<'a, T>;
 
-        pub type RwLockWriteGuard<'a, T> = Parking_lot::RwLockWriteGuard<'a, T>;
+        pub type RwLockWriteGuard<'a, T> = parking_lot::RwLockWriteGuard<'a, T>;
 
     }
 
