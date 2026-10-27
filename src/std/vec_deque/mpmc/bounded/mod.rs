@@ -22,3 +22,8 @@ pub use weak_sender::*;
 mod channel;
 
 pub use channel::*;
+
+#[cfg(test)]
+mod channel_tests;
+
+pub mod io_channels;

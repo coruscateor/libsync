@@ -87,7 +87,7 @@ impl<T> Sender<T>
     /// 
     /// Returns it in a Result::Err variant otherwise.
     /// 
-    pub async fn send<'a>(&'a self, value: T) -> SendFuture<'a, T>
+    pub fn send<'a>(&'a self, value: T) -> SendFuture<'a, T>
     {
 
         SendFuture::new(self, value)

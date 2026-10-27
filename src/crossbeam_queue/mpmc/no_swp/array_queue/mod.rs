@@ -18,3 +18,8 @@ pub use weak_receiver::*;
 mod channel;
 
 pub use channel::*;
+
+pub mod io_channels;
+
+#[cfg(test)]
+mod channel_tests;

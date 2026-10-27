@@ -151,6 +151,30 @@ impl<T> Receiver<T>
 
     }
 
+    delegate!
+    {
+
+        to self.shared_details.message_queue
+        {
+        
+            ///
+            /// Is the channel empty?
+            /// 
+            pub fn is_empty(&self) -> bool;
+
+            ///
+            /// How many messages are in the channels queue?
+            /// 
+            pub fn len(&self) -> usize;
+
+            pub fn capacity(&self) -> usize;
+
+            pub fn is_full(&self) -> bool;
+
+        }
+
+    }
+
     pub fn is_closed(&self) -> bool
     {
 

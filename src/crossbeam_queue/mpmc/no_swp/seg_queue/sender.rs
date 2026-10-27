@@ -69,8 +69,15 @@ impl<T> Sender<T>
     /// 
     /// Returns it in a Result::Err variant otherwise.
     /// 
-    pub fn send(&self, value: T)
+    pub fn send(&self, value: T) -> SendResult<T>
     {
+
+        if self.is_closed()
+        {
+
+            return Err(value);
+
+        }
 
         self.shared_details.message_queue.push(value);
 
@@ -80,6 +87,8 @@ impl<T> Sender<T>
             waker.wake();
 
         }
+
+        Ok(())
 
     }
 

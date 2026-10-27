@@ -128,6 +128,26 @@ impl<T> Receiver<T>
 
     }
 
+    pub fn is_full(&self) -> bool
+    {
+
+        let cap_len = 
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mg = get_mg(&self.shared_details);
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mg = self.shared_details.lock();
+
+            (mg.capacity(), mg.message_queue.len())
+
+        };
+
+        cap_len.0 == cap_len.1
+
+    }
+
     ///
     /// The total number of Receiver instances.
     /// 
@@ -180,6 +200,28 @@ impl<T> Receiver<T>
         let mg = self.shared_details.lock();
 
         mg.is_closed
+
+    }
+
+    ///
+    /// How many free queue elements do we have?
+    /// 
+    pub fn head_room(&self) -> usize
+    {
+
+        let cap_len = {
+
+            #[cfg(feature="use_std_sync")]
+            let mg = get_mg(&self.shared_details);
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mg = self.shared_details.lock();
+
+            (mg.capacity(), mg.message_queue.len())
+
+        };
+
+        cap_len.0 - cap_len.1
 
     }
 
