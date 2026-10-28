@@ -194,6 +194,7 @@ cfg_select!
 
 //
 
+#[cfg(any(feature="shared_reading_and_writing", feature="use_faux_rwlock"))]
 pub mod shared_reading_and_writing;
 
 mod waker_queue_with_updated_item;

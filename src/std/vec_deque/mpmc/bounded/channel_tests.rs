@@ -219,7 +219,7 @@ mod tokio_tests
 
         let result = sender.send(7).await;
 
-        assert_eq!(result, Err(7));
+        assert_eq!(result, Err(BoundedSendError::Closed(7)));
 
         assert!(sender.is_closed());
 

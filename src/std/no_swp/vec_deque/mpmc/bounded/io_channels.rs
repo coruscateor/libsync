@@ -1,0 +1,197 @@
+//! 
+//! Call io_channels to get IOClient and IOServer objects in circumstances where you need both input and output channels e.g. with actors.
+//! 
+
+use super::{Sender, Receiver, channel};
+
+use std::fmt::Debug;
+
+///
+/// For use on the “client side” of the actor.
+/// 
+pub struct IOClient<IM, OM>
+    where IM: Unpin, OM: Unpin       
+{
+
+    input_sender: Sender<IM>,
+    output_receiver: Receiver<OM>,
+
+}
+
+impl<IM, OM> IOClient<IM, OM>
+    where IM: Unpin, OM: Unpin
+{
+
+    pub fn new(input_sender: Sender<IM>, output_receiver: Receiver<OM>) -> Self
+    {
+
+        Self
+        {
+
+            input_sender,
+            output_receiver
+
+        }
+
+    }
+
+    pub fn input_sender_ref(&self) -> &Sender<IM>
+    {
+
+        &self.input_sender
+
+    }
+
+    pub fn output_receiver_ref(&self) -> &Receiver<OM>
+    {
+
+        &self.output_receiver
+
+    }
+
+    pub fn split(self) -> (Sender<IM>, Receiver<OM>)
+    {
+
+        (self.input_sender, self.output_receiver)
+
+    }
+
+}
+
+impl<IM, OM> Clone for IOClient<IM, OM>
+    where IM: Unpin, OM: Unpin
+{
+
+    fn clone(&self) -> Self
+    {
+
+        Self
+        {
+            
+            input_sender: self.input_sender.clone(),
+            output_receiver: self.output_receiver.clone()
+            
+        }
+
+    }
+
+}
+
+impl<IM, OM> Debug for IOClient<IM, OM>
+    where IM: Unpin + Debug,
+          OM: Unpin + Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IOClient").field("input_sender", &self.input_sender).field("output_receiver", &self.output_receiver).finish()
+    }
+
+}
+
+///
+/// For use on the “server side” of the actor.
+/// 
+pub struct IOServer<IM, OM>
+    where IM: Unpin, OM: Unpin
+{
+
+    input_receiver: Receiver<IM>,
+    output_sender: Sender<OM>,
+
+}
+
+impl<IM, OM> IOServer<IM, OM>
+    where IM: Unpin, OM: Unpin
+{
+
+    pub fn new(input_receiver: Receiver<IM>, output_sender: Sender<OM>) -> Self
+    {
+
+        Self
+        {
+
+            input_receiver,
+            output_sender
+
+        }
+
+    }
+
+    pub fn input_receiver_ref(&self) -> &Receiver<IM>
+    {
+
+        &self.input_receiver
+
+    }
+
+    pub fn output_sender_ref(&self) -> &Sender<OM>
+    {
+
+        &self.output_sender
+
+    }
+
+    pub fn split(self) -> (Receiver<IM>, Sender<OM>)
+    {
+
+        (self.input_receiver, self.output_sender)
+
+    }
+
+}
+
+impl<IM, OM> Clone for IOServer<IM, OM>
+    where IM: Unpin, OM: Unpin
+{
+
+    fn clone(&self) -> Self
+    {
+
+        Self
+        {
+            
+            input_receiver: self.input_receiver.clone(),
+            output_sender: self.output_sender.clone()
+            
+        }
+
+    }
+
+}
+
+impl<IM, OM> Debug for IOServer<IM, OM>
+    where IM: Unpin + Debug,
+          OM: Unpin + Debug
+{
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IOServer").field("input_receiver", &self.input_receiver).field("output_sender", &self.output_sender).finish()
+    }
+    
+}
+
+///
+/// Initialises unbounded input and output channels.
+/// 
+pub fn io_channels<IM, OM>(input_buffer_size: usize, output_buffer_size: usize)  -> (IOClient<IM, OM>, IOServer<IM, OM>)
+    where IM: Unpin, OM: Unpin
+{
+
+    let (input_sender, input_receiver) = channel(input_buffer_size);
+
+    let (output_sender, output_receiver) = channel(output_buffer_size);
+
+    (IOClient::new(input_sender, output_receiver), IOServer::new(input_receiver, output_sender))
+
+}
+
+///
+/// Initialises unbounded input and output channels, both with the same buffer sizes.
+/// 
+pub fn io_channel_both<IM, OM>(buffer_size: usize) -> (IOClient<IM, OM>, IOServer<IM, OM>)
+    where IM: Unpin, OM: Unpin
+{
+
+    io_channels(buffer_size, buffer_size)
+
+}

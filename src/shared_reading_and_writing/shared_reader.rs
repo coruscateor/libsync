@@ -4,6 +4,7 @@ use crate::PreferredRwLockType;
 
 use super::{Reader, WeakSharedReader};
 
+#[cfg(not(feature="use_faux_rwlock"))]
 #[cfg(feature="use_std_sync")]
 use crate::sync::read_get_rg;
 

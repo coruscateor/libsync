@@ -7,7 +7,7 @@ use crate::sync::get_mg;
 
 use super::ChannelSharedDetails;
 
-use crate::{BoundedSendError, EXPECTED_VALUE_NOT_FOUND_MESSAGE, PreferredMutexType};
+use crate::{BoundedSendError, BoundedSendResult, EXPECTED_VALUE_NOT_FOUND_MESSAGE, PreferredMutexType};
 
 use delegate::delegate;
 
@@ -45,6 +45,60 @@ impl<T> Sender<T>
             receivers_count
             
         }
+
+    }
+
+    pub fn try_send(&self, value: T) -> BoundedSendResult<T>
+    {
+
+        let waker;
+
+        {
+
+            #[cfg(feature="use_std_sync")]
+            let mut mg = get_mg(&self.shared_details);
+
+            #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+            let mut mg = mut_self.sender_ref.shared_details.lock();
+
+            if mg.is_closed
+            {
+
+                return Err(BoundedSendError::Closed(value));
+
+            }
+
+            if mg.message_queue.len() < mg.capacity()
+            {
+
+                mg.message_queue.push_back(value);
+
+                if let Some(w) = mg.empty_queue.pop_front()
+                {
+
+                    waker = w;
+
+                }
+                else
+                {
+
+                    return Ok(());
+                    
+                }
+
+            }
+            else
+            {            
+
+                return Err(BoundedSendError::Full(value));
+
+            }
+
+        }
+
+        waker.wake();
+
+        Ok(())
 
     }
 
@@ -305,7 +359,7 @@ impl<T> Drop for Sender<T>
 
             //Engage free-for-all mode.
 
-            for waker in mg.when_empty_waker_queue.drain(..)
+            for waker in mg.empty_queue.drain(..)
             {
 
                 waker.wake();
@@ -383,7 +437,7 @@ impl<'a, T> Future for SendFuture<'a, T>
 
                 mg.message_queue.push_back(value);
 
-                let opt_waker = mg.when_empty_waker_queue.pop_front();
+                let opt_waker = mg.empty_queue.pop_front();
 
                 if let Some(the_waker) = opt_waker
                 {

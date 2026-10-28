@@ -14,6 +14,7 @@ use crate::{ItemUpdater, PreferredRwLockType};
 
 use super::{Reader, Writer, NotifyingWriter, WeakNotifyingSharedWriter, NotifyingSharedInternals, NotifyingSharedReader};
 
+#[cfg(not(feature="use_faux_rwlock"))]
 #[cfg(feature="use_std_sync")]
 use crate::sync::{read_get_rg, write_get_wg, try_read_get_rg, try_write_get_wg};
 

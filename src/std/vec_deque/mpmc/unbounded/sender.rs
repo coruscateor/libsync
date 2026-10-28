@@ -61,7 +61,7 @@ impl<T> Sender<T>
 
             mg.message_queue.push_back(value);
 
-            let opt_waker = mg.when_empty_waker_queue.pop_front();
+            let opt_waker = mg.empty_queue.pop_front();
 
             if let Some(the_waker) = opt_waker
             {
@@ -255,7 +255,7 @@ impl<T> Drop for Sender<T>
 
             //Engage free-for-all mode.
 
-            for waker in mg.when_empty_waker_queue.drain(..)
+            for waker in mg.empty_queue.drain(..)
             {
 
                 waker.wake();

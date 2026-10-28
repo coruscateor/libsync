@@ -10,7 +10,7 @@ use crate::sync::get_mg;
 
 use super::ChannelSharedDetails;
 
-use crate::{BoundedSendError, PreferredMutexType, QueuedWaker};
+use crate::{BoundedSendError, PreferredMutexType, QueuedWaker, ReceiveError, ReceiveResult};
 
 use delegate::delegate;
 
@@ -48,6 +48,41 @@ impl<T> Receiver<T>
             receivers_count
             
         }
+
+    }
+
+    ///
+    /// Try to receive a value immediately.
+    /// 
+    pub fn try_recv(&self) -> ReceiveResult<T>
+    {
+
+        #[cfg(feature="use_std_sync")]
+        let mut mg = get_mg(&self.shared_details);
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.receiver_ref.shared_details.lock();
+
+        if mg.empty_queue.len() == 0
+        {
+
+            if let Some(message) = mg.message_queue.pop_front()
+            {
+
+                return Ok(message)
+
+            }
+
+        }
+
+        if mg.is_closed
+        {
+
+             return Err(ReceiveError::Closed);
+
+        }
+
+        Err(ReceiveError::Empty)
 
     }
 
@@ -257,7 +292,7 @@ impl<T> Drop for Receiver<T>
 
             //Engage free-for-all mode.
 
-            for waker in mg.when_empty_waker_queue.drain(..)
+            for waker in mg.empty_queue.drain(..)
             {
 
                 waker.wake();

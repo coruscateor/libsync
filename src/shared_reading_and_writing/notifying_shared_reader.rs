@@ -20,6 +20,7 @@ use delegate::delegate;
 
 use super::{Reader, WeakNotifyingSharedReader};
 
+#[cfg(not(feature="use_faux_rwlock"))]
 #[cfg(feature="use_std_sync")]
 use crate::sync::{read_get_rg, try_read_get_rg};
 

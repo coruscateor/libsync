@@ -23,6 +23,7 @@ mod channel;
 
 pub use channel::*;
 
-mod io_channels;
+#[cfg(test)]
+mod channel_tests;
 
-pub use io_channels::*;
+pub mod io_channels;
