@@ -49,3 +49,9 @@ pub use weak_notifying_shared_reader::*;
 mod weak_notifying_shared_writer;
 
 pub use weak_notifying_shared_writer::*;
+
+#[cfg(test)]
+mod shared_reader_writer_tests;
+
+#[cfg(test)]
+mod notifying_shared_reader_writer_tests;
