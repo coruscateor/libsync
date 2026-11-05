@@ -46,7 +46,7 @@ impl<T> Sender<T>
             let mut mg = get_mg(&self.shared_details);
 
             #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.waker_queue_internals.lock();
+            let mut mg = self.shared_details.lock();
 
             new_session_number = mg.session_number.wpp();
 
@@ -65,7 +65,7 @@ impl<T> Sender<T>
         let mut mg = get_mg(&self.shared_details);
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.waker_queue_internals.lock();
+        let mut mg = self.shared_details.lock();
 
         mg.opt_object = Some(object);
 
@@ -85,7 +85,7 @@ impl<T> Sender<T>
         let mut mg = get_mg(&self.shared_details);
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.waker_queue_internals.lock();
+        let mut mg = self.shared_details.lock();
 
         mg.session_number.wpp();        
 
@@ -106,7 +106,7 @@ impl<T> Drop for Sender<T>
             let mut mg = get_mg(&self.shared_details);
 
             #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.waker_queue_internals.lock();
+            let mut mg = self.shared_details.lock();
 
             if let Some(waker) = mg.opt_waker.take()
             {

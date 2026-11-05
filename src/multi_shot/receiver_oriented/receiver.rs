@@ -48,7 +48,7 @@ impl<T> Receiver<T>
             let mut mg = get_mg(&self.shared_details);
 
             #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = self.waker_queue_internals.lock();
+            let mut mg = self.shared_details.lock();
 
             new_session_number = mg.session_number.wpp();
 
@@ -80,7 +80,7 @@ impl<T> Receiver<T>
         let mut opt_mg = try_get_mg(&self.shared_details);
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut opt_mg = self.waker_queue_internals.try_lock();
+        let mut opt_mg = self.shared_details.try_lock();
 
         if let Some(mg) = &mut opt_mg
         {
@@ -111,7 +111,7 @@ impl<T> Receiver<T>
         let mut mg = get_mg(&self.shared_details);
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.waker_queue_internals.lock();
+        let mut mg = self.shared_details.lock();
 
         mg.session_number.wpp();        
 
@@ -161,7 +161,7 @@ impl<'a, T> Future for RecvOrWait<'a, T>
         let mut mg = get_mg(self.shared_details_ref); //mut_self.shared_details_ref);
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.waker_queue_internals.lock();
+        let mut mg = self.shared_details_ref.lock();
 
         /*
         if !mg.should_be_awake
@@ -235,7 +235,7 @@ impl<'a, T> Drop for RecvOrWait<'a, T>
         let mut mg = get_mg(self.shared_details_ref); //mut_self.shared_details_ref);
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.waker_queue_internals.lock();
+        let mut mg = self.shared_details_ref.lock();
 
         mg.main_side_has_dropped = true;
 

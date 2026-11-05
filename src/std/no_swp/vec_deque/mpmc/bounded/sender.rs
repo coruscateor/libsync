@@ -57,7 +57,7 @@ impl<T> Sender<T>
             let mut mg = get_mg(&self.shared_details);
 
             #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-            let mut mg = mut_self.sender_ref.shared_details.lock();
+            let mut mg = self.shared_details.lock();
 
             if mg.is_closed
             {

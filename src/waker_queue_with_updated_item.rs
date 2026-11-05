@@ -939,7 +939,7 @@ impl<T, U> Future for WakerQueueWakeMeWithItem<'_, T, U>
             Some(val) =>
             {
 
-                if val.item == mut_self.current_item
+                if val.item != mut_self.current_item
                 {
 
                     //The items are the same so we skip waiting.

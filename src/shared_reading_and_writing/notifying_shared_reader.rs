@@ -150,8 +150,6 @@ impl<T, I, U> NotifyingSharedReader<T, I, U>
         where T: Clone
     {
 
-        self.wake_me_with_item().await;
-
         (*self.read().await).clone()
 
     }

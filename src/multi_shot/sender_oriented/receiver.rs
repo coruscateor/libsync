@@ -150,7 +150,7 @@ impl<'a, T> Future for RecvOrWait<'a, T>
         let mut mg = get_mg(&mut_self.receiver_ref.shared_details); //mut_self.shared_details_ref);
 
         #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
-        let mut mg = self.receiver_ref.shared_details.lock();
+        let mut mg = mut_self.receiver_ref.shared_details.lock();
 
         //If the Task wakes up spuriously, then its no big deal. Either the opt_object is occupied or it isn't. 
 

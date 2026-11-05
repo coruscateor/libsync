@@ -13,7 +13,7 @@ mod tokio_tests
 
     use super::super::{ NotifyingSharedReader, NotifyingSharedWriter};
 
-    #[derive(Default, Clone)]
+    #[derive(Default, Clone, PartialEq, Debug)]
     struct ImportantDetails
     {
 
@@ -126,6 +126,138 @@ mod tokio_tests
         }
         
         arc_barrier.wait().await;
+
+        arc_barrier.wait().await;
+
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn some_more_waiting()
+    {
+
+        let sw =  NotifyingSharedWriter::<ImportantDetails, u32, U32Updater>::new(ImportantDetails::default());
+
+        let mut sr1 = sw.get_notifying_shared_reader();
+
+        let mut sr2 = sw.get_notifying_shared_reader();
+
+        let mut sr3 = sw.get_notifying_shared_reader();
+
+        let arc_barrier = Arc::new(Barrier::new(4));
+
+        let arc_barrier1 = arc_barrier.clone();
+
+        let arc_barrier2 = arc_barrier.clone();
+
+        let arc_barrier3 = arc_barrier.clone();
+
+        let _ = tokio::spawn(async move
+        {
+
+            /*
+            let cln = sr1.read_clone().await;
+
+            assert_eq!(cln, ImportantDetails::default());
+
+            arc_barrier1.wait().await;
+            */
+
+            let cln = sr1.read_clone().await;
+
+            assert_eq!(cln.amount, 50);
+
+            assert_eq!(cln.label, "Testing");
+
+            assert_eq!(cln.precision, 0.1234);
+
+            assert_eq!(cln.somthing_or_nothing, Some(false));
+
+            arc_barrier1.wait().await;
+
+        });
+
+        let _ = tokio::spawn(async move
+        {
+
+            /*
+            {
+
+                let rdr = sr2.read().await;
+
+                assert_eq!(*rdr, ImportantDetails::default());
+
+            }
+
+            arc_barrier2.wait().await;
+            */
+
+            {
+
+                let rdr = sr2.read().await;
+
+                assert_eq!(rdr.amount, 50);
+
+                assert_eq!(rdr.label, "Testing");
+
+                assert_eq!(rdr.precision, 0.1234);
+
+                assert_eq!(rdr.somthing_or_nothing, Some(false));
+
+            }
+
+            arc_barrier2.wait().await;
+
+
+        });
+
+        let _ = tokio::spawn(async move
+        {
+
+            /*
+            {
+
+                let rdr = sr3.read().await;
+
+                assert_eq!(*rdr, ImportantDetails::default());
+
+            }
+
+            arc_barrier3.wait().await;
+            */
+
+            {
+
+                let rdr = sr3.read().await;
+
+                assert_eq!(rdr.amount, 50);
+
+                assert_eq!(rdr.label, "Testing");
+
+                assert_eq!(rdr.precision, 0.1234);
+
+                assert_eq!(rdr.somthing_or_nothing, Some(false));
+
+            }
+
+            arc_barrier3.wait().await;
+
+        });
+
+        //arc_barrier.wait().await;
+
+        {
+
+            let mut w = sw.write();
+
+            w.amount = 50;
+
+            w.label = "Testing".to_string();
+
+            w.precision = 0.1234;
+
+            w.somthing_or_nothing = Some(false);
+
+        }
 
         arc_barrier.wait().await;
 
