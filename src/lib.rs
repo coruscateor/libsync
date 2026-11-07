@@ -32,12 +32,37 @@ pub use scoped_incrementer::*;
 #[cfg(feature="tokio")]
 pub mod tokio_helpers;
 
-mod waker_permit_queue;
 
-pub use waker_permit_queue::*;
+cfg_select!
+{
 
-#[cfg(test)]
-mod waker_permit_queue_tests;
+    not(any(feature="use_no_swp", feature="use_crossbeam_queue_no_swp")) =>
+    {
+
+        mod waker_permit_queue;
+
+        pub use waker_permit_queue::*;
+
+        #[cfg(test)]
+        mod waker_permit_queue_tests;
+
+        mod limited_waker_permit_queue;
+
+        pub use limited_waker_permit_queue::*;
+
+        #[cfg(test)]
+        mod limited_waker_permit_queue_tests;
+
+        mod waker_queue_with_updated_item;
+
+        pub use waker_queue_with_updated_item::*;
+
+    }
+    _ =>
+    {
+    }
+
+}
 
 //#[cfg(test)]
 //pub use waker_permit_queue_tests::*;
@@ -69,12 +94,7 @@ mod queued_waker;
 
 pub use queued_waker::*;
 
-mod limited_waker_permit_queue;
 
-pub use limited_waker_permit_queue::*;
-
-#[cfg(test)]
-mod limited_waker_permit_queue_tests;
 
 //#[cfg(test)]
 //mod limited_waker_permit_queue_tests;
@@ -94,7 +114,7 @@ mod single_waker_multi_permit_tests;
 
 //Re-enabled in v0.4.0?
 
-#[cfg(feature="crossbeam_queue")]
+#[cfg(any(feature="crossbeam_queue", feature="use_crossbeam_queue_no_swp"))]
 pub mod crossbeam_queue;
 
 //Disabled
@@ -197,9 +217,7 @@ cfg_select!
 #[cfg(any(feature="shared_reading_and_writing", feature="use_faux_rwlock"))]
 pub mod shared_reading_and_writing;
 
-mod waker_queue_with_updated_item;
 
-pub use waker_queue_with_updated_item::*;
 
 mod item_updater;
 
@@ -239,6 +257,7 @@ pub use channel_shared_details_with_waker_queues::*;
 
 //pub use auto_waker::*;
 
+#[cfg(feature="use_no_swp")] 
 pub mod no_swp;
 
 pub mod atomic;
