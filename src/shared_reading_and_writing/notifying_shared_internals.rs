@@ -4,7 +4,7 @@ use delegate::delegate;
 
 pub struct NotifyingSharedInternals<T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     pub rw_lock: PreferredRwLockType<T>,
@@ -14,7 +14,7 @@ pub struct NotifyingSharedInternals<T, I, U>
 
 impl<T, I, U> NotifyingSharedInternals<T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     pub fn new(rw_lock: PreferredRwLockType<T>) -> Self

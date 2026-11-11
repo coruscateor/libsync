@@ -8,7 +8,7 @@ use crate::{ItemUpdater, WakerQueueWithUpdatedItem};
 
 pub struct NotifyingWriter<'a, T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     write_guard: RwLockWriteGuard<'a, T>,
@@ -18,7 +18,7 @@ pub struct NotifyingWriter<'a, T, I, U>
 
 impl<'a, T, I, U> NotifyingWriter<'a, T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     pub fn new(write_guard: RwLockWriteGuard<'a, T>, notifier_ref: &'a WakerQueueWithUpdatedItem<I, U>) -> Self
@@ -38,7 +38,7 @@ impl<'a, T, I, U> NotifyingWriter<'a, T, I, U>
 
 impl<'a, T, I, U> Deref for NotifyingWriter<'a, T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     type Target = T;
@@ -54,7 +54,7 @@ impl<'a, T, I, U> Deref for NotifyingWriter<'a, T, I, U>
 
 impl<'a, T, I, U> DerefMut for NotifyingWriter<'a, T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     fn deref_mut(&mut self) -> &mut Self::Target
@@ -68,7 +68,7 @@ impl<'a, T, I, U> DerefMut for NotifyingWriter<'a, T, I, U>
 
 impl<'a, T, I, U> Debug for NotifyingWriter<'a, T, I, U>
     where U: ItemUpdater<I> + Debug, 
-          I: Clone + PartialEq + Unpin + Debug,
+          I: Clone + PartialEq + Unpin + Debug + 'static,
           T: Debug
 {
 
@@ -81,7 +81,7 @@ impl<'a, T, I, U> Debug for NotifyingWriter<'a, T, I, U>
 
 impl<'a, T, I, U> Display for NotifyingWriter<'a, T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin,
+          I: Clone + PartialEq + Unpin + 'static,
           T: Display
 {
 
@@ -96,7 +96,7 @@ impl<'a, T, I, U> Display for NotifyingWriter<'a, T, I, U>
 
 impl<'a, T, I, U> Drop for NotifyingWriter<'a, T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     fn drop(&mut self)

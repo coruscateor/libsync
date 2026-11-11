@@ -311,6 +311,33 @@ impl<T, U> WakerQueueWithUpdatedItem<T, U>
 
     }
 
+    pub fn get_item(&self) -> Option<T>
+        where T: Clone
+    {
+
+        if !self.is_closed()
+        {
+
+            Some(self.waker_queue_internals.item.clone_value())
+
+        }
+        else
+        {
+
+            None
+            
+        }
+
+    }
+
+    pub fn get_item_regardless(&self) -> T
+        where T: Clone
+    {
+
+        self.waker_queue_internals.item.clone_value()
+        
+    }
+
 }
 
 impl<T, U> Debug for WakerQueueWithUpdatedItemInternals<T, U>

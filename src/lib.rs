@@ -58,8 +58,25 @@ cfg_select!
         pub use waker_queue_with_updated_item::*;
 
     }
-    _ =>
+    feature = "use_no_swp" =>
     {
+
+        pub use no_swp::waker_permit_queue::*;
+
+        pub use no_swp::limited_waker_permit_queue::*;
+
+        pub use no_swp::waker_queue_with_updated_item::*;
+
+    }
+    feature="use_crossbeam_queue_no_swp" =>
+    {
+
+        pub use crossbeam_queue::no_swp::waker_permit_queue::*;
+
+        pub use crossbeam_queue::no_swp::limited_waker_permit_queue::*;
+
+        pub use crossbeam_queue::no_swp::waker_queue_with_updated_item::*;
+
     }
 
 }

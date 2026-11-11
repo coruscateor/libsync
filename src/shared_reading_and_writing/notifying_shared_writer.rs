@@ -20,7 +20,7 @@ use crate::sync::{read_get_rg, write_get_wg, try_read_get_rg, try_write_get_wg};
 
 pub struct NotifyingSharedWriter<T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     internals: Arc<NotifyingSharedInternals<T, I, U>>
@@ -29,7 +29,7 @@ pub struct NotifyingSharedWriter<T, I, U>
 
 impl<T, I, U> NotifyingSharedWriter<T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     pub fn new(object: T) -> Self
@@ -499,7 +499,7 @@ impl<T, I, U> NotifyingSharedWriter<T, I, U>
 
 impl<T, I, U> Clone for NotifyingSharedWriter<T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     fn clone(&self) -> Self

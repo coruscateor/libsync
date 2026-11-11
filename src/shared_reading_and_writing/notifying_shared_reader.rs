@@ -26,7 +26,7 @@ use crate::sync::{read_get_rg, try_read_get_rg};
 
 pub struct NotifyingSharedReader<T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     internals: Arc<NotifyingSharedInternals<T, I, U>>,
@@ -36,7 +36,7 @@ pub struct NotifyingSharedReader<T, I, U>
 
 impl<T, I, U> NotifyingSharedReader<T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     pub fn new(internals: Arc<NotifyingSharedInternals<T, I, U>>) -> Self //, current_item: I) -> Self

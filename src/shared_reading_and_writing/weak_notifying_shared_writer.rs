@@ -6,7 +6,7 @@ use super::{SharedWriter, NotifyingSharedInternals, NotifyingSharedWriter};
 
 pub struct WeakNotifyingSharedWriter<T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     weak_internals: Weak<NotifyingSharedInternals<T, I, U>>
@@ -15,7 +15,7 @@ pub struct WeakNotifyingSharedWriter<T, I, U>
 
 impl<T, I, U> WeakNotifyingSharedWriter<T, I, U>
     where U: ItemUpdater<I>, 
-          I: Clone + PartialEq + Unpin
+          I: Clone + PartialEq + Unpin + 'static
 {
 
     pub fn new(internals: &Arc<NotifyingSharedInternals<T, I, U>>) -> Self
