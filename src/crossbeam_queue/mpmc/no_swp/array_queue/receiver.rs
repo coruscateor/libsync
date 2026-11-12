@@ -4,7 +4,7 @@ use crossbeam_queue::{ArrayQueue, SegQueue};
 
 use futures::executor::block_on;
 
-use crate::{ChannelSharedDetailsWithBothQueues, ReceiveResult};
+use crate::{ChannelSharedDetailsWithBothQueues, ReceiveError, ReceiveResult, TimeoutReceiveError};
 
 use super::{Sender, WeakReceiver};
 
@@ -106,6 +106,106 @@ impl<T> Receiver<T>
         let fut = RecvFuture::new(self);
 
         block_on(fut)
+
+    }
+
+    cfg_select!
+    {
+
+        feature="tokio" =>
+        {
+
+            pub async fn recv_timeout_tokio(&self, duration: Duration) -> Result<T, TimeoutReceiveError>
+            {
+
+                use tokio::time::timeout;
+
+                let fut = RecvFuture::new(self);
+
+                let timeout_res = timeout(duration, fut).await;
+
+                match timeout_res
+                {
+
+                    Ok(val) =>
+                    {
+
+                        match val
+                        {
+
+                            Ok(res) =>
+                            {
+
+                                Ok(res)
+
+                            }
+                            Err(_err) =>
+                            {
+
+                                Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed))
+
+                            }
+
+                        }
+
+                    }
+                    Err(_err) =>
+                    {
+
+                        Err(TimeoutReceiveError::TimedOut)
+
+                    }
+                    
+                }
+
+            }
+
+            pub async fn send_timeout_at_tokio(&self, value: T, deadline: tokio::time::Instant) -> Result<T, TimeoutReceiveError>
+            {
+
+                use tokio::time::timeout_at;
+
+                let fut = RecvFuture::new(self);
+
+                let timeout_res = timeout_at(deadline, fut).await;
+
+                match timeout_res
+                {
+
+                    Ok(val) =>
+                    {
+
+                        match val
+                        {
+
+                            Ok(res) =>
+                            {
+
+                                Ok(res)
+
+                            }
+                            Err(_err) =>
+                            {
+
+                                Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed))
+
+                            }
+
+                        }
+
+                    }
+                    Err(_err) =>
+                    {
+
+                        Err(TimeoutReceiveError::TimedOut)
+
+                    }
+                    
+                }
+
+            }
+
+        }
 
     }
 

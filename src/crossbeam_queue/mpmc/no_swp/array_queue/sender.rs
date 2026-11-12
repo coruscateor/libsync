@@ -103,6 +103,110 @@ impl<T> Sender<T>
 
     }
 
+    cfg_select!
+    {
+
+        feature="tokio" =>
+        {
+
+            pub async fn send_timeout_tokio(&self, value: T, duration: Duration) -> Result<(), TimeoutBoundedSendError<T>>
+            {
+
+                use tokio::time::timeout;
+
+                let mut opt = Some(value);
+
+                let fut = OptionalMutSendFuture::new(self, &mut opt);
+
+                let timeout_res = timeout(duration, fut).await;
+
+                match timeout_res
+                {
+
+                    Ok(val) =>
+                    {
+
+                        match val
+                        {
+
+                            Ok(_res) =>
+                            {
+
+                                Ok(())
+
+                            }
+                            Err(err) =>
+                            {
+
+                                Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Full(err)))
+
+                            }
+
+                        }
+
+                    }
+                    Err(_err) =>
+                    {
+
+                        Err(TimeoutBoundedSendError::TimedOut(opt.take().expect(EXPECTED_VALUE_NOT_FOUND_MESSAGE)))
+
+                    }
+                    
+                }
+
+            }
+
+            pub async fn send_timeout_at_tokio(&self, value: T, deadline: tokio::time::Instant) -> Result<(), TimeoutBoundedSendError<T>>
+            {
+
+                use tokio::time::timeout_at;
+
+                let mut opt = Some(value);
+
+                let fut = OptionalMutSendFuture::new(self, &mut opt);
+
+                let timeout_res = timeout_at(deadline, fut).await;
+
+                match timeout_res
+                {
+
+                    Ok(val) =>
+                    {
+
+                        match val
+                        {
+
+                            Ok(_res) =>
+                            {
+
+                                Ok(())
+
+                            }
+                            Err(err) =>
+                            {
+
+                                Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Full(err)))
+
+                            }
+
+                        }
+
+                    }
+                    Err(_err) =>
+                    {
+
+                        Err(TimeoutBoundedSendError::TimedOut(opt.take().expect(EXPECTED_VALUE_NOT_FOUND_MESSAGE)))
+
+                    }
+                    
+                }
+
+            }
+
+        }
+
+    }
+
     delegate!
     {
 
@@ -301,9 +405,9 @@ impl<'a, T> Future for SendFuture<'a, T>
         if let Err(value) = mut_self.sender_ref.shared_details.message_queue.push(value)
         {
 
-            let waker = cx.waker().clone();
+            //Do a bit of work before the next push...
 
-            //let auto_waker = AutoWaker::new(waker);
+            let waker = cx.waker().clone();
 
             if let Err(value) = mut_self.sender_ref.shared_details.message_queue.push(value)
             {
@@ -340,6 +444,101 @@ impl<'a, T> Future for SendFuture<'a, T>
 
 }
 
+//
+
+pub struct OptionalMutSendFuture<'a, T>
+    where T: Unpin
+{
+
+    sender_ref: &'a Sender<T>,
+    opt_mut: &'a mut Option<T>
+
+}
+
+impl<'a, T> OptionalMutSendFuture<'a, T>
+    where T: Unpin
+{
+
+    pub fn new(sender_ref: &'a Sender<T>, value_mut: &'a mut Option<T>) -> Self
+    {
+
+        Self
+        {
+
+            sender_ref,
+            opt_mut: value_mut
+
+        }
+
+    }
+
+}
+
+impl<'a, T> Future for OptionalMutSendFuture<'a, T>
+    where T: Unpin
+{
+
+    type Output = SendResult<T>;
+
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output>
+    {
+
+        let mut_self = self.get_mut();
+
+        let value = mut_self.opt_mut.take().expect(EXPECTED_VALUE_NOT_FOUND_MESSAGE);
+
+        if mut_self.sender_ref.is_closed()
+        {
+
+            return Poll::Ready(SendResult::Err(value));
+
+        }
+
+        if let Err(value) = mut_self.sender_ref.shared_details.message_queue.push(value)
+        {
+
+            //Do a bit of work before the next push...
+
+            let waker = cx.waker().clone();
+
+            if let Err(value) = mut_self.sender_ref.shared_details.message_queue.push(value)
+            {
+
+                if mut_self.sender_ref.is_closed()
+                {
+
+                    return Poll::Ready(Err(value));
+
+                }
+
+                //Cannot push the value
+
+                mut_self.sender_ref.shared_details.full_queue.push(waker);
+
+                //The value mut be returned to the mutable refrence location before yeilding the task.
+
+                *mut_self.opt_mut = Some(value);
+
+                return Poll::Pending;
+
+            }
+
+        }
+
+        if let Some(waker) = mut_self.sender_ref.shared_details.empty_queue.pop()
+        {
+
+            waker.wake();
+
+        }
+
+        Poll::Ready(SendResult::Ok(()))
+
+    }
+
+}
+
+//
 
 impl<T> Drop for Sender<T>
     where T: Unpin
