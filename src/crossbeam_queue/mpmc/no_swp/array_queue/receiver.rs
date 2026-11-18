@@ -142,7 +142,7 @@ impl<T> Receiver<T>
                             Err(_err) =>
                             {
 
-                                Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed))
+                                Err(TimeoutReceiveError::Closed)
 
                             }
 
@@ -160,7 +160,7 @@ impl<T> Receiver<T>
 
             }
 
-            pub async fn send_timeout_at_tokio(&self, value: T, deadline: tokio::time::Instant) -> Result<T, TimeoutReceiveError>
+            pub async fn recv_timeout_at_tokio(&self, deadline: tokio::time::Instant) -> Result<T, TimeoutReceiveError>
             {
 
                 use tokio::time::timeout_at;
@@ -187,7 +187,7 @@ impl<T> Receiver<T>
                             Err(_err) =>
                             {
 
-                                Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed))
+                                Err(TimeoutReceiveError::Closed)
 
                             }
 

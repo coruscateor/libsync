@@ -79,8 +79,8 @@ impl<T> Display for BoundedSendError<T>
         match self
         {
 
-            BoundedSendError::Full(val) => write!(f, "Full({val})"),
-            BoundedSendError::Closed(val) => write!(f, "Closed({val})")
+            BoundedSendError::Full(val) => write!(f, "BoundedSendError::Full({val})"),
+            BoundedSendError::Closed(val) => write!(f, "BoundedSendError::Closed({val})")
 
         }
         
@@ -164,8 +164,8 @@ impl Display for ReceiveError
         match self
         {
 
-            ReceiveError::Empty => write!(f, "Empty"),
-            ReceiveError::Closed => write!(f, "Closed")
+            ReceiveError::Empty => write!(f, "ReceiveError::Empty"),
+            ReceiveError::Closed => write!(f, "ReceiveError::Closed")
 
         }
         
@@ -187,7 +187,7 @@ pub type ReceiveResult<T> = Result<T, ReceiveError>;
 pub enum TimeoutBoundedSendError<T>
 {
 
-    NotTimedOut(BoundedSendError<T>),
+    Closed(T),
     TimedOut(T)
 
 }
@@ -201,9 +201,9 @@ impl<T> Display for TimeoutBoundedSendError<T>
 
         match self
         {
-
-            TimeoutBoundedSendError::NotTimedOut(val) => write!(f, "NotTimedOut({val})"),
-            TimeoutBoundedSendError::TimedOut(val) => write!(f, "TimedOut({val})")
+            
+            TimeoutBoundedSendError::Closed(val) => write!(f, "TimeoutBoundedSendError::Closed({val})"),
+            TimeoutBoundedSendError::TimedOut(val) => write!(f, "TimeoutBoundedSendError::TimedOut({val})")
 
         }
          
@@ -218,7 +218,7 @@ impl<T> Display for TimeoutBoundedSendError<T>
 pub enum TimeoutSendError<T>
 {
 
-    NotTimedOut(T),
+    Closed(T),
     TimedOut(T)
 
 }
@@ -233,8 +233,8 @@ impl<T> Display for TimeoutSendError<T>
         match self
         {
 
-            TimeoutSendError::NotTimedOut(val) => write!(f, "NotTimedOut({val})"),
-            TimeoutSendError::TimedOut(val) => write!(f, "TimedOut({val})")
+            TimeoutSendError::Closed(val) => write!(f, "TimeoutSendError::Closed({val})"),
+            TimeoutSendError::TimedOut(val) => write!(f, "imeoutSendError::TimedOut({val})")
 
         }
          
@@ -249,7 +249,7 @@ impl<T> Display for TimeoutSendError<T>
 pub enum TimeoutReceiveError
 {
 
-    NotTimedOut(ReceiveError),
+    Closed,
     TimedOut
 
 }
@@ -263,8 +263,8 @@ impl Display for TimeoutReceiveError
         match self
         {
 
-            TimeoutReceiveError::NotTimedOut(val) => write!(f, "NotTimedOut({val})"),
-            TimeoutReceiveError::TimedOut=> write!(f, "TimedOut")
+            TimeoutReceiveError::Closed => write!(f, "TimeoutReceiveError::Closed"),
+            TimeoutReceiveError::TimedOut=> write!(f, "TimeoutReceiveError::TimedOut")
 
         }
         

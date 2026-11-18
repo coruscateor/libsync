@@ -200,11 +200,11 @@ impl<T> Sender<T>
                         if self.is_closed()
                         {
 
-                            return Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Closed(value)));
+                            return Err(TimeoutBoundedSendError::Closed(value));
 
                         }
 
-                        Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Full(value)))
+                        Err(TimeoutBoundedSendError::TimedOut(value))
 
                     }
 
@@ -217,7 +217,7 @@ impl<T> Sender<T>
                 if self.is_closed()
                 {
 
-                    return Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Closed(value)));
+                    return Err(TimeoutBoundedSendError::Closed(value));
 
                 }
 
@@ -258,11 +258,11 @@ impl<T> Sender<T>
                         if self.is_closed()
                         {
 
-                            return Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Closed(value)));
+                            return Err(TimeoutBoundedSendError::Closed(value));
 
                         }
 
-                        Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Full(value)))
+                        Err(TimeoutBoundedSendError::TimedOut(value))
 
                     }
 
@@ -275,7 +275,7 @@ impl<T> Sender<T>
                 if self.is_closed()
                 {
 
-                    return Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Closed(value)));
+                    return Err(TimeoutBoundedSendError::Closed(value));
 
                 }
 

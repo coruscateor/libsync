@@ -198,7 +198,7 @@ impl<T> Receiver<T>
                         if self.is_closed()
                         {
 
-                            return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed));
+                            return Err(TimeoutReceiveError::Closed);
 
                         }
 
@@ -215,7 +215,7 @@ impl<T> Receiver<T>
                 if self.is_closed()
                 {
 
-                    return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed));
+                    return Err(TimeoutReceiveError::Closed);
 
                 }
 
@@ -256,7 +256,7 @@ impl<T> Receiver<T>
                         if self.is_closed()
                         {
 
-                            return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed));
+                            return Err(TimeoutReceiveError::Closed);
 
                         }
 
@@ -273,7 +273,7 @@ impl<T> Receiver<T>
                 if self.is_closed()
                 {
 
-                    return Err(TimeoutReceiveError::NotTimedOut(ReceiveError::Closed));
+                    return Err(TimeoutReceiveError::Closed);
 
                 }
 

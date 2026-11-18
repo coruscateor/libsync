@@ -8,7 +8,7 @@ mod tokio_tests
     use inc_dec::IncDecSelf;
     use tokio::{sync::{Notify, Semaphore}, task::JoinSet};
 
-    use std::sync::Arc;
+    use std::{sync::Arc, time::Duration};
 
     use super::super::{channel, Sender, Receiver};
 
@@ -645,6 +645,26 @@ mod tokio_tests
             }
 
         }
+
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn calling_timeouts()
+    {
+
+        let (sender, receiver) = channel(2);
+
+        let task = tokio::spawn(async move {
+
+            let result = receiver.recv_timeout_tokio(Duration::from_millis(500)).await;
+
+            assert_eq!(result, Ok(1));
+
+            let result = receiver.recv().await;
+
+            assert_eq!(result, Ok(2));
+
+        });
 
     }
 

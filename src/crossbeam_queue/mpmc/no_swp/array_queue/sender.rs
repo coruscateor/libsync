@@ -138,7 +138,7 @@ impl<T> Sender<T>
                             Err(err) =>
                             {
 
-                                Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Full(err)))
+                                Err(TimeoutBoundedSendError::Closed(err))
 
                             }
 
@@ -185,7 +185,7 @@ impl<T> Sender<T>
                             Err(err) =>
                             {
 
-                                Err(TimeoutBoundedSendError::NotTimedOut(BoundedSendError::Full(err)))
+                                Err(TimeoutBoundedSendError::Closed(err))
 
                             }
 

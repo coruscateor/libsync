@@ -1,6 +1,7 @@
 use std::{sync::{Arc, Weak, atomic::AtomicBool}, task::{Poll, Waker}, time::Duration};
 
 use crossbeam_queue::SegQueue;
+use futures::executor::block_on;
 
 use crate::{ChannelSharedDetails, ChannelSharedDetailsWithEmptyQueue, ReceiveError, ReceiveResult, SendResult, TimeoutReceiveError, WakerPermitQueue};
 
@@ -88,6 +89,115 @@ impl<T> Receiver<T>
     {
 
         RecvFuture::new(self)
+
+    }
+
+    pub fn blocking_recv(&self) -> Result<T, ()>
+    {
+
+        let fut = RecvFuture::new(self);
+
+        block_on(fut)
+
+    }
+
+    cfg_select!
+    {
+
+        feature="tokio" =>
+        {
+
+            pub async fn recv_timeout_tokio(&self, duration: Duration) -> Result<T, TimeoutReceiveError>
+            {
+
+                use tokio::time::timeout;
+
+                let fut = RecvFuture::new(self);
+
+                let timeout_res = timeout(duration, fut).await;
+
+                match timeout_res
+                {
+
+                    Ok(val) =>
+                    {
+
+                        match val
+                        {
+
+                            Ok(res) =>
+                            {
+
+                                Ok(res)
+
+                            }
+                            Err(_err) =>
+                            {
+
+                                Err(TimeoutReceiveError::Closed)
+
+                            }
+
+                        }
+
+                    }
+                    Err(_err) =>
+                    {
+
+                        Err(TimeoutReceiveError::TimedOut)
+
+                    }
+                    
+                }
+
+            }
+
+            pub async fn recv_timeout_at_tokio(&self, deadline: tokio::time::Instant) -> Result<T, TimeoutReceiveError>
+            {
+
+                use tokio::time::timeout_at;
+
+                let fut = RecvFuture::new(self);
+
+                let timeout_res = timeout_at(deadline, fut).await;
+
+                match timeout_res
+                {
+
+                    Ok(val) =>
+                    {
+
+                        match val
+                        {
+
+                            Ok(res) =>
+                            {
+
+                                Ok(res)
+
+                            }
+                            Err(_err) =>
+                            {
+
+                                Err(TimeoutReceiveError::Closed)
+
+                            }
+
+                        }
+
+                    }
+                    Err(_err) =>
+                    {
+
+                        Err(TimeoutReceiveError::TimedOut)
+
+                    }
+                    
+                }
+
+            }
+
+        }
 
     }
 

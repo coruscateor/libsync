@@ -44,14 +44,7 @@ impl<T> Sender<T>
     /// 
     /// Returns it in a Result::Err variant otherwise.
     /// 
-    pub async fn send(&self, value: T) -> SendResult<T>
-    {
-
-        self.shared_details.push(value)
-
-    }
-
-    pub fn send_sync(&self, value: T) -> SendResult<T>
+    pub fn send(&self, value: T) -> SendResult<T>
     {
 
         self.shared_details.push(value)

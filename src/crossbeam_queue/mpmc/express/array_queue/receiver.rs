@@ -42,14 +42,7 @@ impl<T> Receiver<T>
     /// 
     /// Returns an error if the channels queue is empty and there are no instantiated Senders detected.
     /// 
-    pub async fn recv(&self) -> Option<T>
-    {
-
-        self.shared_details.pop()
-
-    }
-
-    pub fn recv_sync(&self) -> Option<T>
+    pub fn recv(&self) -> Option<T>
     {
 
         self.shared_details.pop()
