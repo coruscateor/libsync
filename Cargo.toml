@@ -17,7 +17,7 @@ crossbeam = { version = "0.8.5", optional = true }
 
 crossbeam-queue = { version = "0.3.14", optional = true }
 
-tokio = { version = "1.52.3", features = ["sync", "time", "rt", "macros", "rt-multi-thread"], optional = true } #The rt, macros, rt-multi-thread and time features are needed for testing.
+tokio = { version = "1.54.1", features = ["sync", "time", "rt", "macros", "rt-multi-thread"], optional = true } #The rt, macros, rt-multi-thread and time features are needed for testing.
 
 delegate = "0.13.5"
 

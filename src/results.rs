@@ -61,8 +61,10 @@ impl<T> BoundedSendError<T>
 
         match self
         {
+
             BoundedSendError::Full(val) => val,
             BoundedSendError::Closed(val) => val
+
         }
 
     }
@@ -211,6 +213,25 @@ impl<T> Display for TimeoutBoundedSendError<T>
 
 }
 
+impl<T> PartialEq for TimeoutBoundedSendError<T>
+    where T: PartialEq
+{
+
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Closed(l0), Self::Closed(r0)) => l0 == r0,
+            (Self::TimedOut(l0), Self::TimedOut(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
+
+}
+
+impl<T> Eq for TimeoutBoundedSendError<T>
+    where T: Eq
+{
+}
+
 ///
 /// Did the operation time-out or was there another issue?
 /// 
@@ -242,10 +263,29 @@ impl<T> Display for TimeoutSendError<T>
 
 }
 
+impl<T> PartialEq for TimeoutSendError<T>
+    where T: PartialEq
+{
+
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Closed(l0), Self::Closed(r0)) => l0 == r0,
+            (Self::TimedOut(l0), Self::TimedOut(r0)) => l0 == r0,
+            _ => false,
+        }
+    }
+
+}
+
+impl<T> Eq for TimeoutSendError<T>
+    where T: Eq
+{
+}
+
 ///
 /// Was there a ReceiveError or a time-out?
 /// 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum TimeoutReceiveError
 {
 
@@ -271,4 +311,3 @@ impl Display for TimeoutReceiveError
     }
     
 }
-

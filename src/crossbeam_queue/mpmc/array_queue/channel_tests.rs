@@ -6,7 +6,8 @@ mod tokio_tests
     use crate::{BoundedSendError, ReceiveError};
 
     use inc_dec::IncDecSelf;
-    use tokio::{sync::{Notify, Semaphore}, task::JoinSet};
+
+    use tokio::{sync::{Notify, Semaphore, Barrier}, task::JoinSet};
 
     use std::{sync::Arc, time::Duration};
 
@@ -652,19 +653,48 @@ mod tokio_tests
     async fn calling_timeouts()
     {
 
+        let millis = 500;
+
         let (sender, receiver) = channel(2);
 
-        let task = tokio::spawn(async move {
+        //let result = sender.send(1).await;
 
-            let result = receiver.recv_timeout_tokio(Duration::from_millis(500)).await;
+        let barrier = Arc::new(Barrier::new(2));
+
+        let barrier2 = barrier.clone();
+
+        let _task = tokio::spawn(async move
+        {
+
+            let result = receiver.recv_timeout_tokio(Duration::from_millis(millis)).await;
+
+            barrier2.wait().await;
+
+            assert!(result.is_err());
+
+            barrier2.wait().await;
+
+            println!("recv2 - sub-task\n");
+            
+            let result = receiver.recv_timeout_tokio(Duration::from_millis(millis * 4)).await;
 
             assert_eq!(result, Ok(1));
 
-            let result = receiver.recv().await;
-
-            assert_eq!(result, Ok(2));
+            barrier2.wait().await;
 
         });
+
+        barrier.wait().await;
+
+        let result = sender.send(1).await;
+
+        assert!(result.is_ok());
+
+        barrier.wait().await;
+
+        println!("recv2\n");
+
+        barrier.wait().await;
 
     }
 
