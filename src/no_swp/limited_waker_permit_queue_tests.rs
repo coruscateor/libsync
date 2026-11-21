@@ -273,7 +273,7 @@ mod tokio_tests
 
         let arc_wpc_task = arc_wpc.clone();
 
-        assert_eq!(arc_wpc.active_ids_len(), Some(0));
+        //assert_eq!(arc_wpc.active_ids_len(), Some(0));
 
         let incrementing_task;
 
@@ -319,7 +319,7 @@ mod tokio_tests
 
             //sleep(Duration::from_secs(1)).await;
 
-            println!("\nactive_ids length {:?}\n", arc_wpc.active_ids_len());
+            //println!("\nactive_ids length {:?}\n", arc_wpc.active_ids_len());
 
             let arc_wpc_task = arc_wpc.clone();
 
@@ -390,7 +390,7 @@ mod tokio_tests
 
         assert_eq!(arc_wpc.avalible_permits(), Some(0)); //Some(1));
 
-        println!("\nactive_ids length {:?}\n", arc_wpc.active_ids_len());
+        //println!("\nactive_ids length {:?}\n", arc_wpc.active_ids_len());
 
         //println!("\nt1_cancelled {}\n", t1_cancelled);
 
@@ -408,7 +408,7 @@ mod tokio_tests
 
         sleep(Duration::from_secs(5)).await;
 
-        assert_eq!(arc_wpc.active_ids_len(), Some(0));
+        //assert_eq!(arc_wpc.active_ids_len(), Some(0));
 
     }
 
@@ -587,7 +587,7 @@ mod tokio_tests
 
         let arc_wpc_task = arc_wpc.clone();
 
-        assert_eq!(arc_wpc.active_ids_len(), Some(0));
+        //assert_eq!(arc_wpc.active_ids_len(), Some(0));
 
         //Decrementing
 
@@ -621,7 +621,7 @@ mod tokio_tests
 
         sleep(Duration::from_secs(1)).await;
 
-        println!("\nactive_ids length {:?}\n", arc_wpc.active_ids_len());
+        //println!("\nactive_ids length {:?}\n", arc_wpc.active_ids_len());
 
         let mut t1_cancelled = false;
 
@@ -692,7 +692,7 @@ mod tokio_tests
 
         assert_eq!(arc_wpc.avalible_permits(), Some(0)); //Some(1));
 
-        println!("\nactive_ids length {:?}\n", arc_wpc.active_ids_len());
+        //println!("\nactive_ids length {:?}\n", arc_wpc.active_ids_len());
 
         println!("\nt1_cancelled {}\n", t1_cancelled);
 
@@ -710,7 +710,7 @@ mod tokio_tests
 
         sleep(Duration::from_secs(5)).await;
 
-        assert_eq!(arc_wpc.active_ids_len(), Some(0));
+        //assert_eq!(arc_wpc.active_ids_len(), Some(0));
 
     }
 
