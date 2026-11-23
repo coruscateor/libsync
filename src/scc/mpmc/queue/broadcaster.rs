@@ -10,7 +10,7 @@ use super::Sender;
 /// Broadcast messages to multiple channels.
 /// 
 pub struct Broadcaster<T>
-    where T: Clone + 'static
+    where T: Clone + Send + 'static
 {
 
     senders: HashMap<usize, Sender<T>>
@@ -18,7 +18,7 @@ pub struct Broadcaster<T>
 }
 
 impl<T> Broadcaster<T>
-    where T: Clone
+    where T: Clone + Send + 'static
 {
 
     pub fn new() -> Self

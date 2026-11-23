@@ -33,7 +33,7 @@ accessorise = "0.3.0"
 
 inc_dec = "0.1.0"
 
-scc = { version = "3.7.1", optional = true }
+scc = { version = "3.9.2", optional = true }
 
 [features]
 std = []
@@ -43,9 +43,10 @@ use_parking_lot_fair_sync = ["dep:parking_lot"]
 #count_waiting_senders_and_receivers = []
 #crossbeam = ["dep:crossbeam"]
 #tokio = ["dep:tokio"]
-crossbeam_queue = ["dep:crossbeam-queue"]
+scc = ["dep:scc"]
+crossbeam_queue = ["dep:crossbeam-queue", "dep:scc"] #, "dep:scc"
 use_no_swp = []
-use_crossbeam_queue_no_swp = ["dep:crossbeam-queue"]
+use_crossbeam_queue_no_swp = ["dep:crossbeam-queue", "dep:scc"] #["dep:crossbeam-queue", "dep:scc"]
 faux_rwlock = []
 use_faux_rwlock = []
 shared_reading_and_writing = []

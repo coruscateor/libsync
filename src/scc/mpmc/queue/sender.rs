@@ -67,7 +67,7 @@ impl<T> Sender<T>
     /// Returns it in a Result::Err variant otherwise.
     /// 
     pub fn send(&self, value: T) -> SendResult<T>
-        where T: 'static
+        where T: Send + 'static
     {
 
         let res = self.shared_details.notifier_ref().add_permit();
