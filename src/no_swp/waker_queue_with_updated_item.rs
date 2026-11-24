@@ -24,6 +24,7 @@ use inc_dec::{IncDecSelf, IntIncDecSelf};
 
 use std::fmt::Debug;
 
+use crate::waker_id::get_waker_id;
 use crate::{ItemUpdater, PreferredMutexType};
 
 pub struct WakerQueueWithUpdatedItemInternals<T, U>
@@ -33,6 +34,7 @@ pub struct WakerQueueWithUpdatedItemInternals<T, U>
 
     pub queue: VecDeque<Waker>,
     pub item: T,
+    pub active_no_permits_queue_wakers: HashSet<u128>,
     phantom_data: PhantomData<U>
 }
 
@@ -49,6 +51,7 @@ impl<T, U> WakerQueueWithUpdatedItemInternals<T, U>
 
             queue: VecDeque::new(),
             item: U::init(),
+            active_no_permits_queue_wakers: HashSet::new(),
             phantom_data: PhantomData::default()
 
         }
@@ -63,6 +66,7 @@ impl<T, U> WakerQueueWithUpdatedItemInternals<T, U>
 
             queue: VecDeque::with_capacity(capacity),
             item: U::init(),
+            active_no_permits_queue_wakers: HashSet::new(),
             //item_updater
             phantom_data: PhantomData::default()
 
@@ -216,19 +220,33 @@ impl<T, U> WakerQueueWithUpdatedItem<T, U>
                 Some(val) =>
                 {
 
-                    if let Some(front_waker) = val.queue.pop_front()
+                    loop
                     {
 
-                        U::update(&mut val.item);
+                        if let Some(front_waker) = val.queue.pop_front()
+                        {
 
-                        waker = front_waker;
+                            let waker_id = get_waker_id(&front_waker);
 
-                    }
-                    else
-                    {
+                            if val.active_no_permits_queue_wakers.remove(&waker_id)
+                            {
 
-                        return Some(false);
-                        
+                                U::update(&mut val.item);
+
+                                waker = front_waker;
+
+                                break;
+
+                            }
+
+                        }
+                        else
+                        {
+
+                            return Some(false);
+                            
+                        }
+
                     }
 
                 }
@@ -268,24 +286,38 @@ impl<T, U> WakerQueueWithUpdatedItem<T, U>
                 Some(val) =>
                 {
 
-                    if let Some(front_waker) = val.queue.pop_front()
+                    loop
                     {
 
-                        waker = front_waker;
+                        if let Some(front_waker) = val.queue.pop_front()
+                        {
 
-                    }
-                    else
-                    {
+                            let waker_id = get_waker_id(&front_waker);
 
-                        return Some(false);
-                        
+                            if val.active_no_permits_queue_wakers.remove(&waker_id)
+                            {
+
+                                waker = front_waker;
+
+                                break;
+
+                            }
+
+                        }
+                        else
+                        {
+
+                            return Some(false);
+                            
+                        }
+
                     }
 
                 }
                 None =>
                 {
                     
-                   return None;
+                    return None;
 
                 }
 
@@ -318,19 +350,33 @@ impl<T, U> WakerQueueWithUpdatedItem<T, U>
                 Some(val) =>
                 {
 
-                    if let Some(back_waker) = val.queue.pop_back()
+                    loop
                     {
 
-                        U::update(&mut val.item);
+                        if let Some(back_waker) = val.queue.pop_back()
+                        {
 
-                        waker = back_waker;
+                            let waker_id = get_waker_id(&back_waker);
 
-                    }
-                    else
-                    {
+                            if val.active_no_permits_queue_wakers.remove(&waker_id)
+                            {
 
-                        return Some(false);
-                        
+                                U::update(&mut val.item);
+
+                                waker = back_waker;
+
+                                break;
+
+                            }
+
+                        }
+                        else
+                        {
+
+                            return Some(false);
+                            
+                        }
+
                     }
 
                 }
@@ -370,17 +416,31 @@ impl<T, U> WakerQueueWithUpdatedItem<T, U>
                 Some(val) =>
                 {
 
-                    if let Some(back_waker) = val.queue.pop_back()
+                    loop
                     {
 
-                        waker = back_waker;
+                        if let Some(back_waker) = val.queue.pop_back()
+                        {
 
-                    }
-                    else
-                    {
+                            let waker_id = get_waker_id(&back_waker);
 
-                        return Some(false);
-                        
+                            if val.active_no_permits_queue_wakers.remove(&waker_id)
+                            {
+
+                                waker = back_waker;
+
+                                break;
+
+                            }
+
+                        }
+                        else
+                        {
+
+                            return Some(false);
+                            
+                        }
+
                     }
 
                 }
@@ -427,6 +487,8 @@ impl<T, U> WakerQueueWithUpdatedItem<T, U>
 
                 }
 
+                val.active_no_permits_queue_wakers.clear();
+
                 res
 
             }
@@ -464,6 +526,8 @@ impl<T, U> WakerQueueWithUpdatedItem<T, U>
                     front_waker.wake();
 
                 }
+
+                val.active_no_permits_queue_wakers.clear();
 
                 res
 
@@ -512,6 +576,8 @@ impl<T, U> WakerQueueWithUpdatedItem<T, U>
                         buffer.push_back(front_waker);
 
                     }
+
+                    val.active_no_permits_queue_wakers.clear();
 
                 }
                 None =>
@@ -568,6 +634,8 @@ impl<T, U> WakerQueueWithUpdatedItem<T, U>
                         buffer.push_back(front_waker);
 
                     }
+
+                    val.active_no_permits_queue_wakers.clear();
 
                 }
                 None =>

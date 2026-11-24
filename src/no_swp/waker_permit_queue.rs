@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use std::task::{Poll, Waker};
+use std::task::{Poll, RawWakerVTable, Waker};
 
 //use core::result::Result;
 
@@ -24,14 +24,17 @@ use accessorise::impl_val_getter;
 
 use std::fmt::Debug;
 
-use crate::PreferredMutexType;
+use crate::{PreferredMutexType, waker_id};
+
+use crate::waker_id::get_waker_id;
 
 #[derive(Debug)]
 pub struct WakerPermitQueueInternals
 {
 
     pub no_permits_queue: VecDeque<Waker>, //Wakers that were enqueued because the were no permits available.
-    pub permits: usize
+    pub permits: usize,
+    pub active_no_permits_queue_wakers: HashSet<u128> //<(usize, usize)>
 
 }
 
@@ -45,7 +48,8 @@ impl WakerPermitQueueInternals
         {
 
             no_permits_queue: VecDeque::new(),
-            permits: 0
+            permits: 0,
+            active_no_permits_queue_wakers: HashSet::new()
 
         }
 
@@ -58,7 +62,8 @@ impl WakerPermitQueueInternals
         {
 
             no_permits_queue: VecDeque::with_capacity(capacity),
-            permits: 0
+            permits: 0,
+            active_no_permits_queue_wakers: HashSet::with_capacity(capacity)
 
         }
 
@@ -71,7 +76,8 @@ impl WakerPermitQueueInternals
         {
 
             no_permits_queue: VecDeque::new(),
-            permits: permits
+            permits: permits,
+            active_no_permits_queue_wakers: HashSet::new()
 
         }
 
@@ -84,7 +90,8 @@ impl WakerPermitQueueInternals
         {
 
             no_permits_queue: VecDeque::with_capacity(capacity_and_permits),
-            permits: capacity_and_permits
+            permits: capacity_and_permits,
+            active_no_permits_queue_wakers: HashSet::with_capacity(capacity_and_permits)
 
         }
 
@@ -97,7 +104,8 @@ impl WakerPermitQueueInternals
         {
 
             no_permits_queue: VecDeque::with_capacity(capacity),
-            permits
+            permits,
+            active_no_permits_queue_wakers: HashSet::with_capacity(capacity)
 
         }
 
@@ -437,7 +445,24 @@ impl WakerPermitQueue
                     if let Some(front_waker) = opt_front_waker
                     {
 
-                        buffer.push_back(front_waker);
+                        let waker_info = get_waker_id(&front_waker); //(front_waker.data().addr(), front_waker.vtable());
+
+                        //Is this waker still valid?
+
+                        if val.active_no_permits_queue_wakers.remove(&waker_info)
+                        {
+
+                            buffer.push_back(front_waker);
+
+                        }
+                        else
+                        {
+
+                            //if not then skip incrementation.
+
+                            continue;
+                            
+                        }
 
                     }
                     else
@@ -475,7 +500,7 @@ impl WakerPermitQueue
     pub fn add_permit(&self) -> Option<bool>
     {
 
-        let opt_waker; // = None;
+        let opt_waker;
 
         {
 
@@ -497,7 +522,34 @@ impl WakerPermitQueue
 
                     //Check for wakers and wake them if present.
 
-                    opt_waker = val.no_permits_queue.pop_front();
+                    loop
+                    {
+
+                        if let Some(front_waker) = val.no_permits_queue.pop_front()
+                        {
+
+                            let waker_id = get_waker_id(&front_waker);
+
+                            if val.active_no_permits_queue_wakers.remove(&waker_id)
+                            {
+
+                                opt_waker = Some(front_waker);
+
+                                break;
+
+                            }
+
+                        }
+                        else
+                        {
+
+                            opt_waker = None;
+
+                            break;
+                            
+                        }
+
+                    }
 
                 }
                 else
@@ -754,7 +806,8 @@ impl Error for WakerPermitQueueClosedError
 pub struct WakerPermitQueueDecrementPermitsOrWait<'a>
 {
 
-    waker_permit_queue_ref: &'a WakerPermitQueue
+    waker_permit_queue_ref: &'a WakerPermitQueue,
+    opt_waker_id: Option<u128>
 
 }
 
@@ -767,7 +820,8 @@ impl<'a> WakerPermitQueueDecrementPermitsOrWait<'a>
         Self
         {
 
-            waker_permit_queue_ref
+            waker_permit_queue_ref,
+            opt_waker_id: None
 
         }
 
@@ -786,6 +840,10 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
     {
 
         let mut_self = self.get_mut();
+
+        //Make sure that the waker_id has been removed.
+
+        mut_self.opt_waker_id = None;
 
         #[cfg(feature="use_std_sync")]
         let mut mg = mut_self.waker_permit_queue_ref.get_mg();
@@ -825,7 +883,13 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
 
                 let waker = cx.waker().clone();
 
+                let waker_id = get_waker_id(&waker);
+
+                mut_self.opt_waker_id = Some(waker_id);
+
                 val.no_permits_queue.push_back(waker);
+
+                val.active_no_permits_queue_wakers.insert(waker_id);
 
             }
             None =>
@@ -838,6 +902,34 @@ impl Future for WakerPermitQueueDecrementPermitsOrWait<'_>
         }
 
         Poll::Pending
+        
+    }
+
+}
+
+impl Drop for WakerPermitQueueDecrementPermitsOrWait<'_>
+{
+
+    fn drop(&mut self)
+    {
+        
+        #[cfg(feature="use_std_sync")]
+        let mut mg = mut_self.waker_permit_queue_ref.get_mg();
+
+        #[cfg(any(feature="use_parking_lot_sync", feature="use_parking_lot_fair_sync"))]
+        let mut mg = self.waker_permit_queue_ref.internal_mut_state.lock();
+
+        if let Some(val) = &mut *mg
+        {
+
+            if let Some(waker_id) = self.opt_waker_id
+            {
+
+                val.active_no_permits_queue_wakers.remove(&waker_id);
+
+            }
+
+        }
         
     }
 

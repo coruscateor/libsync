@@ -283,3 +283,5 @@ mod spin_count;
 pub use spin_count::*;
 
 pub mod sync;
+
+mod waker_id;
